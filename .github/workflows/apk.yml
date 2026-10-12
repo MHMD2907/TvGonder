@@ -1,0 +1,41 @@
+# v0.2 – 2026-10-12: her gönderimde APK derler ve "Releases" sayfasına koyar
+name: APK derle
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: APK derle
+        run: gradle assembleDebug --no-daemon
+
+      - name: APK adını düzenle
+        run: cp app/build/outputs/apk/debug/app-debug.apk TvGonder-${{ github.run_number }}.apk
+
+      - name: Sürüm sayfasına koy
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: TV Gönder – derleme ${{ github.run_number }}
+          body: "Telefona ve TV'ye bu APK'yı kur. Commit: ${{ github.sha }}"
+          files: TvGonder-${{ github.run_number }}.apk

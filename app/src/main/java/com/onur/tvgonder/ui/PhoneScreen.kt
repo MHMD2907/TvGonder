@@ -1,0 +1,615 @@
+// v0.2 – 2026-10-12: modern arayüz; panodan otomatik link, Yapıştır, son linkler, Paylaş menüsü, ilerleme çubuğu
+package com.onur.tvgonder.ui
+
+import android.content.ClipboardManager
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
+import com.onur.tvgonder.Shared
+import com.onur.tvgonder.Store
+import com.onur.tvgonder.TvClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
+
+// ---------------------------------------------------------------- yardımcılar
+
+private fun join(a: String, b: String) = if (a.isEmpty()) b else "$a/$b"
+
+private val urlInText = Regex("""https?://[^\s<>"]+""", RegexOption.IGNORE_CASE)
+private val bareDomain = Regex("""^[\w-]+(\.[\w-]+)+(/\S*)?$""")
+
+/** Metnin içindeki ilk linki bulur. "youtube.com/..." gibi şemasız yazılana https ekler. */
+internal fun extractUrl(text: String): String? {
+    val t = text.trim()
+    urlInText.find(t)?.let { return it.value.trimEnd('.', ',', '!', '?', ';', ':') }
+    if (t.isNotEmpty() && bareDomain.matches(t)) return "https://$t"
+    return null
+}
+
+private fun prettyUrl(u: String) =
+    u.removePrefix("https://").removePrefix("http://").removePrefix("www.")
+
+private fun isYoutube(u: String): Boolean {
+    val host = runCatching { Uri.parse(u).host?.lowercase() }.getOrNull() ?: return false
+    return host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com")
+}
+
+/** Android 10+ panoyu yalnızca uygulama öndeyken okutur; o yüzden pencere odaklanınca çağrılır. */
+private fun readClipboard(ctx: Context): String? = runCatching {
+    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = cm.primaryClip
+    if (clip == null || clip.itemCount == 0) null else clip.getItemAt(0).coerceToText(ctx)?.toString()
+}.getOrNull()
+
+private fun displayName(ctx: Context, uri: Uri): String = runCatching {
+    ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+    }
+}.getOrNull() ?: (uri.lastPathSegment ?: "dosya")
+
+private fun friendly(e: Throwable?): String = when (e) {
+    is IOException -> "TV'ye ulaşılamadı. TV açık ve aynı Wi‑Fi'de mi?"
+    null -> "Bilinmeyen hata"
+    else -> e.message ?: "Bilinmeyen hata"
+}
+
+private class Msg(val text: String, val error: Boolean)
+
+private enum class TState { Waiting, Sending, Done, Failed }
+
+private class Transfer(val name: String) {
+    var progress by mutableFloatStateOf(0f)
+    var state by mutableStateOf(TState.Waiting)
+    var error by mutableStateOf<String?>(null)
+}
+
+// ---------------------------------------------------------------- ana ekran
+
+@Composable
+fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Unit = {}) {
+    val scope = rememberCoroutineScope()
+    val client = remember { TvClient(store) }
+    var paired by remember { mutableStateOf(store.tvToken != null) }
+    var pairMsg by remember { mutableStateOf<String?>(null) }
+    var pairing by remember { mutableStateOf(false) }
+
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { res ->
+        val text = res.contents ?: return@rememberLauncherForActivityResult
+        val u = Uri.parse(text)
+        val host = u.getQueryParameter("host")
+        val port = u.getQueryParameter("port")?.toIntOrNull()
+        val code = u.getQueryParameter("code")
+        if (u.scheme != "tvgonder" || host == null || port == null || code == null) {
+            pairMsg = "Bu bir TV eşleşme kodu değil."
+            return@rememberLauncherForActivityResult
+        }
+        pairing = true
+        pairMsg = "TV'de Onayla'ya basmanı bekliyorum…"
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { client.pair(host, port, code, Build.MODEL) } }
+            pairing = false
+            r.onSuccess { paired = true; pairMsg = null }
+                .onFailure { pairMsg = friendly(it) }
+        }
+    }
+
+    if (!paired) {
+        LaunchedEffect(shared) {
+            if (shared != null) {
+                pairMsg = "Paylaşmak için önce TV'yi eşleştir."
+                onSharedHandled()
+            }
+        }
+        PairUi(pairing, pairMsg) {
+            scanner.launch(
+                ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                    .setBeepEnabled(false).setOrientationLocked(false)
+                    .setPrompt("TV'deki QR kodu okut")
+            )
+        }
+    } else {
+        SendUi(store, client, shared, onSharedHandled) {
+            store.clearTv(); paired = false; pairMsg = null
+        }
+    }
+}
+
+// ---------------------------------------------------------------- eşleştirme
+
+@Composable
+private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Spacer(Modifier.height(16.dp))
+        Text("TV Gönder", style = MaterialTheme.typography.headlineMedium, color = TextMain)
+        Text(
+            "Dosyaları ve linkleri tek dokunuşla TV'ye gönder.",
+            style = MaterialTheme.typography.bodyLarge, color = TextMuted,
+        )
+        Section("Nasıl eşleştirilir?") {
+            StepRow(1, "TV'de TV Gönder uygulamasını aç.")
+            StepRow(2, "TV'de \"Telefon ekle\"yi seç. Ekranda QR kod çıkar.")
+            StepRow(3, "Aşağıdaki düğmeyle QR kodu okut, sonra TV'de \"Onayla\"ya bas.")
+        }
+        Button(
+            enabled = !pairing, onClick = onScan,
+            modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp),
+        ) { Text(if (pairing) "TV'de onay bekleniyor…" else "QR kodu okut") }
+        msg?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = if (pairing) Accent else Danger) }
+    }
+}
+
+@Composable
+private fun StepRow(n: Int, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(30.dp).clip(CircleShape).background(PanelHi), contentAlignment = Alignment.Center) {
+            Text("$n", color = Accent, fontWeight = FontWeight.SemiBold)
+        }
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = TextMain)
+    }
+}
+
+// ---------------------------------------------------------------- gönderme
+
+@Composable
+private fun SendUi(
+    store: Store,
+    client: TvClient,
+    shared: Shared?,
+    onSharedHandled: () -> Unit,
+    onUnpair: () -> Unit,
+) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val focused = LocalWindowInfo.current.isWindowFocused
+
+    var online by remember { mutableStateOf<Boolean?>(null) }
+    var recheck by remember { mutableIntStateOf(0) }
+    var link by remember { mutableStateOf("") }
+    var fromClip by remember { mutableStateOf(false) }
+    var linkBusy by remember { mutableStateOf(false) }
+    var recent by remember { mutableStateOf(store.recentLinks()) }
+    var folder by remember { mutableStateOf(store.lastFolder) }
+    var showFolders by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<Msg?>(null) }
+    val transfers = remember { mutableStateListOf<Transfer>() }
+
+    fun sendLink(raw: String) {
+        val url = extractUrl(raw)
+        if (url == null) { msg = Msg("Bu bir link değil.", true); return }
+        linkBusy = true
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { client.link(url) } }
+            linkBusy = false
+            if (r.isSuccess) {
+                online = true
+                store.addRecentLink(url); store.lastClip = url
+                recent = store.recentLinks()
+                link = ""; fromClip = false
+                msg = Msg("Link TV'de açıldı.", false)
+            } else {
+                msg = Msg(friendly(r.exceptionOrNull()), true)
+            }
+        }
+    }
+
+    fun sendFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        val target = folder
+        store.lastFolder = target
+        val items = uris.map { Transfer(displayName(ctx, it)) to it }
+        transfers.addAll(0, items.map { it.first })
+        scope.launch {
+            for ((t, u) in items) {
+                t.state = TState.Sending
+                val r = withContext(Dispatchers.IO) {
+                    runCatching {
+                        client.upload(ctx, u, target) { sent, total ->
+                            if (total > 0) {
+                                val p = sent.toFloat() / total
+                                if (p - t.progress >= 0.01f || p >= 1f) t.progress = p
+                            }
+                        }
+                    }
+                }
+                if (r.isSuccess) {
+                    t.progress = 1f; t.state = TState.Done; online = true
+                } else {
+                    t.state = TState.Failed; t.error = friendly(r.exceptionOrNull())
+                }
+            }
+        }
+    }
+
+    // Uygulama öne gelince: panoda yeni link varsa kutuya koy, TV bağlantısını yokla.
+    LaunchedEffect(focused, recheck) {
+        if (!focused) return@LaunchedEffect
+        val clip = readClipboard(ctx)?.let { extractUrl(it) }
+        if (clip != null && clip != store.lastClip && link.isBlank()) {
+            link = clip; fromClip = true
+        }
+        online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
+    }
+
+    // Paylaş menüsünden gelen içerik
+    LaunchedEffect(shared) {
+        val s = shared ?: return@LaunchedEffect
+        if (s.files.isNotEmpty()) {
+            sendFiles(s.files)
+        } else {
+            val u = s.text?.let { extractUrl(it) }
+            if (u != null) { link = u; sendLink(u) } else msg = Msg("Paylaşılan metinde link bulunamadı.", true)
+        }
+        onSharedHandled()
+    }
+
+    LaunchedEffect(msg) { if (msg != null) { delay(5000); msg = null } }
+
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { sendFiles(it) }
+    val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { sendFiles(it) }
+
+    Column(
+        Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        // Başlık
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    store.tvName, style = MaterialTheme.typography.headlineMedium, color = TextMain,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                StatusPill(online)
+            }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "Menü", tint = TextMuted) }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
+                    DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
+                }
+            }
+        }
+        if (online == false) {
+            Text(
+                "TV açık mı ve telefonla aynı Wi‑Fi'de mi? TV'de uygulama en az bir kez açılmış olmalı.",
+                style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+            )
+        }
+
+        // Link
+        Section("Link gönder") {
+            OutlinedTextField(
+                value = link,
+                onValueChange = { link = it; fromClip = false },
+                placeholder = { Text("Linki buraya yapıştır") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { if (link.isNotBlank()) sendLink(link) }),
+                trailingIcon = {
+                    if (link.isNotEmpty()) {
+                        IconButton(onClick = {
+                            if (fromClip) store.lastClip = link
+                            link = ""; fromClip = false
+                        }) { Icon(Icons.Filled.Close, "Temizle", tint = TextMuted) }
+                    }
+                },
+            )
+            if (fromClip) Text("Kopyaladığın link eklendi.", style = MaterialTheme.typography.bodyMedium, color = Accent)
+            if (link.isNotBlank() && isYoutube(link)) {
+                Text("YouTube uygulamasında açılacak.", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        val u = readClipboard(ctx)?.let { extractUrl(it) }
+                        if (u != null) { link = u; fromClip = false } else msg = Msg("Panoda link yok.", true)
+                    },
+                    modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(14.dp),
+                ) { Text("Yapıştır") }
+                Button(
+                    enabled = !linkBusy && link.isNotBlank(),
+                    onClick = { sendLink(link) },
+                    modifier = Modifier.weight(1.5f).height(52.dp), shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (linkBusy) "Gönderiliyor…" else "TV'de aç")
+                }
+            }
+        }
+
+        // Dosya
+        Section("Dosya gönder") {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile("🖼️", "Fotoğraf / Video", Modifier.weight(1f)) {
+                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                }
+                Tile("📄", "Belge / Diğer", Modifier.weight(1f)) { pickDocs.launch(arrayOf("*/*")) }
+            }
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi)
+                    .clickable { showFolders = true }.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Kaydedilecek yer", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                    Text(
+                        if (folder.isEmpty()) "USB bellek (ana klasör)" else "📁 $folder",
+                        style = MaterialTheme.typography.titleMedium, color = TextMain,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text("Değiştir", color = Accent, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+
+        // Gönderimler
+        if (transfers.isNotEmpty()) {
+            Section("Gönderimler") {
+                transfers.forEach { TransferRow(it) }
+                if (transfers.none { it.state == TState.Waiting || it.state == TState.Sending }) {
+                    TextButton(onClick = { transfers.clear() }) { Text("Listeyi temizle") }
+                }
+            }
+        }
+
+        // Son linkler
+        if (recent.isNotEmpty()) {
+            Section("Son linkler") {
+                recent.forEach { u ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled = !linkBusy) { sendLink(u) }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            prettyUrl(u), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                            color = TextMain, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text("Tekrar aç", style = MaterialTheme.typography.labelLarge, color = Accent)
+                    }
+                }
+            }
+        }
+
+        msg?.let {
+            Surface(shape = RoundedCornerShape(14.dp), color = PanelHi, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    it.text, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge,
+                    color = if (it.error) Danger else Accent,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+
+    if (showFolders) {
+        FolderDialog(
+            client, folder,
+            onPick = { folder = it; store.lastFolder = it; showFolders = false },
+            onDismiss = { showFolders = false },
+        )
+    }
+}
+
+// ---------------------------------------------------------------- parçalar
+
+@Composable
+private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Surface(shape = RoundedCornerShape(24.dp), color = Panel, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = TextMain)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(online: Boolean?) {
+    val (text, color) = when (online) {
+        true -> "Bağlı" to Accent
+        false -> "TV'ye ulaşılamıyor" to Danger
+        null -> "Kontrol ediliyor…" to TextMuted
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = color)
+    }
+}
+
+@Composable
+private fun Tile(emoji: String, label: String, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.height(104.dp).clip(RoundedCornerShape(18.dp)).background(PanelHi)
+            .clickable(onClick = onClick).padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(emoji, fontSize = 30.sp)
+        Spacer(Modifier.height(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = TextMain, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun TransferRow(t: Transfer) {
+    val (label, color) = when (t.state) {
+        TState.Waiting -> "Sırada" to TextMuted
+        TState.Sending -> "%${(t.progress * 100).toInt()}" to Accent
+        TState.Done -> "Gönderildi ✓" to Accent
+        TState.Failed -> "Gönderilemedi" to Danger
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                t.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = TextMain,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = color)
+        }
+        LinearProgressIndicator(
+            progress = { t.progress },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = if (t.state == TState.Failed) Danger else Accent,
+            trackColor = PanelHi,
+        )
+        t.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Danger) }
+    }
+}
+
+@Composable
+private fun FolderDialog(client: TvClient, start: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var path by remember { mutableStateOf(start) }
+    var list by remember { mutableStateOf<List<String>?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
+    var adding by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+
+    LaunchedEffect(path) {
+        list = null; err = null
+        val r = withContext(Dispatchers.IO) { runCatching { client.folders(path) } }
+        if (r.isSuccess) list = r.getOrNull()
+        else if (path.isNotEmpty()) path = ""          // klasör silinmişse köke dön
+        else { list = emptyList(); err = friendly(r.exceptionOrNull()) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PanelHi,
+        title = {
+            Text(
+                if (path.isEmpty()) "USB bellek" else path.substringAfterLast('/'),
+                color = TextMain, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (path.isNotEmpty()) FolderRow("‹  Üst klasör", TextMuted) { path = path.substringBeforeLast('/', "") }
+                val l = list
+                val e = err
+                when {
+                    e != null -> Text(e, color = Danger)
+                    l == null -> Text("Yükleniyor…", color = TextMuted, modifier = Modifier.padding(vertical = 8.dp))
+                    l.isEmpty() -> Text("Burada alt klasör yok.", color = TextMuted, modifier = Modifier.padding(vertical = 8.dp))
+                    else -> l.forEach { n -> FolderRow("📁  $n", TextMain) { path = join(path, n) } }
+                }
+                Spacer(Modifier.height(8.dp))
+                if (adding) {
+                    OutlinedTextField(
+                        value = newName, onValueChange = { newName = it }, singleLine = true,
+                        label = { Text("Yeni klasör adı") }, modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { adding = false; newName = "" }) { Text("Vazgeç") }
+                        TextButton(enabled = newName.isNotBlank(), onClick = {
+                            val n = newName.trim()
+                            scope.launch {
+                                val r = withContext(Dispatchers.IO) { runCatching { client.mkdir(path, n) } }
+                                if (r.isSuccess) { adding = false; newName = ""; path = join(path, n) }
+                                else err = friendly(r.exceptionOrNull())
+                            }
+                        }) { Text("Oluştur") }
+                    }
+                } else {
+                    TextButton(onClick = { adding = true }) { Text("+ Yeni klasör") }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { onPick(path) }) { Text("Buraya kaydet") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Kapat") } },
+    )
+}
+
+@Composable
+private fun FolderRow(label: String, color: Color, onClick: () -> Unit) {
+    Text(
+        label, style = MaterialTheme.typography.bodyLarge, color = color,
+        maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 12.dp),
+    )
+}
