@@ -1,3 +1,4 @@
+// v0.4 – 2026-10-12: sol üstte M-ONUR logosu
 package com.onur.tvgonder.ui
 
 import android.net.Uri
@@ -29,12 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.onur.tvgonder.Hub
 import com.onur.tvgonder.Net
+import com.onur.tvgonder.R
 import com.onur.tvgonder.ReceiverServer
 import com.onur.tvgonder.Store
 
@@ -54,6 +57,7 @@ fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
     ) {
         // Sol: durum
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Image(painterResource(R.drawable.logo_round), "M-ONUR", Modifier.size(120.dp))
             Text("Telefondan gelenleri bekliyor", style = MaterialTheme.typography.headlineLarge, color = TextMain)
             Text(
                 when {

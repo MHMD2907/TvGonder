@@ -1,4 +1,4 @@
-// v0.3 – 2026-10-12: Paylaş menüsünden gelen dosyayı doğrudan açar
+// v0.4 – 2026-10-12: Vazgeç düğmesi eklendi (Paylaş menüsünden gelen dosyayı doğrudan açar)
 package com.onur.tvgonder.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -120,9 +121,18 @@ fun PrintScreen(incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
                 FilterChip(selected = !color, onClick = { color = false }, label = { Text("Siyah-beyaz") })
             }
 
-            Button(onClick = {
-                error = runCatching { Printing.print(ctx, d, a5, landscape, color) }.exceptionOrNull()?.message
-            }) { Text("Yazıcıya gönder") }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = { doc = null; error = null },
+                    modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(14.dp),
+                ) { Text("Vazgeç") }
+                Button(
+                    onClick = {
+                        error = runCatching { Printing.print(ctx, d, a5, landscape, color) }.exceptionOrNull()?.message
+                    },
+                    modifier = Modifier.weight(1.5f).height(52.dp), shape = RoundedCornerShape(14.dp),
+                ) { Text("Yazıcıya gönder") }
+            }
             Text(
                 "Sonraki ekranda yazıcıyı, sayfa aralığını (örneğin 1-3, 5) ve kopya sayısını seçersin.",
                 style = MaterialTheme.typography.bodyMedium, color = TextMuted,

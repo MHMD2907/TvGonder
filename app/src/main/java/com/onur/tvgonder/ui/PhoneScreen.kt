@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: modern arayüz; panodan otomatik link, Yapıştır, son linkler, Paylaş menüsü, ilerleme çubuğu
+// v0.4 – 2026-10-12: logo; eşleştirme "Şimdilik geç" ile atlanabilir, eşleşmeden uygulama gezilebilir
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -9,6 +9,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -72,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.onur.tvgonder.R
 import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
 import com.onur.tvgonder.TvClient
@@ -142,6 +145,7 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
     var paired by remember { mutableStateOf(store.tvToken != null) }
     var pairMsg by remember { mutableStateOf<String?>(null) }
     var pairing by remember { mutableStateOf(false) }
+    var skipped by remember { mutableStateOf(false) }   // "Şimdilik geç" — her açılışta sıfırlanır
 
     val scanner = rememberLauncherForActivityResult(ScanContract()) { res ->
         val text = res.contents ?: return@rememberLauncherForActivityResult
@@ -166,34 +170,49 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
     if (!paired) {
         LaunchedEffect(shared) {
             if (shared != null) {
+                skipped = false
                 pairMsg = "Paylaşmak için önce TV'yi eşleştir."
                 onSharedHandled()
             }
         }
-        PairUi(pairing, pairMsg) {
-            scanner.launch(
-                ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                    .setBeepEnabled(false).setOrientationLocked(false)
-                    .setPrompt("TV'deki QR kodu okut")
-            )
-        }
+    }
+
+    if (!paired && !skipped) {
+        PairUi(
+            pairing, pairMsg,
+            onScan = {
+                scanner.launch(
+                    ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        .setBeepEnabled(false).setOrientationLocked(false)
+                        .setPrompt("TV'deki QR kodu okut")
+                )
+            },
+            onSkip = { skipped = true; pairMsg = null },
+        )
     } else {
-        SendUi(store, client, shared, onSharedHandled) {
-            store.clearTv(); paired = false; pairMsg = null
-        }
+        SendUi(
+            store, client, paired,
+            if (paired) shared else null, onSharedHandled,
+            onPair = { skipped = false; pairMsg = null },
+            onUnpair = { store.clearTv(); paired = false; skipped = false; pairMsg = null },
+        )
     }
 }
 
 // ---------------------------------------------------------------- eşleştirme
 
 @Composable
-private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit) {
+private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: () -> Unit) {
     Column(
         Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
+        Image(
+            painterResource(R.drawable.logo_round), "M-ONUR",
+            Modifier.size(132.dp).align(Alignment.CenterHorizontally),
+        )
         Text("TV Gönder", style = MaterialTheme.typography.headlineMedium, color = TextMain)
         Text(
             "Dosyaları ve linkleri tek dokunuşla TV'ye gönder.",
@@ -208,6 +227,10 @@ private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit) {
             enabled = !pairing, onClick = onScan,
             modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp),
         ) { Text(if (pairing) "TV'de onay bekleniyor…" else "QR kodu okut") }
+        TextButton(
+            enabled = !pairing, onClick = onSkip,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Şimdilik geç, uygulamayı gez") }
         msg?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = if (pairing) Accent else Danger) }
     }
 }
@@ -228,8 +251,10 @@ private fun StepRow(n: Int, text: String) {
 private fun SendUi(
     store: Store,
     client: TvClient,
+    paired: Boolean,
     shared: Shared?,
     onSharedHandled: () -> Unit,
+    onPair: () -> Unit,
     onUnpair: () -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -248,7 +273,10 @@ private fun SendUi(
     var msg by remember { mutableStateOf<Msg?>(null) }
     val transfers = remember { mutableStateListOf<Transfer>() }
 
+    val notPaired = Msg("Göndermek için önce TV'yi eşleştir.", true)
+
     fun sendLink(raw: String) {
+        if (!paired) { msg = notPaired; return }
         val url = extractUrl(raw)
         if (url == null) { msg = Msg("Bu bir link değil.", true); return }
         linkBusy = true
@@ -269,6 +297,7 @@ private fun SendUi(
 
     fun sendFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
+        if (!paired) { msg = notPaired; return }
         val target = folder
         store.lastFolder = target
         val items = uris.map { Transfer(displayName(ctx, it)) to it }
@@ -302,7 +331,7 @@ private fun SendUi(
         if (clip != null && clip != store.lastClip && link.isBlank()) {
             link = clip; fromClip = true
         }
-        online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
+        if (paired) online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
     }
 
     // Paylaş menüsünden gelen içerik
@@ -329,22 +358,41 @@ private fun SendUi(
     ) {
         // Başlık
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(painterResource(R.drawable.logo_round), "M-ONUR", Modifier.size(52.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    store.tvName, style = MaterialTheme.typography.headlineMedium, color = TextMain,
+                    if (paired) store.tvName else "TV Gönder",
+                    style = MaterialTheme.typography.headlineMedium, color = TextMain,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                StatusPill(online)
+                if (paired) StatusPill(online)
+                else Text("TV eşleşmemiş", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
             }
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "Menü", tint = TextMuted) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
-                    DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
+                    if (paired) {
+                        DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
+                        DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
+                    } else {
+                        DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
+                    }
                 }
             }
         }
-        if (online == false) {
+        if (!paired) {
+            Surface(shape = RoundedCornerShape(20.dp), color = PanelHi, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Göndermek için TV'yi eşleştir.", Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge, color = TextMain,
+                    )
+                    Button(onClick = onPair, shape = RoundedCornerShape(14.dp)) { Text("Eşleştir") }
+                }
+            }
+        }
+        if (paired && online == false) {
             Text(
                 "TV açık mı ve telefonla aynı Wi‑Fi'de mi? TV'de uygulama en az bir kez açılmış olmalı.",
                 style = MaterialTheme.typography.bodyMedium, color = TextMuted,
@@ -405,7 +453,7 @@ private fun SendUi(
             }
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi)
-                    .clickable { showFolders = true }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    .clickable { if (paired) showFolders = true else msg = notPaired }.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
