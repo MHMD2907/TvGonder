@@ -1,24 +1,29 @@
-# TV Gönder (v0.1 – ilk adım)
+<!-- v0.8 – 2026-10-12 -->
+# TV Gönder (v0.8) — M-ONUR
 
-Tek uygulama: TV'de alıcı, telefonda gönderici (LocalSend benzeri, sadece eşleşmiş telefonlar).
+Tek uygulama: TV'de alıcı, telefonda gönderici (LocalSend benzeri, sadece eşleşmiş telefonlar). Aynı APK hem telefona hem TV'ye kurulur.
 
-## Derleme
-1. Android Studio'da `TvGonder` klasörünü aç (Gradle wrapper'ı kendisi oluşturur).
-2. Build > Build APK(s).
-3. APK'yı hem telefona hem TV'ye kur (TV için: USB bellek veya "Send Files to TV", ya da ADB).
+## APK
+Her değişiklikte GitHub otomatik derler: **Releases** sayfasında `TvGonder-N.apk`.
+TV'ye ilk kurulum flaş bellekle; sonraki sürümler telefondan: ⋮ → *TV'deki uygulamayı güncelle*.
 
-## İlk kullanım
-1. TV: uygulamayı aç > "USB belleği seç" > flash belleğin klasörünü seç.
-2. TV: "Telefon ekle" > QR çıkar.
-3. Telefon: uygulamayı aç > "TV'yi eşleştir" > QR'ı okut.
-4. TV'de "Onayla".
-5. Telefon: klasör seç, dosya seç, gönder. Link yapıştırıp "Linki TV'de aç".
+## Telefon
+- **Link gönder**: kopyalanan link otomatik gelir, *Yapıştır*, *TV'de aç*, son linkler.
+- **Karekod okut**: kitapçık vb. karekodu → telefonda aç / TV'de aç / kopyala.
+- **Dosya gönder**: fotoğraf/video/belge, kayıt klasörü seçimi, ilerleme çubuğu.
+- **Paylaş menüsü**: *TV'ye gönder* ve *TV Gönder ile yazdır* (çoklu seçim).
+- **Yazdır**: çoklu fotoğraf/PDF, **Belge tara** (kamera, otomatik kırpma), düzen *Tek / 2'li / 4'lü / 6'lı / Kimlik* (85,6×54 mm), önizleme, A4/A5, yön, renk, *Yazıcıya gönder* veya *PDF olarak kaydet*.
+- **Ayarlar** (⋮): otomatik pano linki, varsayılan kağıt/renk, telefonun yazıcı ayarları.
+- Eşleştirme *Şimdilik geç* ile atlanabilir.
 
-## Yazdırma
-Telefonda alttaki "Yazdır" sekmesi: PDF veya resim seç, kağıt (A4/A5), yön (dikey/yatay) ve rengi seç, "Yazıcıya gönder". Açılan Android yazdırma ekranında ağdaki Epson'u, sayfa aralığını ve kopya sayısını seç. Yazıcı ve telefon aynı Wi-Fi'de olmalı. Yazıcı görünmezse Ayarlar > Bağlı cihazlar > Yazdırma bölümünde varsayılan yazdırma hizmetini (Mopria) aç.
+## TV
+- Modern ana ekran: saat, durum, *Dosyalarım*, *Slayt gösterisi*, *Telefon ekle*, *Ayarlar*, **Son gelenler**.
+- **Dosyalarım**: USB bellekte kumandayla gezinme; video/müzik oynatıcı, PDF (◀▶ sayfa, OK yakınlaştır), resim (◀▶).
+- Linkler: YouTube uygulamasında, diğerleri uygulamanın **kendi tarayıcısında**.
+- Yeni dosya gelince "Yeni dosya geldi – Aç" kartı.
+- Boşta 5 dk → slayt gösterisi (Ayarlar'dan kapatılabilir).
+- Telefondan gelen güncellemeyi "Yükle" ile kurar.
 
-## Bu sürümde YOK (sıradaki adımlar)
-- Telefondan klasör gönderme
-- TV'yi otomatik uyandırma / uygulamayı öne getirme
-- HTTPS şifreleme (şu an düz HTTP, sadece yerel ağ)
-- Otomatik TV bulma (TV'nin IP'si değişirse yeniden eşleştirmek gerekir)
+## İpucu
+TV'de başka uygulama açıkken gelen linkin ekrana gelmesi için (bir kez, bilgisayardan ADB ile):
+`adb shell appops set com.onur.tvgonder SYSTEM_ALERT_WINDOW allow`

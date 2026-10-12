@@ -1,7 +1,14 @@
-// v0.6 – 2026-10-12: çoklu seçim, düzen (Tek/2'li/4'lü/6'lı/Kimlik), kağıt önizlemesi, PDF olarak kaydet
+// v0.8 – 2026-10-12: Belge tara (kamera, otomatik kırpma); çoklu seçim, düzen, önizleme, PDF olarak kaydet
 package com.onur.tvgonder.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
+import androidx.activity.result.IntentSenderRequest
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -110,6 +117,26 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
         layout = Layout.One; a5 = store.defA5; color = store.defColor; landscape = false; sheet = 0
     }
 
+    val scan = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+        if (r.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val res = GmsDocumentScanningResult.fromActivityResultIntent(r.data)
+        val pages = res?.pages?.map { it.imageUri }.orEmpty()
+        if (pages.isNotEmpty()) add(pages)
+    }
+
+    fun startScan() {
+        val act = ctx.findActivity() ?: return
+        val opts = GmsDocumentScannerOptions.Builder()
+            .setGalleryImportAllowed(true)
+            .setPageLimit(30)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .build()
+        GmsDocumentScanning.getClient(opts).getStartScanIntent(act)
+            .addOnSuccessListener { scan.launch(IntentSenderRequest.Builder(it).build()) }
+            .addOnFailureListener { error = "Belge tarayıcı açılamadı (Google Play hizmetleri gerekli): ${it.message}" }
+    }
+
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { add(it) }
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { add(it) }
     val savePdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
@@ -160,6 +187,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
             PickRow(busy,
                 onPhotos = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onFiles = { pickFiles.launch(arrayOf("application/pdf", "image/*")) },
+                onScan = { startScan() },
             )
             if (busy) Text("Açılıyor…", color = Accent)
         } else {
@@ -190,6 +218,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                 PickRow(busy,
                     onPhotos = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     onFiles = { pickFiles.launch(arrayOf("application/pdf", "image/*")) },
+                    onScan = { startScan() },
                     add = true,
                 )
             }
@@ -205,7 +234,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                     when (layout) {
                         Layout.One -> "Her resim / PDF sayfası ayrı kağıda, sayfaya sığdırılarak."
                         Layout.Two, Layout.Four, Layout.Six -> "Bir kağıda ${layout.perSheet} resim/sayfa. Kağıt tasarrufu için."
-                        Layout.Id -> "Ön ve arka yüzü sırayla seç. Gerçek kart boyutunda (85,6 × 54 mm) alt alta basılır."
+                        Layout.Id -> "Ön ve arka yüzü sırayla seç ya da \"Belge tara\" ile çek (kenarlar otomatik kırpılır). Gerçek kart boyutunda (85,6 × 54 mm) alt alta basılır."
                     },
                     style = MaterialTheme.typography.bodyMedium, color = TextMuted,
                 )
@@ -283,7 +312,8 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
 }
 
 @Composable
-private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, add: Boolean = false) {
+private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, onScan: () -> Unit, add: Boolean = false) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         val m = Modifier.height(if (add) 48.dp else 96.dp)
         if (add) {
@@ -294,6 +324,23 @@ private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, ad
             Button(enabled = !busy, onClick = onFiles, modifier = m.weight(1f), shape = RoundedCornerShape(18.dp)) { Text("📄  Dosya / PDF") }
         }
     }
+    if (add) {
+        OutlinedButton(enabled = !busy, onClick = onScan, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("+ Belge tara") }
+    } else {
+        Button(enabled = !busy, onClick = onScan, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(18.dp)) {
+            Text("📷  Belge / kimlik tara (kamera)")
+        }
+    }
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
 }
 
 @Composable
