@@ -1,8 +1,11 @@
-// v0.4 – 2026-10-12: logo; eşleştirme "Şimdilik geç" ile atlanabilir, eşleşmeden uygulama gezilebilir
+// v0.5 – 2026-10-12: genel karekod okuyucu (link → telefonda/TV'de aç), Ayarlar penceresi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
@@ -45,7 +48,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -127,6 +133,20 @@ private fun friendly(e: Throwable?): String = when (e) {
 }
 
 private class Msg(val text: String, val error: Boolean)
+
+private fun openOnPhone(ctx: Context, url: String) {
+    runCatching {
+        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
+private fun copyText(ctx: Context, text: String) {
+    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("TV Gönder", text))
+}
+
+private fun appVersion(ctx: Context): String =
+    runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "?"
 
 private enum class TState { Waiting, Sending, Done, Failed }
 
@@ -272,6 +292,8 @@ private fun SendUi(
     var menu by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<Msg?>(null) }
     val transfers = remember { mutableStateListOf<Transfer>() }
+    var scanned by remember { mutableStateOf<String?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
 
     val notPaired = Msg("Göndermek için önce TV'yi eşleştir.", true)
 
@@ -328,7 +350,7 @@ private fun SendUi(
     LaunchedEffect(focused, recheck) {
         if (!focused) return@LaunchedEffect
         val clip = readClipboard(ctx)?.let { extractUrl(it) }
-        if (clip != null && clip != store.lastClip && link.isBlank()) {
+        if (store.autoClip && clip != null && clip != store.lastClip && link.isBlank()) {
             link = clip; fromClip = true
         }
         if (paired) online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
@@ -347,6 +369,11 @@ private fun SendUi(
     }
 
     LaunchedEffect(msg) { if (msg != null) { delay(5000); msg = null } }
+
+    val qr = rememberLauncherForActivityResult(ScanContract()) { res ->
+        val text = res.contents?.trim()
+        if (!text.isNullOrEmpty()) scanned = text
+    }
 
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { sendFiles(it) }
     val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { sendFiles(it) }
@@ -374,9 +401,11 @@ private fun SendUi(
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (paired) {
                         DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
+                        DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
+                        DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                     }
                 }
             }
@@ -441,6 +470,16 @@ private fun SendUi(
                     Text(if (linkBusy) "Gönderiliyor…" else "TV'de aç")
                 }
             }
+            OutlinedButton(
+                onClick = {
+                    qr.launch(
+                        ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setBeepEnabled(false).setOrientationLocked(false)
+                            .setPrompt("Karekodu çerçeveye getir")
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp),
+            ) { Text("📷  Karekod okut") }
         }
 
         // Dosya
@@ -508,6 +547,21 @@ private fun SendUi(
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+
+    scanned?.let { text ->
+        ScanResultDialog(
+            text = text,
+            paired = paired,
+            onTv = { url -> scanned = null; sendLink(url) },
+            onPhone = { url -> scanned = null; openOnPhone(ctx, url) },
+            onCopy = { scanned = null; copyText(ctx, text); msg = Msg("Kopyalandı.", false) },
+            onDismiss = { scanned = null },
+        )
+    }
+
+    if (showSettings) {
+        SettingsDialog(store, paired, onDismiss = { showSettings = false })
     }
 
     if (showFolders) {
@@ -659,5 +713,121 @@ private fun FolderRow(label: String, color: Color, onClick: () -> Unit) {
         maxLines = 1, overflow = TextOverflow.Ellipsis,
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 12.dp),
+    )
+}
+
+@Composable
+private fun ScanResultDialog(
+    text: String,
+    paired: Boolean,
+    onTv: (String) -> Unit,
+    onPhone: (String) -> Unit,
+    onCopy: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val url = extractUrl(text)
+    val pairCode = text.startsWith("tvgonder://")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PanelHi,
+        title = { Text(if (url != null) "Karekodda link var" else "Karekod okundu", color = TextMain) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (url != null) prettyUrl(url) else text,
+                    style = MaterialTheme.typography.bodyLarge, color = TextMain, maxLines = 6,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (pairCode) {
+                    Text(
+                        "Bu bir TV eşleşme kodu. Eşleştirmek için menüden \"TV'yi eşleştir\"i kullan.",
+                        style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+                    )
+                }
+                if (url != null) {
+                    Button(
+                        onClick = { onPhone(url) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp),
+                    ) { Text("Telefonda aç") }
+                    OutlinedButton(
+                        enabled = paired,
+                        onClick = { onTv(url) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp),
+                    ) { Text(if (paired) "TV'de aç" else "TV'de aç (önce eşleştir)") }
+                }
+                OutlinedButton(
+                    onClick = onCopy,
+                    modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp),
+                ) { Text("Kopyala") }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Kapat") } },
+    )
+}
+
+@Composable
+private fun SettingsDialog(store: Store, paired: Boolean, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    var autoClip by remember { mutableStateOf(store.autoClip) }
+    var a5 by remember { mutableStateOf(store.defA5) }
+    var color by remember { mutableStateOf(store.defColor) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PanelHi,
+        title = { Text("Ayarlar", color = TextMain) },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Link", style = MaterialTheme.typography.labelLarge, color = Accent)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Kopyaladığım linki otomatik ekle", Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium, color = TextMain,
+                    )
+                    Switch(checked = autoClip, onCheckedChange = { autoClip = it; store.autoClip = it })
+                }
+
+                HorizontalDivider(color = Panel)
+                Text("Yazdırma", style = MaterialTheme.typography.labelLarge, color = Accent)
+                Text("Varsayılan kağıt", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !a5, onClick = { a5 = false; store.defA5 = false }, label = { Text("A4") })
+                    FilterChip(selected = a5, onClick = { a5 = true; store.defA5 = true }, label = { Text("A5") })
+                }
+                Text("Varsayılan renk", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = color, onClick = { color = true; store.defColor = true }, label = { Text("Renkli") })
+                    FilterChip(selected = !color, onClick = { color = false; store.defColor = false }, label = { Text("Siyah-beyaz") })
+                }
+                Text(
+                    "Yazıcıyı yazdırma ekranında seçersin; telefon son kullandığını hatırlar.",
+                    style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+                )
+                OutlinedButton(
+                    onClick = {
+                        runCatching {
+                            ctx.startActivity(Intent(Settings.ACTION_PRINT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                ) { Text("Telefonun yazıcı ayarlarını aç") }
+
+                HorizontalDivider(color = Panel)
+                Text("TV", style = MaterialTheme.typography.labelLarge, color = Accent)
+                Text(
+                    if (paired) "${store.tvName}  ·  ${store.tvHost ?: ""}" else "Eşleşmiş TV yok",
+                    style = MaterialTheme.typography.bodyMedium, color = TextMain,
+                )
+                Text(
+                    "Sürüm ${appVersion(ctx)}  ·  M-ONUR",
+                    style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+                )
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("Tamam") } },
     )
 }

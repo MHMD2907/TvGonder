@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: son linkler + pano hafızası eklendi
+// v0.5 – 2026-10-12: ayarlar (otomatik pano linki, varsayılan kağıt/renk)
 package com.onur.tvgonder
 
 import android.content.Context
@@ -45,6 +45,17 @@ class Store(ctx: Context) {
     var lastClip: String
         get() = p.getString("lastClip", "") ?: ""
         set(v) { p.edit().putString("lastClip", v).apply() }
+
+    // ---- Ayarlar ----
+    var autoClip: Boolean
+        get() = p.getBoolean("autoClip", true)
+        set(v) { p.edit().putBoolean("autoClip", v).apply() }
+    var defA5: Boolean
+        get() = p.getBoolean("defA5", false)
+        set(v) { p.edit().putBoolean("defA5", v).apply() }
+    var defColor: Boolean
+        get() = p.getBoolean("defColor", true)
+        set(v) { p.edit().putBoolean("defColor", v).apply() }
 
     fun recentLinks(): List<String> {
         val a = runCatching { JSONArray(p.getString("recentLinks", "[]") ?: "[]") }.getOrDefault(JSONArray())

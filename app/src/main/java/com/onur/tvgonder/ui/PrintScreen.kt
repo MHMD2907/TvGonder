@@ -1,4 +1,4 @@
-// v0.4 – 2026-10-12: Vazgeç düğmesi eklendi (Paylaş menüsünden gelen dosyayı doğrudan açar)
+// v0.5 – 2026-10-12: varsayılan kağıt/renk Ayarlar'dan gelir; Vazgeç; Paylaş menüsünden doğrudan açılır
 package com.onur.tvgonder.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import android.net.Uri
 import com.onur.tvgonder.PrintDoc
 import com.onur.tvgonder.Printing
+import com.onur.tvgonder.Store
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,9 +52,10 @@ fun PrintScreen(incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
     var doc by remember { mutableStateOf<PrintDoc?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var a5 by remember { mutableStateOf(false) }
+    val store = remember { Store(ctx) }
+    var a5 by remember { mutableStateOf(store.defA5) }
     var landscape by remember { mutableStateOf(false) }
-    var color by remember { mutableStateOf(true) }
+    var color by remember { mutableStateOf(store.defColor) }
 
     fun open(uri: Uri) {
         busy = true; error = null
@@ -123,7 +125,7 @@ fun PrintScreen(incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
-                    onClick = { doc = null; error = null },
+                    onClick = { doc = null; error = null; a5 = store.defA5; color = store.defColor },
                     modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(14.dp),
                 ) { Text("Vazgeç") }
                 Button(
