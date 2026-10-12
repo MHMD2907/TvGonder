@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: sürüm 0.6 (çoklu yazdırma, PDF, kimlik, TV güncelleme)
+// v0.7 – 2026-10-12: sürüm 0.7 (TV: Dosyalarım, oynatıcı, tarayıcı, slayt) + Media3
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
     }
     signingConfigs {
         getByName("debug") {
@@ -43,6 +43,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")

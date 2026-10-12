@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: /ping sürüm bildirir, /update ile telefondan yeni sürüm alınır
+// v0.7 – 2026-10-12: gelen dosya TV ekranına bildirilir; /ping sürüm, /update yeni sürüm
 package com.onur.tvgonder
 
 import android.content.Context
@@ -116,6 +116,9 @@ class ReceiverServer(
             file.delete()
             return json(400, JSONObject().put("error", "Gönderim yarım kaldı"))
         }
+        val rec = Received(file.name ?: name, file.uri.toString(), mime, System.currentTimeMillis())
+        store.addReceived(rec)
+        Hub.received.value = rec
         return json(200, JSONObject().put("saved", file.name ?: name))
     }
 

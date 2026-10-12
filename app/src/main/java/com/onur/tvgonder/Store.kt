@@ -1,4 +1,4 @@
-// v0.5 – 2026-10-12: ayarlar (otomatik pano linki, varsayılan kağıt/renk)
+// v0.7 – 2026-10-12: TV: son gelen dosyalar, boşta slayt gösterisi ayarı
 package com.onur.tvgonder
 
 import android.content.Context
@@ -22,6 +22,26 @@ class Store(ctx: Context) {
     fun removeDevice(token: String) = saveDevices(devices() - token)
     private fun saveDevices(m: Map<String, String>) {
         p.edit().putString("devices", JSONObject(m as Map<*, *>).toString()).apply()
+    }
+
+    /** TV boşta kalınca (5 dk) slayt gösterisi başlasın mı. */
+    var idleSlides: Boolean
+        get() = p.getBoolean("idleSlides", true)
+        set(v) { p.edit().putBoolean("idleSlides", v).apply() }
+
+    fun received(): List<Received> = runCatching {
+        val a = JSONArray(p.getString("received", "[]") ?: "[]")
+        List(a.length()) { i ->
+            val o = a.getJSONObject(i)
+            Received(o.getString("n"), o.getString("u"), o.optString("m"), o.optLong("t"))
+        }
+    }.getOrDefault(emptyList())
+
+    fun addReceived(r: Received) {
+        val list = (listOf(r) + received().filter { it.uri != r.uri }).take(12)
+        val a = JSONArray()
+        list.forEach { a.put(JSONObject().put("n", it.name).put("u", it.uri).put("m", it.mime).put("t", it.at)) }
+        p.edit().putString("received", a.toString()).apply()
     }
 
     // ---- Telefon tarafı ----

@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: "Yazdır" paylaşımı birden fazla dosya kabul eder
+// v0.7 – 2026-10-12: TV: link ile öne gelme, ön plan bilgisi; "Yazdır" paylaşımı çoklu
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
         store = Store(this)
         tree = store.treeUri
         val tv = isTv(this)
-        if (!tv) readShare(intent)
+        if (!tv) readShare(intent) else intent?.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
         if (tv) ContextCompat.startForegroundService(this, Intent(this, ReceiverService::class.java))
 
         setContent {
@@ -60,7 +60,11 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (!isTv(this)) readShare(intent)
+        else intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
     }
+
+    override fun onResume() { super.onResume(); Hub.foreground = true }
+    override fun onPause() { Hub.foreground = false; super.onPause() }
 
     private fun readShare(i: Intent?) {
         if (i == null) return
