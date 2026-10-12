@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: TV'yi telefondan güncelleme (eski sürüm uyarısı + menü); karekod okuyucu, Ayarlar
+// v0.9 – 2026-10-12: resimden / PDF'ten karekod okuma (sayfadaki tüm karekodlar); TV güncelleme, Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -83,7 +83,16 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.onur.tvgonder.R
 import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
+import com.onur.tvgonder.PrintItem
+import com.onur.tvgonder.Printing
 import com.onur.tvgonder.TvClient
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.GlobalHistogramBinarizer
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.multi.qrcode.QRCodeMultiReader
 import com.onur.tvgonder.appVersionCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -134,6 +143,39 @@ private fun friendly(e: Throwable?): String = when (e) {
 }
 
 private class Msg(val text: String, val error: Boolean)
+
+/** Bir resimdeki tüm karekodları okur (test kitabı sayfasında birden fazla olabilir). */
+private fun qrsInBitmap(bmp: android.graphics.Bitmap): List<String> {
+    val w = bmp.width; val h = bmp.height
+    val px = IntArray(w * h)
+    bmp.getPixels(px, 0, w, 0, 0, w, h)
+    val src = RGBLuminanceSource(w, h, px)
+    val hints = mapOf(DecodeHintType.TRY_HARDER to true)
+    val out = LinkedHashSet<String>()
+    for (bin in listOf(HybridBinarizer(src), GlobalHistogramBinarizer(src))) {
+        runCatching { QRCodeMultiReader().decodeMultiple(BinaryBitmap(bin), hints).forEach { out += it.text } }
+    }
+    if (out.isEmpty()) runCatching { out += MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(src)), hints).text }
+    return out.toList()
+}
+
+/** Seçilen resim veya PDF'teki (ilk 10 sayfa) karekodlar. */
+private fun qrsInFile(ctx: Context, uri: Uri): List<String> {
+    val items = Printing.load(ctx, listOf(uri))
+    val out = LinkedHashSet<String>()
+    for (item in items) {
+        for (page in 0 until minOf(item.count, 10)) {
+            for (size in listOf(2400, 3600)) {
+                val bmp = Printing.tileBitmap(ctx, item, page, size)
+                val found = qrsInBitmap(bmp)
+                bmp.recycle()
+                out += found
+                if (found.isNotEmpty()) break
+            }
+        }
+    }
+    return out.toList()
+}
 
 private fun openOnPhone(ctx: Context, url: String) {
     runCatching {
@@ -294,6 +336,7 @@ private fun SendUi(
     var msg by remember { mutableStateOf<Msg?>(null) }
     val transfers = remember { mutableStateListOf<Transfer>() }
     var scanned by remember { mutableStateOf<String?>(null) }
+    var scannedMany by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSettings by remember { mutableStateOf(false) }
     var tvVer by remember { mutableStateOf<Long?>(null) }
     var updating by remember { mutableStateOf<Float?>(null) }
@@ -395,6 +438,21 @@ private fun SendUi(
             updating = null
             msg = if (r.isSuccess) Msg("Yeni sürüm TV'ye gönderildi. TV'de \"Yükle\"ye bas.", false)
             else Msg(friendly(r.exceptionOrNull()), true)
+        }
+    }
+
+    val qrFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        msg = Msg("Karekod aranıyor…", false)
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { qrsInFile(ctx, uri) } }
+            val list = r.getOrDefault(emptyList())
+            when {
+                r.isFailure -> msg = Msg(r.exceptionOrNull()?.message ?: "Dosya açılamadı.", true)
+                list.isEmpty() -> msg = Msg("Bu dosyada karekod bulunamadı. Daha net bir fotoğraf dene.", true)
+                list.size == 1 -> { msg = null; scanned = list[0] }
+                else -> { msg = null; scannedMany = list }
+            }
         }
     }
 
@@ -533,7 +591,11 @@ private fun SendUi(
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp),
-            ) { Text("📷  Karekod okut") }
+            ) { Text("📷  Karekod okut (kamera)") }
+            OutlinedButton(
+                onClick = { qrFile.launch(arrayOf("image/*", "application/pdf")) },
+                modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp),
+            ) { Text("🖼️  Resimden / PDF'ten karekod oku") }
         }
 
         // Dosya
@@ -601,6 +663,34 @@ private fun SendUi(
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+
+    if (scannedMany.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { scannedMany = emptyList() },
+            containerColor = PanelHi,
+            title = { Text("${scannedMany.size} karekod bulundu", color = TextMain) },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    scannedMany.forEachIndexed { i, t ->
+                        OutlinedButton(
+                            onClick = { scanned = t },
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Text(
+                                "${i + 1}.  " + (extractUrl(t)?.let { prettyUrl(it) } ?: t),
+                                Modifier.fillMaxWidth(), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { scannedMany = emptyList() }) { Text("Kapat") } },
+        )
     }
 
     scanned?.let { text ->

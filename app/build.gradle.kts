@@ -1,4 +1,4 @@
-// v0.8 – 2026-10-12: sürüm 0.8 (belge tarayıcı - ML Kit)
+// v0.9 – 2026-10-12: sürüm 0.9 (resimden/PDF'ten karekod okuma)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.8"
+        versionCode = 9
+        versionName = "0.9"
     }
     signingConfigs {
         getByName("debug") {
