@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: TV görüntüleyicileri: resim, PDF, video/müzik (Media3), tarayıcı (WebView), slayt gösterisi
+// v0.7.1 – 2026-10-12: TV görüntüleyicileri: resim, PDF, video/müzik (Media3), tarayıcı (WebView), slayt gösterisi
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -96,7 +96,7 @@ private fun Hint(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-private fun isKey(e: androidx.compose.ui.input.key.KeyEvent, vararg keys: Key) =
+private fun isKey(e: androidx.compose.ui.input.key.KeyEvent, keys: List<Key>) =
     e.type == KeyEventType.KeyDown && keys.any { it == e.key }
 
 // ---------------------------------------------------------------- resim
@@ -118,8 +118,8 @@ fun TvImageViewer(images: List<Entry>, start: Int) {
             .focusRequester(focus).focusable()
             .onKeyEvent {
                 when {
-                    isKey(it, Key.DirectionRight, Key.MediaNext) -> { if (index < images.size - 1) index++; true }
-                    isKey(it, Key.DirectionLeft, Key.MediaPrevious) -> { if (index > 0) index--; true }
+                    isKey(it, listOf(Key.DirectionRight, Key.MediaNext)) -> { if (index < images.size - 1) index++; true }
+                    isKey(it, listOf(Key.DirectionLeft, Key.MediaPrevious)) -> { if (index > 0) index--; true }
                     else -> false
                 }
             },
@@ -178,11 +178,11 @@ fun TvPdfViewer(uri: Uri, name: String) {
             .focusRequester(focus).focusable()
             .onKeyEvent {
                 when {
-                    isKey(it, Key.DirectionRight, Key.PageDown, Key.MediaNext) -> { if (page < count - 1) page++; true }
-                    isKey(it, Key.DirectionLeft, Key.PageUp, Key.MediaPrevious) -> { if (page > 0) page--; true }
-                    isKey(it, Key.DirectionCenter, Key.Enter, Key.NumPadEnter) -> { wide = !wide; true }
-                    isKey(it, Key.DirectionDown) -> { scope.launch { scroll.animateScrollBy(400f) }; true }
-                    isKey(it, Key.DirectionUp) -> { scope.launch { scroll.animateScrollBy(-400f) }; true }
+                    isKey(it, listOf(Key.DirectionRight, Key.PageDown, Key.MediaNext)) -> { if (page < count - 1) page++; true }
+                    isKey(it, listOf(Key.DirectionLeft, Key.PageUp, Key.MediaPrevious)) -> { if (page > 0) page--; true }
+                    isKey(it, listOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)) -> { wide = !wide; true }
+                    isKey(it, listOf(Key.DirectionDown)) -> { scope.launch { scroll.animateScrollBy(400f) }; true }
+                    isKey(it, listOf(Key.DirectionUp)) -> { scope.launch { scroll.animateScrollBy(-400f) }; true }
                     else -> false
                 }
             },
