@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: Paylaş menüsünden gelen link/dosyaları alır
+// v0.3 – 2026-10-12: Paylaş menüsünde "Yazdır" seçeneği (PrintShare) eklendi
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -21,7 +21,8 @@ import com.onur.tvgonder.ui.PhoneRoot
 import com.onur.tvgonder.ui.TvScreen
 
 /** Başka bir uygulamanın Paylaş menüsünden gelen içerik. */
-class Shared(val text: String? = null, val files: List<Uri> = emptyList())
+/** print = true ise içerik "TV Gönder ile yazdır" seçeneğinden geldi. */
+class Shared(val text: String? = null, val files: List<Uri> = emptyList(), val print: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     private lateinit var store: Store
@@ -63,6 +64,12 @@ class MainActivity : ComponentActivity() {
 
     private fun readShare(i: Intent?) {
         if (i == null) return
+        val print = i.component?.className?.endsWith(".PrintShare") == true
+        if (print) {
+            val stream = IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java)
+            if (stream != null) shared = Shared(files = listOf(stream), print = true)
+            return
+        }
         val s = when (i.action) {
             Intent.ACTION_SEND -> {
                 val stream = IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java)

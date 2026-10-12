@@ -1,3 +1,4 @@
+// v0.3 – 2026-10-12: Paylaş menüsünden gelen dosyayı doğrudan açar
 package com.onur.tvgonder.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.net.Uri
 import com.onur.tvgonder.PrintDoc
 import com.onur.tvgonder.Printing
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun PrintScreen() {
+fun PrintScreen(incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var doc by remember { mutableStateOf<PrintDoc?>(null) }
@@ -51,8 +54,7 @@ fun PrintScreen() {
     var landscape by remember { mutableStateOf(false) }
     var color by remember { mutableStateOf(true) }
 
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    fun open(uri: Uri) {
         busy = true; error = null
         scope.launch {
             val r = withContext(Dispatchers.IO) { runCatching { Printing.load(ctx, uri) } }
@@ -60,6 +62,14 @@ fun PrintScreen() {
             r.onSuccess { doc = it; landscape = it.thumb.width > it.thumb.height }
                 .onFailure { error = it.message ?: "Dosya açılamadı." }
         }
+    }
+
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) open(uri)
+    }
+
+    LaunchedEffect(incoming) {
+        if (incoming != null) { open(incoming); onIncomingHandled() }
     }
 
     Column(

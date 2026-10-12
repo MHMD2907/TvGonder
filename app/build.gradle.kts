@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: ikon paketi, sabit debug imzası (güncellemeler üstüne kurulsun), sürüm 0.2
+// v0.3 – 2026-10-12: sürüm 0.3 (Paylaş > Yazdır)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
     }
     signingConfigs {
         getByName("debug") {

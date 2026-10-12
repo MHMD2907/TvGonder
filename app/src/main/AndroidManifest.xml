@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.2 – 2026-10-12: Paylaş menüsü (SEND / SEND_MULTIPLE), M-ONUR ikonu ve TV afişi -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- v0.3 – 2026-10-12: Paylaş menüsüne "TV Gönder ile yazdır" (PrintShare) eklendi; QR okuyucu dik açılır -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -45,6 +46,27 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+
+        <!-- Paylaş menüsünde ikinci seçenek: PDF/resmi doğrudan Yazdır sekmesinde açar -->
+        <activity-alias
+            android:name=".PrintShare"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="TV Gönder ile yazdır"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- QR okuyucu ekranı telefonun tuttuğun yönüne göre (dik) açılsın -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="screenOrientation" />
 
         <service
             android:name=".ReceiverService"

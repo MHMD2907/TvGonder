@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: Paylaş menüsünden gelen içerik Gönder sekmesine iletilir
+// v0.3 – 2026-10-12: yazdırma paylaşımı Yazdır sekmesine, diğerleri Gönder sekmesine iletilir
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -27,10 +27,11 @@ import com.onur.tvgonder.Store
 @Composable
 fun PhoneRoot(store: Store, shared: Shared? = null, onSharedHandled: () -> Unit = {}) {
     var tab by remember { mutableIntStateOf(0) }
-    LaunchedEffect(shared) { if (shared != null) tab = 0 }
+    LaunchedEffect(shared) { if (shared != null) tab = if (shared.print) 1 else 0 }
     Column(Modifier.fillMaxSize().background(Ink)) {
         Box(Modifier.weight(1f)) {
-            if (tab == 0) PhoneScreen(store, shared, onSharedHandled) else PrintScreen()
+            if (tab == 0) PhoneScreen(store, shared?.takeIf { !it.print }, onSharedHandled)
+            else PrintScreen(shared?.takeIf { it.print }?.files?.firstOrNull(), onSharedHandled)
         }
         Row(Modifier.fillMaxWidth().background(Panel)) {
             TabItem("TV'ye gönder", tab == 0, Modifier.weight(1f)) { tab = 0 }
