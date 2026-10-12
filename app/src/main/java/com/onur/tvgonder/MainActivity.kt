@@ -1,4 +1,4 @@
-// v0.3 – 2026-10-12: Paylaş menüsünde "Yazdır" seçeneği (PrintShare) eklendi
+// v0.6 – 2026-10-12: "Yazdır" paylaşımı birden fazla dosya kabul eder
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -66,8 +66,10 @@ class MainActivity : ComponentActivity() {
         if (i == null) return
         val print = i.component?.className?.endsWith(".PrintShare") == true
         if (print) {
-            val stream = IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java)
-            if (stream != null) shared = Shared(files = listOf(stream), print = true)
+            val files = if (i.action == Intent.ACTION_SEND_MULTIPLE)
+                IntentCompat.getParcelableArrayListExtra(i, Intent.EXTRA_STREAM, Uri::class.java)?.toList().orEmpty()
+            else listOfNotNull(IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java))
+            if (files.isNotEmpty()) shared = Shared(files = files, print = true)
             return
         }
         val s = when (i.action) {

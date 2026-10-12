@@ -1,4 +1,4 @@
-// v0.5 – 2026-10-12: genel karekod okuyucu (link → telefonda/TV'de aç), Ayarlar penceresi
+// v0.6 – 2026-10-12: TV'yi telefondan güncelleme (eski sürüm uyarısı + menü); karekod okuyucu, Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -84,6 +84,7 @@ import com.onur.tvgonder.R
 import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
 import com.onur.tvgonder.TvClient
+import com.onur.tvgonder.appVersionCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -294,6 +295,9 @@ private fun SendUi(
     val transfers = remember { mutableStateListOf<Transfer>() }
     var scanned by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var tvVer by remember { mutableStateOf<Long?>(null) }
+    var updating by remember { mutableStateOf<Float?>(null) }
+    val myVer = remember { appVersionCode(ctx) }
 
     val notPaired = Msg("Göndermek için önce TV'yi eşleştir.", true)
 
@@ -353,7 +357,10 @@ private fun SendUi(
         if (store.autoClip && clip != null && clip != store.lastClip && link.isBlank()) {
             link = clip; fromClip = true
         }
-        if (paired) online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
+        if (paired) {
+            online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
+            if (online == true) tvVer = withContext(Dispatchers.IO) { runCatching { client.tvVersion() }.getOrNull() }
+        }
     }
 
     // Paylaş menüsünden gelen içerik
@@ -369,6 +376,27 @@ private fun SendUi(
     }
 
     LaunchedEffect(msg) { if (msg != null) { delay(5000); msg = null } }
+
+    fun updateTv() {
+        if (!paired) { msg = notPaired; return }
+        if (updating != null) return
+        updating = 0f
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    client.sendUpdate(ctx) { sent, total ->
+                        if (total > 0) {
+                            val p = sent.toFloat() / total
+                            if (p - (updating ?: 0f) >= 0.01f || p >= 1f) updating = p
+                        }
+                    }
+                }
+            }
+            updating = null
+            msg = if (r.isSuccess) Msg("Yeni sürüm TV'ye gönderildi. TV'de \"Yükle\"ye bas.", false)
+            else Msg(friendly(r.exceptionOrNull()), true)
+        }
+    }
 
     val qr = rememberLauncherForActivityResult(ScanContract()) { res ->
         val text = res.contents?.trim()
@@ -401,6 +429,7 @@ private fun SendUi(
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (paired) {
                         DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
+                        DropdownMenuItem(text = { Text("TV'deki uygulamayı güncelle") }, onClick = { menu = false; updateTv() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
                     } else {
@@ -418,6 +447,31 @@ private fun SendUi(
                         style = MaterialTheme.typography.bodyLarge, color = TextMain,
                     )
                     Button(onClick = onPair, shape = RoundedCornerShape(14.dp)) { Text("Eşleştir") }
+                }
+            }
+        }
+        val u = updating
+        val tv = tvVer
+        if (paired && (u != null || (tv != null && tv < myVer))) {
+            Surface(shape = RoundedCornerShape(20.dp), color = PanelHi, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (u == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "TV'deki uygulama eski. Telefondaki sürümü TV'ye gönder.", Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge, color = TextMain,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Button(onClick = { updateTv() }, shape = RoundedCornerShape(14.dp)) { Text("Güncelle") }
+                        }
+                    } else {
+                        Text("TV'ye gönderiliyor… %${(u * 100).toInt()}", style = MaterialTheme.typography.bodyLarge, color = Accent)
+                        LinearProgressIndicator(
+                            progress = { u },
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                            color = Accent, trackColor = Panel,
+                        )
+                    }
                 }
             }
         }

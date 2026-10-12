@@ -1,4 +1,4 @@
-// v0.5 – 2026-10-12: sürüm 0.5 (karekod okuyucu, Ayarlar)
+// v0.6 – 2026-10-12: sürüm 0.6 (çoklu yazdırma, PDF, kimlik, TV güncelleme)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.5"
+        versionCode = 6
+        versionName = "0.6"
     }
     signingConfigs {
         getByName("debug") {

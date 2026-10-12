@@ -1,3 +1,4 @@
+// v0.6 – 2026-10-12: /ping sürüm bildirir, /update ile telefondan yeni sürüm alınır
 package com.onur.tvgonder
 
 import android.content.Context
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * TV'deki yerel sunucu. Eşleşmemiş cihazların tüm istekleri reddedilir.
- * Uç noktalar: /ping, /pair, /folders, /mkdir, /upload, /link
+ * Uç noktalar: /ping, /pair, /folders, /mkdir, /upload, /link, /update
  */
 class ReceiverServer(
     private val ctx: Context,
@@ -31,7 +32,9 @@ class ReceiverServer(
 
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
-        if (path == "/ping") return json(200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL))
+        if (path == "/ping") return json(
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)),
+        )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
 
         val token = s.headers["x-token"]
@@ -43,6 +46,7 @@ class ReceiverServer(
             path == "/mkdir" && s.method == Method.POST -> mkdir(s)
             path == "/upload" && s.method == Method.POST -> upload(s)
             path == "/link" && s.method == Method.POST -> link(s)
+            path == "/update" && s.method == Method.POST -> update(s)
             else -> json(404, JSONObject().put("error", "Bulunamadı"))
         }
     }
@@ -122,6 +126,30 @@ class ReceiverServer(
             return json(400, JSONObject().put("error", "Sadece http/https linkleri açılır"))
         }
         LinkOpener.open(ctx, url)
+        return json(200, JSONObject().put("ok", true))
+    }
+
+    private fun update(s: IHTTPSession): Response {
+        val len = s.headers["content-length"]?.toLongOrNull()
+            ?: return json(411, JSONObject().put("error", "Boyut bilinmiyor"))
+        if (len > 300L * 1024 * 1024) return json(400, JSONObject().put("error", "Dosya çok büyük"))
+        val dir = java.io.File(ctx.cacheDir, "update").apply { mkdirs() }
+        val f = java.io.File(dir, "tvgonder.apk")
+        var left = len
+        val buf = ByteArray(64 * 1024)
+        f.outputStream().use { out ->
+            while (left > 0) {
+                val n = s.inputStream.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+                if (n < 0) break
+                out.write(buf, 0, n)
+                left -= n
+            }
+        }
+        if (left > 0) {
+            f.delete()
+            return json(400, JSONObject().put("error", "Gönderim yarım kaldı"))
+        }
+        Hub.updateReady.value = f
         return json(200, JSONObject().put("ok", true))
     }
 

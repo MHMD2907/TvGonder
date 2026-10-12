@@ -1,4 +1,4 @@
-// v0.4 – 2026-10-12: sol üstte M-ONUR logosu
+// v0.6 – 2026-10-12: telefondan gelen güncelleme için "Yükle" penceresi; sol üstte logo
 package com.onur.tvgonder.ui
 
 import android.net.Uri
@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.onur.tvgonder.Hub
+import com.onur.tvgonder.Installer
 import com.onur.tvgonder.Net
 import com.onur.tvgonder.R
 import com.onur.tvgonder.ReceiverServer
@@ -48,6 +49,7 @@ fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
     val code by Hub.pairingCode.collectAsState()
     val pending by Hub.pending.collectAsState()
     val running by Hub.running.collectAsState()
+    val update by Hub.updateReady.collectAsState()
     val ip = remember { Net.localIp() }
     val storageName = remember(tree) { tree?.let { DocumentFile.fromTreeUri(ctx, Uri.parse(it))?.name } }
 
@@ -124,6 +126,35 @@ fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
             text = { Text("${req.name} bu TV'ye bağlanmak istiyor.") },
             confirmButton = { Button(onClick = { req.decision.complete(true) }) { Text("Onayla") } },
             dismissButton = { OutlinedButton(onClick = { req.decision.complete(false) }) { Text("Reddet") } },
+        )
+    }
+
+    update?.let { apk ->
+        var note by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { Hub.updateReady.value = null },
+            containerColor = PanelHi,
+            title = { Text("Yeni sürüm hazır") },
+            text = {
+                Text(
+                    note ?: "Telefondan TV Gönder'in yeni sürümü geldi. Yükle'ye bas, açılan ekranda tekrar Yükle'yi seç.",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (!Installer.canInstall(ctx)) {
+                        val opened = Installer.openPermission(ctx)
+                        note = if (opened) "Açılan ekranda TV Gönder için izni aç, geri dön ve tekrar Yükle'ye bas."
+                        else "Ayarlar > Cihaz Tercihleri > Güvenlik ve kısıtlamalar > Bilinmeyen kaynaklar bölümünden TV Gönder'e izin ver, sonra tekrar Yükle'ye bas."
+                    } else {
+                        runCatching { Installer.install(ctx, apk) }
+                            .onSuccess { Hub.updateReady.value = null }
+                            .onFailure { note = "Kurulum ekranı açılamadı: ${it.message}" }
+                    }
+                }) { Text("Yükle") }
+            },
+            dismissButton = { OutlinedButton(onClick = { Hub.updateReady.value = null }) { Text("Sonra") } },
         )
     }
 }

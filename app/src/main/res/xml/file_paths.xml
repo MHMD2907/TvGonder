@@ -1,0 +1,4 @@
+<!-- v0.6 – 2026-10-12: TV güncellemesi için APK'nın kurulum ekranına verilmesi -->
+<paths>
+    <cache-path name="update" path="update/" />
+</paths>

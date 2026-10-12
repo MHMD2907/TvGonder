@@ -1,4 +1,4 @@
-// v0.2 – 2026-10-12: gönderimde ilerleme bildirimi (onProgress)
+// v0.6 – 2026-10-12: TV sürümünü sorma ve TV'ye yeni sürüm (APK) gönderme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -44,6 +44,37 @@ class TvClient(private val store: Store) {
             store.tvToken = o.getString("token")
             store.tvName = o.optString("tvName", "TV")
         }
+    }
+
+    /** TV'deki uygulamanın sürüm kodu; eski sürümlerde 0 döner. */
+    fun tvVersion(): Long {
+        http.newCall(Request.Builder().url("${base()}/ping").build()).execute().use { resp ->
+            return check(resp).optLong("version", 0L)
+        }
+    }
+
+    /** Telefonda kurulu APK'yı TV'ye gönderir (telefon ve TV aynı APK'yı kullanır). */
+    fun sendUpdate(ctx: Context, onProgress: (Long, Long) -> Unit) {
+        val apk = java.io.File(ctx.applicationInfo.sourceDir)
+        val size = apk.length()
+        val body = object : RequestBody() {
+            override fun contentType() = "application/vnd.android.package-archive".toMediaTypeOrNull()
+            override fun contentLength() = size
+            override fun writeTo(sink: BufferedSink) {
+                apk.inputStream().use {
+                    val buf = ByteArray(64 * 1024)
+                    var sent = 0L
+                    while (true) {
+                        val n = it.read(buf)
+                        if (n < 0) break
+                        sink.write(buf, 0, n)
+                        sent += n
+                        onProgress(sent, size)
+                    }
+                }
+            }
+        }
+        http.newCall(builder("${base()}/update").post(body).build()).execute().use { check(it) }
     }
 
     fun folders(path: String): List<String> {
