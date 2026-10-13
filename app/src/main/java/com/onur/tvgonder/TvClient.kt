@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: tvInfo (bağlantı + sürüm + kayıt yeri durumu tek istekte)
+// v0.13 – 2026-10-13: eşleşen cihaz alıcı listesine eklenir; tvInfo
 package com.onur.tvgonder
 
 import android.content.Context
@@ -43,6 +43,7 @@ class TvClient(private val store: Store) {
             store.tvPort = port
             store.tvToken = o.getString("token")
             store.tvName = o.optString("tvName", "TV")
+            store.addTarget(Target(store.tvName, host, port, store.tvToken!!))
         }
     }
 

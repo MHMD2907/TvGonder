@@ -1,4 +1,4 @@
-// v0.11 – 2026-10-13: Paylaş > karekod oku (QrShare); TV kayıt yeri: doğrudan klasör veya Android seçicisi
+// v0.13 – 2026-10-13: alıcı modu (tablet TV gibi çalışır, yatay); paylaş > karekod oku; TV kayıt yeri
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -43,7 +43,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = Store(this)
         tree = store.treeUri
-        val tv = isTv(this)
+        val tv = isTv(this) || store.receiverMode
+        if (tv && !isTv(this)) requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         if (!tv) readShare(intent) else intent?.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
         if (tv) ContextCompat.startForegroundService(this, Intent(this, ReceiverService::class.java))
 
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (!isTv(this)) readShare(intent)
+        if (!isTv(this) && !store.receiverMode) readShare(intent)
         else intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
     }
 

@@ -1,4 +1,4 @@
-// v0.12 – 2026-10-13: Ayarlar'da "Uygulamadan çık"; kayıt yeri penceresi, USB otomatik
+// v0.13 – 2026-10-13: tablet alıcı modu (dahili hafıza otomatik, gönderici moduna dön); çıkış; kayıt yeri penceresi
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -65,6 +65,7 @@ import com.onur.tvgonder.Store
 import com.onur.tvgonder.Volumes
 import com.onur.tvgonder.appVersionCode
 import com.onur.tvgonder.exitApp
+import com.onur.tvgonder.isTv
 import kotlinx.coroutines.delay
 
 /** TV'deki ekranlar (geri tuşu bir öncekine döner). */
@@ -107,7 +108,8 @@ fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage
     // İlk açılış: takılı USB varsa kayıt yeri olarak kendiliğinden seç
     LaunchedEffect(tree) {
         if (tree == null) {
-            Volumes.list(ctx).firstOrNull { it.removable }?.let {
+            val vols = Volumes.list(ctx)
+            (vols.firstOrNull { it.removable } ?: if (!isTv(ctx)) vols.firstOrNull() else null)?.let {
                 onSetStorage(Uri.fromFile(it.dir).toString())
                 note = "Kayıt yeri: ${it.label} (otomatik seçildi)"
             }
@@ -482,6 +484,14 @@ private fun TvSettings(
             items(devices.entries.toList(), key = { it.key }) { (token, name) ->
                 SettingRow("📲", name, "Eşleşmiş telefon", "Kaldır", null) {
                     store.removeDevice(token); Hub.devices.value = store.devices()
+                }
+            }
+            if (!isTv(ctx)) item {
+                SettingRow("📱", "Gönderici moduna dön", "Bu cihaz yeniden telefondaki gibi gönderici olur", "Dön", null) {
+                    store.receiverMode = false
+                    ctx.stopService(android.content.Intent(ctx, com.onur.tvgonder.ReceiverService::class.java))
+                    var x: android.content.Context? = ctx
+                    while (x is android.content.ContextWrapper) { if (x is android.app.Activity) { x.recreate(); break }; x = x.baseContext }
                 }
             }
             item {

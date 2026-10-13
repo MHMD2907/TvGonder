@@ -1,4 +1,4 @@
-// v0.12 – 2026-10-13: ⋮ menüsünde "Uygulamadan çık"; paylaş > karekod oku; sürüm ana ekranda
+// v0.13 – 2026-10-13: birden fazla alıcı (TV/tablet) arasında geçiş, yeni cihaz ekleme, bu cihazı alıcı yapma; karekod önizlemesi (yalnız QR)
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -68,6 +68,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
@@ -83,10 +85,13 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.onur.tvgonder.R
 import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
+import com.onur.tvgonder.Target
 import com.onur.tvgonder.PrintItem
 import com.onur.tvgonder.Printing
 import com.onur.tvgonder.TvClient
+import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
+import com.google.zxing.qrcode.QRCodeReader
 import com.google.zxing.DecodeHintType
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.RGBLuminanceSource
@@ -106,7 +111,7 @@ import java.io.IOException
 private fun join(a: String, b: String) = if (a.isEmpty()) b else "$a/$b"
 
 private val urlInText = Regex("""https?://[^\s<>"]+""", RegexOption.IGNORE_CASE)
-private val bareDomain = Regex("""^[\w-]+(\.[\w-]+)+(/\S*)?$""")
+private val bareDomain = Regex("""^[\w-]+(\.[\w-]+)*\.[a-zA-Z]{2,}(/\S*)?$""")
 
 /** Metnin içindeki ilk linki bulur. "youtube.com/..." gibi şemasız yazılana https ekler. */
 internal fun extractUrl(text: String): String? {
@@ -145,37 +150,73 @@ private fun friendly(e: Throwable?): String = when (e) {
 
 private class Msg(val text: String, val error: Boolean)
 
-/** Bir resimdeki tüm karekodları okur (test kitabı sayfasında birden fazla olabilir). */
-private fun qrsInBitmap(bmp: android.graphics.Bitmap): List<String> {
+/** Bir resimdeki karekodlar (yalnız QR; çizgili barkodlar okunmaz). */
+private fun qrResults(bmp: android.graphics.Bitmap): List<com.google.zxing.Result> {
     val w = bmp.width; val h = bmp.height
     val px = IntArray(w * h)
     bmp.getPixels(px, 0, w, 0, 0, w, h)
     val src = RGBLuminanceSource(w, h, px)
-    val hints = mapOf(DecodeHintType.TRY_HARDER to true)
-    val out = LinkedHashSet<String>()
+    val hints = mapOf(DecodeHintType.TRY_HARDER to true, DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE))
+    val out = LinkedHashMap<String, com.google.zxing.Result>()
     for (bin in listOf(HybridBinarizer(src), GlobalHistogramBinarizer(src))) {
-        runCatching { QRCodeMultiReader().decodeMultiple(BinaryBitmap(bin), hints).forEach { out += it.text } }
+        runCatching { QRCodeMultiReader().decodeMultiple(BinaryBitmap(bin), hints).forEach { out.putIfAbsent(it.text, it) } }
     }
-    if (out.isEmpty()) runCatching { out += MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(src)), hints).text }
-    return out.toList()
+    if (out.isEmpty()) runCatching { QRCodeReader().decode(BinaryBitmap(HybridBinarizer(src)), hints).let { out[it.text] = it } }
+    return out.values.toList()
 }
 
-/** Seçilen resim veya PDF'teki (ilk 10 sayfa) karekodlar. */
-private fun qrsInFile(ctx: Context, uri: Uri): List<String> {
+/** Önizleme: sayfa küçültülür, her karekodun etrafına çerçeve ve sıra numarası çizilir. */
+private fun markQrs(bmp: android.graphics.Bitmap, hits: List<Pair<Int, com.google.zxing.Result>>): android.graphics.Bitmap {
+    val s = minOf(1f, 1200f / bmp.width)
+    val out = android.graphics.Bitmap.createScaledBitmap(bmp, (bmp.width * s).toInt().coerceAtLeast(1), (bmp.height * s).toInt().coerceAtLeast(1), true)
+        .copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+    val c = android.graphics.Canvas(out)
+    val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE; strokeWidth = 7f; color = 0xFFE53935.toInt()
+    }
+    val dot = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE53935.toInt() }
+    val txt = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE; textSize = 40f; isFakeBoldText = true; textAlign = android.graphics.Paint.Align.CENTER
+    }
+    for ((n, r) in hits) {
+        val pts = r.resultPoints?.filterNotNull().orEmpty()
+        if (pts.isEmpty()) continue
+        var l = pts.minOf { it.x } * s; var t = pts.minOf { it.y } * s
+        var rr = pts.maxOf { it.x } * s; var b = pts.maxOf { it.y } * s
+        val pad = maxOf(rr - l, b - t) * 0.25f + 12f    // bulucu noktalar köşe merkezleri; çerçeveyi büyüt
+        l -= pad; t -= pad; rr += pad; b += pad
+        c.drawRect(l, t, rr, b, stroke)
+        c.drawCircle(l, t, 34f, dot)
+        c.drawText("$n", l, t + 14f, txt)
+    }
+    return out
+}
+
+private class QrFound(val texts: List<String>, val preview: android.graphics.Bitmap?)
+
+/** Seçilen resim veya PDF'teki (ilk 10 sayfa) karekodlar + ilk bulunan sayfanın önizlemesi. */
+private fun qrsInFile(ctx: Context, uri: Uri): QrFound {
     val items = Printing.load(ctx, listOf(uri))
-    val out = LinkedHashSet<String>()
+    val texts = mutableListOf<String>()
+    var preview: android.graphics.Bitmap? = null
     for (item in items) {
         for (page in 0 until minOf(item.count, 10)) {
             for (size in listOf(2400, 3600)) {
                 val bmp = Printing.tileBitmap(ctx, item, page, size)
-                val found = qrsInBitmap(bmp)
+                val found = qrResults(bmp)
+                if (found.isNotEmpty()) {
+                    val numbered = found.map { r ->
+                        if (r.text !in texts) texts += r.text
+                        (texts.indexOf(r.text) + 1) to r
+                    }
+                    if (preview == null) preview = runCatching { markQrs(bmp, numbered) }.getOrNull()
+                }
                 bmp.recycle()
-                out += found
                 if (found.isNotEmpty()) break
             }
         }
     }
-    return out.toList()
+    return QrFound(texts, preview)
 }
 
 private fun openOnPhone(ctx: Context, url: String) {
@@ -210,6 +251,8 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
     var pairMsg by remember { mutableStateOf<String?>(null) }
     var pairing by remember { mutableStateOf(false) }
     var skipped by remember { mutableStateOf(false) }   // "Şimdilik geç" — her açılışta sıfırlanır
+    var adding by remember { mutableStateOf(false) }    // eşliyken yeni cihaz ekleme
+    var current by remember { mutableStateOf(store.tvToken) }
 
     val scanner = rememberLauncherForActivityResult(ScanContract()) { res ->
         val text = res.contents ?: return@rememberLauncherForActivityResult
@@ -226,7 +269,7 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
         scope.launch {
             val r = withContext(Dispatchers.IO) { runCatching { client.pair(host, port, code, Build.MODEL) } }
             pairing = false
-            r.onSuccess { paired = true; pairMsg = null }
+            r.onSuccess { paired = true; adding = false; current = store.tvToken; pairMsg = null }
                 .onFailure { pairMsg = friendly(it) }
         }
     }
@@ -244,7 +287,8 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
         }
     }
 
-    if (!paired && !skipped) {
+    if ((!paired && !skipped) || adding) {
+        androidx.activity.compose.BackHandler(enabled = adding) { adding = false; pairMsg = null }
         PairUi(
             pairing, pairMsg,
             onScan = {
@@ -254,22 +298,32 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
                         .setPrompt("TV'deki QR kodu okut")
                 )
             },
-            onSkip = { skipped = true; pairMsg = null },
+            onSkip = { if (adding) adding = false else skipped = true; pairMsg = null },
+            skipText = if (adding) "Vazgeç" else "Şimdilik geç, uygulamayı gez",
         )
     } else {
-        SendUi(
-            store, client, paired,
-            if (paired || shared?.qr == true) shared else null, onSharedHandled,
-            onPair = { skipped = false; pairMsg = null },
-            onUnpair = { store.clearTv(); paired = false; skipped = false; pairMsg = null },
-        )
+        androidx.compose.runtime.key(current) {
+            SendUi(
+                store, client, paired,
+                if (paired || shared?.qr == true) shared else null, onSharedHandled,
+                onPair = { if (paired) adding = true else skipped = false; pairMsg = null },
+                onUnpair = {
+                    store.removeCurrentTarget()
+                    current = store.tvToken
+                    paired = store.tvToken != null
+                    if (!paired) skipped = false
+                    pairMsg = null
+                },
+                onSwitch = { t -> store.selectTarget(t); current = t.token },
+            )
+        }
     }
 }
 
 // ---------------------------------------------------------------- eşleştirme
 
 @Composable
-private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: () -> Unit) {
+private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: () -> Unit, skipText: String) {
     Column(
         Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -287,7 +341,7 @@ private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: (
             style = MaterialTheme.typography.bodyLarge, color = TextMuted,
         )
         Section("Nasıl eşleştirilir?") {
-            StepRow(1, "TV'de TV Gönder uygulamasını aç.")
+            StepRow(1, "TV'de (veya alıcı yaptığın tablette) TV Gönder'i aç.")
             StepRow(2, "TV'de \"Telefon ekle\"yi seç. Ekranda QR kod çıkar.")
             StepRow(3, "Aşağıdaki düğmeyle QR kodu okut, sonra TV'de \"Onayla\"ya bas.")
         }
@@ -298,7 +352,7 @@ private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: (
         TextButton(
             enabled = !pairing, onClick = onSkip,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Şimdilik geç, uygulamayı gez") }
+        ) { Text(skipText) }
         val c = LocalContext.current
         TextButton(onClick = { exitApp(c) }, modifier = Modifier.fillMaxWidth()) { Text("Uygulamadan çık", color = TextMuted) }
         msg?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = if (pairing) Accent else Danger) }
@@ -326,6 +380,7 @@ private fun SendUi(
     onSharedHandled: () -> Unit,
     onPair: () -> Unit,
     onUnpair: () -> Unit,
+    onSwitch: (Target) -> Unit,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -344,7 +399,9 @@ private fun SendUi(
     val transfers = remember { mutableStateListOf<Transfer>() }
     var scanned by remember { mutableStateOf<String?>(null) }
     var scannedMany by remember { mutableStateOf<List<String>>(emptyList()) }
+    var scanPreview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var showReceiver by remember { mutableStateOf(false) }
     var tvVer by remember { mutableStateOf<Long?>(null) }
     var tvStorage by remember { mutableStateOf(true) }
     var updating by remember { mutableStateOf<Float?>(null) }
@@ -406,12 +463,11 @@ private fun SendUi(
         msg = Msg("Karekod aranıyor…", false)
         scope.launch {
             val r = withContext(Dispatchers.IO) { runCatching { qrsInFile(ctx, uri) } }
-            val list = r.getOrDefault(emptyList())
+            val found = r.getOrNull()
             when {
                 r.isFailure -> msg = Msg(r.exceptionOrNull()?.message ?: "Dosya açılamadı.", true)
-                list.isEmpty() -> msg = Msg("Bu dosyada karekod bulunamadı. Daha net bir fotoğraf dene.", true)
-                list.size == 1 -> { msg = null; scanned = list[0] }
-                else -> { msg = null; scannedMany = list }
+                found == null || found.texts.isEmpty() -> msg = Msg("Bu dosyada karekod bulunamadı. Karekodu daha yakından, net çek.", true)
+                else -> { msg = null; scanPreview = found.preview; scannedMany = found.texts }
             }
         }
     }
@@ -503,13 +559,19 @@ private fun SendUi(
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (paired) {
                         DropdownMenuItem(text = { Text("Bağlantıyı yenile") }, onClick = { menu = false; online = null; recheck++ })
-                        DropdownMenuItem(text = { Text("TV'deki uygulamayı güncelle") }, onClick = { menu = false; updateTv() })
+                        store.targets().filter { it.token != store.tvToken }.forEach { t ->
+                            DropdownMenuItem(text = { Text("📺  ${t.name} cihazına geç") }, onClick = { menu = false; onSwitch(t) })
+                        }
+                        DropdownMenuItem(text = { Text("Yeni cihaz ekle (TV / tablet)") }, onClick = { menu = false; onPair() })
+                        DropdownMenuItem(text = { Text("${store.tvName} uygulamasını güncelle") }, onClick = { menu = false; updateTv() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
+                        DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
+                        DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     }
                 }
@@ -534,7 +596,7 @@ private fun SendUi(
                     if (u == null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "TV'deki uygulama eski. Telefondaki sürümü TV'ye gönder.", Modifier.weight(1f),
+                                "${store.tvName} cihazındaki uygulama eski. Telefondaki sürümü gönder.", Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyLarge, color = TextMain,
                             )
                             Spacer(Modifier.width(10.dp))
@@ -699,21 +761,29 @@ private fun SendUi(
 
     if (scannedMany.isNotEmpty()) {
         AlertDialog(
-            onDismissRequest = { scannedMany = emptyList() },
+            onDismissRequest = { scannedMany = emptyList(); scanPreview = null },
             containerColor = PanelHi,
-            title = { Text("${scannedMany.size} karekod bulundu", color = TextMain) },
+            title = { Text(if (scannedMany.size == 1) "1 karekod bulundu" else "${scannedMany.size} karekod bulundu", color = TextMain) },
             text = {
                 Column(
-                    Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                    Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    scanPreview?.let { pv ->
+                        Image(
+                            pv.asImageBitmap(), "Önizleme",
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.FillWidth,
+                        )
+                        Text("Kırmızı numaralar aşağıdaki listeyle aynı.", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                    }
                     scannedMany.forEachIndexed { i, t ->
                         OutlinedButton(
                             onClick = { scanned = t },
                             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
                         ) {
                             Text(
-                                "${i + 1}.  " + (extractUrl(t)?.let { prettyUrl(it) } ?: t),
+                                "${i + 1}.  " + (extractUrl(t)?.let { prettyUrl(it) } ?: "Link değil: $t"),
                                 Modifier.fillMaxWidth(), maxLines = 2, overflow = TextOverflow.Ellipsis,
                             )
                         }
@@ -721,7 +791,7 @@ private fun SendUi(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { scannedMany = emptyList() }) { Text("Kapat") } },
+            dismissButton = { TextButton(onClick = { scannedMany = emptyList(); scanPreview = null }) { Text("Kapat") } },
         )
     }
 
@@ -733,6 +803,29 @@ private fun SendUi(
             onPhone = { url -> scanned = null; openOnPhone(ctx, url) },
             onCopy = { scanned = null; copyText(ctx, text); msg = Msg("Kopyalandı.", false) },
             onDismiss = { scanned = null },
+        )
+    }
+
+    if (showReceiver) {
+        AlertDialog(
+            onDismissRequest = { showReceiver = false },
+            containerColor = PanelHi,
+            title = { Text("Bu cihazı alıcı yap", color = TextMain) },
+            text = {
+                Text(
+                    "Bu cihaz (ör. tablet) TV gibi çalışır: dosya ve link alır, Dosyalarım'dan açar, telefondan güncellenebilir. " +
+                        "Sonra telefonda ⋮ → Yeni cihaz ekle ile eşleştir. Geri dönmek için alıcıda Ayarlar → Gönderici moduna dön.",
+                    style = MaterialTheme.typography.bodyLarge, color = TextMain,
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    store.receiverMode = true
+                    showReceiver = false
+                    (ctx as? android.app.Activity ?: findAct(ctx))?.recreate()
+                }) { Text("Alıcı yap") }
+            },
+            dismissButton = { TextButton(onClick = { showReceiver = false }) { Text("Vazgeç") } },
         )
     }
 
@@ -1006,4 +1099,13 @@ private fun SettingsDialog(store: Store, paired: Boolean, onDismiss: () -> Unit)
         },
         confirmButton = { Button(onClick = onDismiss) { Text("Tamam") } },
     )
+}
+
+private fun findAct(c: Context): android.app.Activity? {
+    var x: Context? = c
+    while (x is android.content.ContextWrapper) {
+        if (x is android.app.Activity) return x
+        x = x.baseContext
+    }
+    return null
 }

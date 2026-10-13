@@ -1,3 +1,4 @@
+// v0.13 – 2026-10-13: alıcı modundaki tablet de açılışta alıcıyı başlatır
 package com.onur.tvgonder
 
 import android.app.Notification
@@ -57,6 +58,6 @@ class ReceiverService : Service() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
-        if (isTv(c)) ContextCompat.startForegroundService(c, Intent(c, ReceiverService::class.java))
+        if (isTv(c) || Store(c).receiverMode) ContextCompat.startForegroundService(c, Intent(c, ReceiverService::class.java))
     }
 }

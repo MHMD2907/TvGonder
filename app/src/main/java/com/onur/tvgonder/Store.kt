@@ -1,9 +1,12 @@
-// v0.7 – 2026-10-12: TV: son gelen dosyalar, boşta slayt gösterisi ayarı
+// v0.13 – 2026-10-13: birden fazla alıcı (TV/tablet), alıcı modu; son gelenler, boşta slayt
 package com.onur.tvgonder
 
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+
+/** Telefonun eşleştiği bir alıcı (TV veya tablet). */
+data class Target(val name: String, val host: String, val port: Int, val token: String)
 
 class Store(ctx: Context) {
     private val p = ctx.applicationContext.getSharedPreferences("tvgonder", Context.MODE_PRIVATE)
@@ -85,6 +88,41 @@ class Store(ctx: Context) {
     fun addRecentLink(url: String) {
         val list = (listOf(url) + recentLinks().filter { it != url }).take(8)
         p.edit().putString("recentLinks", JSONArray(list).toString()).apply()
+    }
+
+    /** Bu cihaz TV gibi alıcı olarak mı çalışsın (tablet için). */
+    var receiverMode: Boolean
+        get() = p.getBoolean("receiverMode", false)
+        set(v) { p.edit().putBoolean("receiverMode", v).apply() }
+
+    fun targets(): List<Target> {
+        val a = runCatching { JSONArray(p.getString("targets", "[]") ?: "[]") }.getOrDefault(JSONArray())
+        val list = List(a.length()) { i ->
+            val o = a.getJSONObject(i)
+            Target(o.optString("n", "TV"), o.getString("h"), o.optInt("p", ReceiverServer.PORT), o.getString("t"))
+        }
+        // Eski sürümden kalan tek eşleşmeyi listeye taşı
+        val tok = tvToken; val host = tvHost
+        if (list.isEmpty() && tok != null && host != null) return listOf(Target(tvName, host, tvPort, tok)).also { saveTargets(it) }
+        return list
+    }
+
+    private fun saveTargets(list: List<Target>) {
+        val a = JSONArray()
+        list.forEach { a.put(JSONObject().put("n", it.name).put("h", it.host).put("p", it.port).put("t", it.token)) }
+        p.edit().putString("targets", a.toString()).apply()
+    }
+
+    fun addTarget(t: Target) = saveTargets(targets().filter { it.token != t.token && it.host != t.host } + t)
+
+    fun selectTarget(t: Target) { tvHost = t.host; tvPort = t.port; tvToken = t.token; tvName = t.name }
+
+    /** Seçili alıcıyı listeden çıkarır; başka varsa ona geçer. */
+    fun removeCurrentTarget() {
+        val rest = targets().filter { it.token != tvToken }
+        saveTargets(rest)
+        clearTv()
+        rest.firstOrNull()?.let { selectTarget(it) }
     }
 
     fun clearTv() {
