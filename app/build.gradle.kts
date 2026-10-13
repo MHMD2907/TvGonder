@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: sürüm 0.10 (TV kayıt yeri düzeltmesi)
+// v0.11 – 2026-10-13: sürüm 0.11 (paylaş > karekod oku, sürüm ana ekranda)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.10"
+        versionCode = 11
+        versionName = "0.11"
     }
     signingConfigs {
         getByName("debug") {

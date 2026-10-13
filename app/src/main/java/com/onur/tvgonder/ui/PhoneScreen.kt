@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: bağlantı durumu /ping ile (USB'den bağımsız); TV'de kayıt yeri yoksa uyarı; karekod, TV güncelleme
+// v0.11 – 2026-10-13: Paylaş > "TV Gönder ile karekod oku"; sürüm ana ekranda; bağlantı durumu /ping ile
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -233,9 +233,12 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
     if (!paired) {
         LaunchedEffect(shared) {
             if (shared != null) {
-                skipped = false
-                pairMsg = "Paylaşmak için önce TV'yi eşleştir."
-                onSharedHandled()
+                if (shared.qr) skipped = true   // karekod okumak için TV gerekmez
+                else {
+                    skipped = false
+                    pairMsg = "Paylaşmak için önce TV'yi eşleştir."
+                    onSharedHandled()
+                }
             }
         }
     }
@@ -255,7 +258,7 @@ fun PhoneScreen(store: Store, shared: Shared? = null, onSharedHandled: () -> Uni
     } else {
         SendUi(
             store, client, paired,
-            if (paired) shared else null, onSharedHandled,
+            if (paired || shared?.qr == true) shared else null, onSharedHandled,
             onPair = { skipped = false; pairMsg = null },
             onUnpair = { store.clearTv(); paired = false; skipped = false; pairMsg = null },
         )
@@ -277,6 +280,7 @@ private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: (
             Modifier.size(132.dp).align(Alignment.CenterHorizontally),
         )
         Text("TV Gönder", style = MaterialTheme.typography.headlineMedium, color = TextMain)
+        Text("v${appVersion(LocalContext.current)}  ·  M-ONUR", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
         Text(
             "Dosyaları ve linkleri tek dokunuşla TV'ye gönder.",
             style = MaterialTheme.typography.bodyLarge, color = TextMuted,
@@ -394,6 +398,21 @@ private fun SendUi(
         }
     }
 
+    /** Resim/PDF'teki karekodları bulur; tek ise sonucu, çok ise listeyi açar. */
+    fun findQr(uri: Uri) {
+        msg = Msg("Karekod aranıyor…", false)
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { qrsInFile(ctx, uri) } }
+            val list = r.getOrDefault(emptyList())
+            when {
+                r.isFailure -> msg = Msg(r.exceptionOrNull()?.message ?: "Dosya açılamadı.", true)
+                list.isEmpty() -> msg = Msg("Bu dosyada karekod bulunamadı. Daha net bir fotoğraf dene.", true)
+                list.size == 1 -> { msg = null; scanned = list[0] }
+                else -> { msg = null; scannedMany = list }
+            }
+        }
+    }
+
     // Uygulama öne gelince: panoda yeni link varsa kutuya koy, TV bağlantısını yokla.
     LaunchedEffect(focused, recheck) {
         if (!focused) return@LaunchedEffect
@@ -412,7 +431,9 @@ private fun SendUi(
     // Paylaş menüsünden gelen içerik
     LaunchedEffect(shared) {
         val s = shared ?: return@LaunchedEffect
-        if (s.files.isNotEmpty()) {
+        if (s.qr) {
+            s.files.firstOrNull()?.let { findQr(it) }
+        } else if (s.files.isNotEmpty()) {
             sendFiles(s.files)
         } else {
             val u = s.text?.let { extractUrl(it) }
@@ -445,18 +466,7 @@ private fun SendUi(
     }
 
     val qrFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        msg = Msg("Karekod aranıyor…", false)
-        scope.launch {
-            val r = withContext(Dispatchers.IO) { runCatching { qrsInFile(ctx, uri) } }
-            val list = r.getOrDefault(emptyList())
-            when {
-                r.isFailure -> msg = Msg(r.exceptionOrNull()?.message ?: "Dosya açılamadı.", true)
-                list.isEmpty() -> msg = Msg("Bu dosyada karekod bulunamadı. Daha net bir fotoğraf dene.", true)
-                list.size == 1 -> { msg = null; scanned = list[0] }
-                else -> { msg = null; scannedMany = list }
-            }
-        }
+        if (uri != null) findQr(uri)
     }
 
     val qr = rememberLauncherForActivityResult(ScanContract()) { res ->
@@ -664,6 +674,12 @@ private fun SendUi(
                 }
             }
         }
+
+        Text(
+            "TV Gönder v${appVersion(ctx)}  ·  M-ONUR",
+            Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+            textAlign = TextAlign.Center,
+        )
 
         msg?.let {
             Surface(shape = RoundedCornerShape(14.dp), color = PanelHi, modifier = Modifier.fillMaxWidth()) {

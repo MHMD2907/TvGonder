@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: TV kayıt yeri: doğrudan klasör veya Android seçicisi (yoksa çökmez)
+// v0.11 – 2026-10-13: Paylaş > karekod oku (QrShare); TV kayıt yeri: doğrudan klasör veya Android seçicisi
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -22,7 +22,7 @@ import com.onur.tvgonder.ui.TvScreen
 
 /** Başka bir uygulamanın Paylaş menüsünden gelen içerik. */
 /** print = true ise içerik "TV Gönder ile yazdır" seçeneğinden geldi. */
-class Shared(val text: String? = null, val files: List<Uri> = emptyList(), val print: Boolean = false)
+class Shared(val text: String? = null, val files: List<Uri> = emptyList(), val print: Boolean = false, val qr: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     private lateinit var store: Store
@@ -72,6 +72,10 @@ class MainActivity : ComponentActivity() {
 
     private fun readShare(i: Intent?) {
         if (i == null) return
+        if (i.component?.className?.endsWith(".QrShare") == true) {
+            IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java)?.let { shared = Shared(files = listOf(it), qr = true) }
+            return
+        }
         val print = i.component?.className?.endsWith(".PrintShare") == true
         if (print) {
             val files = if (i.action == Intent.ACTION_SEND_MULTIPLE)
