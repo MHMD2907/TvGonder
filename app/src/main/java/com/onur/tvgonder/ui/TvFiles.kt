@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: TV ortak parçaları (odaklı kart), USB bellek listeleme, Dosyalarım ekranı
+// v0.10 – 2026-10-13: düz klasör (USB/TV hafızası) listeleme desteği; odaklı kart, Dosyalarım
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -6,6 +6,8 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.text.format.DateFormat
 import android.text.format.Formatter
+import android.webkit.MimeTypeMap
+import java.io.File
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,10 +79,26 @@ data class Entry(
 object Usb {
     /** Seçilen USB klasörünün kök belgesi. */
     fun rootUri(tree: Uri): Uri =
-        DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        if (tree.scheme == "file") tree
+        else DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+
+    private fun mimeOf(name: String): String =
+        MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase()) ?: ""
+
+    private fun listFiles(dir: File): List<Entry> =
+        (dir.listFiles() ?: emptyArray()).filter { !it.name.startsWith(".") }.map { f ->
+            Entry(
+                name = f.name,
+                uri = Uri.fromFile(f),
+                mime = if (f.isDirectory) DocumentsContract.Document.MIME_TYPE_DIR else mimeOf(f.name),
+                size = if (f.isDirectory) 0 else f.length(),
+                modified = f.lastModified(),
+            )
+        }
 
     /** Bir klasörün içindekiler: önce klasörler, sonra en yeni dosyalar. */
     fun list(ctx: Context, tree: Uri, dir: Uri): List<Entry> {
+        if (dir.scheme == "file") return sort(listFiles(File(dir.path!!).apply { mkdirs() }))
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getDocumentId(dir))
         val cols = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -103,6 +121,10 @@ object Usb {
                 )
             }
         }
+        return sort(out)
+    }
+
+    private fun sort(out: List<Entry>): List<Entry> {
         return out.sortedWith(compareBy<Entry> { it.kind != Kind.Folder }.thenByDescending { if (it.kind == Kind.Folder) 0 else it.modified }.thenBy { it.name.lowercase() })
     }
 

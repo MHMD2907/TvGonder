@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: TV: link ile öne gelme, ön plan bilgisi; "Yazdır" paylaşımı çoklu
+// v0.10 – 2026-10-13: TV kayıt yeri: doğrudan klasör veya Android seçicisi (yoksa çökmez)
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -50,7 +50,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    if (tv) TvScreen(store, tree) { pickTree.launch(null) } else PhoneRoot(store, shared) { shared = null }
+                    if (tv) TvScreen(
+                        store, tree,
+                        onPickSaf = { runCatching { pickTree.launch(null) }.isSuccess },
+                        onSetStorage = { store.treeUri = it; tree = it },
+                    ) else PhoneRoot(store, shared) { shared = null }
                 }
             }
         }

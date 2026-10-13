@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: TV sürümünü sorma ve TV'ye yeni sürüm (APK) gönderme
+// v0.10 – 2026-10-13: tvInfo (bağlantı + sürüm + kayıt yeri durumu tek istekte)
 package com.onur.tvgonder
 
 import android.content.Context
@@ -44,6 +44,11 @@ class TvClient(private val store: Store) {
             store.tvToken = o.getString("token")
             store.tvName = o.optString("tvName", "TV")
         }
+    }
+
+    /** TV'ye ulaşılabiliyor mu, sürümü ve kayıt yeri seçili mi (USB'den bağımsız). */
+    fun tvInfo(): JSONObject {
+        http.newCall(Request.Builder().url("${base()}/ping").build()).execute().use { return check(it) }
     }
 
     /** TV'deki uygulamanın sürüm kodu; eski sürümlerde 0 döner. */

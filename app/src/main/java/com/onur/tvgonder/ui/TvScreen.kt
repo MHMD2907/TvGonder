@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: modern TV ana ekranı; Dosyalarım, görüntüleyiciler, tarayıcı, slayt (boşta otomatik), gelen dosya kartı, ayarlar
+// v0.10 – 2026-10-13: kayıt yeri penceresi (USB otomatik bulunur, Android seçicisi gerekmez); kart yazıları sığar; sürüm adı
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -61,6 +62,7 @@ import com.onur.tvgonder.R
 import com.onur.tvgonder.ReceiverServer
 import com.onur.tvgonder.Received
 import com.onur.tvgonder.Store
+import com.onur.tvgonder.Volumes
 import com.onur.tvgonder.appVersionCode
 import kotlinx.coroutines.delay
 
@@ -79,12 +81,16 @@ sealed interface TvNav {
 private val HomeBg = Brush.verticalGradient(listOf(Color(0xFF0B2633), Ink, Color(0xFF09131F)))
 
 @Composable
-fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
+fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage: (String) -> Unit) {
     val ctx = LocalContext.current
     val stack = remember { mutableStateListOf<TvNav>(TvNav.Home) }
     val top = stack.last()
     val treeUri = remember(tree) { tree?.let { Uri.parse(it) } }
-    val storageName = remember(tree) { tree?.let { runCatching { DocumentFile.fromTreeUri(ctx, Uri.parse(it))?.name }.getOrNull() } }
+    val storageName = remember(tree) {
+        tree?.let { t -> Volumes.labelFor(ctx, t) ?: runCatching { DocumentFile.fromTreeUri(ctx, Uri.parse(t))?.name }.getOrNull() }
+    }
+    var showStorage by remember { mutableStateOf(false) }
+    val onPickStorage: () -> Unit = { showStorage = true }
     val ip = remember { Net.localIp() }
 
     val devices by Hub.devices.collectAsState()
@@ -96,6 +102,16 @@ fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
     val rec by Hub.received.collectAsState()
 
     var note by remember { mutableStateOf<String?>(null) }
+
+    // İlk açılış: takılı USB varsa kayıt yeri olarak kendiliğinden seç
+    LaunchedEffect(tree) {
+        if (tree == null) {
+            Volumes.list(ctx).firstOrNull { it.removable }?.let {
+                onSetStorage(Uri.fromFile(it.dir).toString())
+                note = "Kayıt yeri: ${it.label} (otomatik seçildi)"
+            }
+        }
+    }
     var toast by remember { mutableStateOf<Received?>(null) }
     var lastKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
@@ -199,6 +215,48 @@ fun TvScreen(store: Store, tree: String?, onPickStorage: () -> Unit) {
         }
     }
 
+    // ---- Kayıt yeri seçimi
+    if (showStorage) {
+        val vols = remember { Volumes.list(ctx) }
+        val firstBtn = remember { FocusRequester() }
+        LaunchedEffect(Unit) { runCatching { firstBtn.requestFocus() } }
+        AlertDialog(
+            onDismissRequest = { showStorage = false },
+            containerColor = PanelHi,
+            title = { Text("Dosyalar nereye kaydedilsin?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    vols.forEachIndexed { i, v ->
+                        Button(
+                            onClick = {
+                                onSetStorage(Uri.fromFile(v.dir).toString())
+                                showStorage = false
+                                note = "Kayıt yeri: ${v.label}"
+                            },
+                            modifier = (if (i == 0) Modifier.focusRequester(firstBtn) else Modifier).fillMaxWidth(),
+                        ) { Text((if (v.removable) "💾  " else "📺  ") + v.label + if (v.removable) "  (önerilen)" else "") }
+                    }
+                    if (vols.none { it.removable }) {
+                        Text("Takılı USB bellek bulunamadı. Takıp tekrar dene ya da TV hafızasını seç.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            showStorage = false
+                            if (!onPickSaf()) note = "Bu TV'de klasör seçici yok. Listeden birini seç."
+                        },
+                        modifier = (if (vols.isEmpty()) Modifier.focusRequester(firstBtn) else Modifier).fillMaxWidth(),
+                    ) { Text("🗂️  Başka klasör seç (Android seçicisi)") }
+                    Text(
+                        "Dosyalar seçtiğin birimde TvGonder klasörüne kaydedilir ve Dosyalarım'dan açılır.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = { OutlinedButton(onClick = { showStorage = false }) { Text("Kapat") } },
+        )
+    }
+
     // ---- Eşleştirme: QR kod
     if (code != null && ip != null) {
         val bmp = remember(code) { Net.qr("tvgonder://pair?host=$ip&port=${ReceiverServer.PORT}&code=$code") }
@@ -291,7 +349,7 @@ private fun TvHome(
         while (true) { delay(20_000); now = System.currentTimeMillis() }
     }
 
-    Column(Modifier.fillMaxSize().background(HomeBg).padding(horizontal = 64.dp, vertical = 44.dp)) {
+    Column(Modifier.fillMaxSize().background(HomeBg).padding(horizontal = 48.dp, vertical = 40.dp)) {
         // Başlık + saat
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(painterResource(R.drawable.logo_round), "M-ONUR", Modifier.size(104.dp))
@@ -317,7 +375,7 @@ private fun TvHome(
         Spacer(Modifier.height(32.dp))
 
         // Büyük kartlar
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             val m = Modifier.weight(1f).height(190.dp)
             if (!hasTree) HomeTile(m, "💾", "USB belleği seç", "Gelen dosyalar buraya kaydedilir", first, onPickStorage)
             HomeTile(m, "📁", "Dosyalarım", "Video, PDF ve resimleri aç", if (hasTree) first else null, onFiles)
@@ -360,11 +418,14 @@ private fun TvHome(
 
 @Composable
 private fun HomeTile(modifier: Modifier, emoji: String, title: String, sub: String, fr: FocusRequester?, onClick: () -> Unit) {
-    TvCard(modifier, focusRequester = fr, onClick = onClick) { focused ->
-        Text(emoji, fontSize = 48.sp)
+    TvCard(modifier, focusRequester = fr, padding = PaddingValues(horizontal = 16.dp, vertical = 18.dp), onClick = onClick) { focused ->
+        Text(emoji, fontSize = 42.sp)
         Spacer(Modifier.weight(1f))
-        Text(title, style = MaterialTheme.typography.headlineMedium.copy(fontSize = 26.sp), color = if (focused) Accent else TextMain)
-        Text(sub, style = MaterialTheme.typography.bodyMedium, color = TextMuted, maxLines = 2)
+        Text(
+            title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+            color = if (focused) Accent else TextMain, maxLines = 2, overflow = TextOverflow.Ellipsis,
+        )
+        Text(sub, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp), color = TextMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -425,7 +486,7 @@ private fun TvSettings(
             item {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Adres: ${ip ?: "Wi‑Fi yok"}:${ReceiverServer.PORT}   ·   Sürüm ${appVersionCode(ctx)}   ·   M-ONUR",
+                    "Adres: ${ip ?: "Wi‑Fi yok"}:${ReceiverServer.PORT}   ·   Sürüm v${runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: appVersionCode(ctx)}   ·   M-ONUR",
                     style = MaterialTheme.typography.bodyMedium, color = TextMuted,
                 )
             }

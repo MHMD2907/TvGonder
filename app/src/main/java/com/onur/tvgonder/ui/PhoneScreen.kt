@@ -1,4 +1,4 @@
-// v0.9 – 2026-10-12: resimden / PDF'ten karekod okuma (sayfadaki tüm karekodlar); TV güncelleme, Ayarlar
+// v0.10 – 2026-10-13: bağlantı durumu /ping ile (USB'den bağımsız); TV'de kayıt yeri yoksa uyarı; karekod, TV güncelleme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -339,6 +339,7 @@ private fun SendUi(
     var scannedMany by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSettings by remember { mutableStateOf(false) }
     var tvVer by remember { mutableStateOf<Long?>(null) }
+    var tvStorage by remember { mutableStateOf(true) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
 
@@ -401,8 +402,10 @@ private fun SendUi(
             link = clip; fromClip = true
         }
         if (paired) {
-            online = withContext(Dispatchers.IO) { runCatching { client.folders("") }.isSuccess }
-            if (online == true) tvVer = withContext(Dispatchers.IO) { runCatching { client.tvVersion() }.getOrNull() }
+            val info = withContext(Dispatchers.IO) { runCatching { client.tvInfo() }.getOrNull() }
+            online = info != null
+            tvVer = info?.optLong("version", 0L)
+            tvStorage = info?.optBoolean("storage", true) ?: true
         }
     }
 
@@ -531,6 +534,14 @@ private fun SendUi(
                         )
                     }
                 }
+            }
+        }
+        if (paired && online == true && !tvStorage) {
+            Surface(shape = RoundedCornerShape(20.dp), color = PanelHi, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "TV bağlı ama dosyaların kaydedileceği yer seçilmemiş. TV'de \"USB belleği seç\"e bas, sonra burada ⋮ → Bağlantıyı yenile.",
+                    Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge, color = Danger,
+                )
             }
         }
         if (paired && online == false) {

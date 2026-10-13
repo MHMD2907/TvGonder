@@ -1,4 +1,4 @@
-// v0.9 – 2026-10-12: sürüm 0.9 (resimden/PDF'ten karekod okuma)
+// v0.10 – 2026-10-13: sürüm 0.10 (TV kayıt yeri düzeltmesi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.9"
+        versionCode = 10
+        versionName = "0.10"
     }
     signingConfigs {
         getByName("debug") {

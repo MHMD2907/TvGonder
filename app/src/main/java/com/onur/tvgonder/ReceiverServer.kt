@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: gelen dosya TV ekranına bildirilir; /ping sürüm, /update yeni sürüm
+// v0.10 – 2026-10-13: kayıt yeri doğrudan klasör (USB/TV hafızası) olabilir; /ping kayıt yeri durumunu bildirir
 package com.onur.tvgonder
 
 import android.content.Context
@@ -33,7 +33,7 @@ class ReceiverServer(
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
         if (path == "/ping") return json(
-            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)),
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
 
@@ -72,7 +72,10 @@ class ReceiverServer(
         return json(200, JSONObject().put("token", token).put("tvName", Build.MODEL))
     }
 
+    private val noStorage get() = json(409, JSONObject().put("error", "TV'de kayıt yeri seçilmemiş. TV'de \"USB belleği seç\"e bas."))
+
     private fun folders(s: IHTTPSession): Response {
+        if (store.treeUri == null) return noStorage
         val dir = resolve(s.parms["path"] ?: "")
         if (dir == null || !dir.isDirectory) return json(404, JSONObject().put("error", "Klasör yok"))
         val arr = JSONArray()
@@ -96,14 +99,18 @@ class ReceiverServer(
         val name = clean(URLDecoder.decode(s.headers["x-name"] ?: "dosya", "UTF-8")).ifBlank { "dosya" }
         val len = s.headers["content-length"]?.toLongOrNull()
             ?: return json(411, JSONObject().put("error", "Boyut bilinmiyor"))
-        val dir = resolve(folder) ?: return json(404, JSONObject().put("error", "Klasör yok"))
+        if (store.treeUri == null) return noStorage
+        val dir = resolve(folder) ?: return json(404, JSONObject().put("error", "Klasör yok. USB bellek takılı mı?"))
         val mime = s.headers["content-type"] ?: "application/octet-stream"
-        val file = dir.createFile(mime, name)
+        // Düz klasörde (USB/TV hafızası) doğrudan dosya; Android seçicisiyle seçilmişse DocumentFile
+        val raw = dir.uri.scheme == "file"
+        val target: java.io.File? = if (raw) uniqueFile(java.io.File(dir.uri.path!!), name) else null
+        val file = if (raw) DocumentFile.fromFile(target!!) else dir.createFile(mime, name)
             ?: return json(500, JSONObject().put("error", "Dosya oluşturulamadı. USB bağlı mı?"))
 
         var left = len
         val buf = ByteArray(64 * 1024)
-        ctx.contentResolver.openOutputStream(file.uri)?.use { out ->
+        (if (raw) target!!.outputStream() else ctx.contentResolver.openOutputStream(file.uri))?.use { out ->
             while (left > 0) {
                 val n = s.inputStream.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
                 if (n < 0) break
@@ -157,8 +164,26 @@ class ReceiverServer(
     }
 
     // ---- yardımcılar ----
-    private fun root(): DocumentFile? =
-        store.treeUri?.let { DocumentFile.fromTreeUri(ctx, Uri.parse(it)) }
+    /** Aynı adda dosya varsa "ad (2).uzantı" yapar. */
+    private fun uniqueFile(dir: java.io.File, name: String): java.io.File {
+        dir.mkdirs()
+        var f = java.io.File(dir, name)
+        val base = name.substringBeforeLast('.', name)
+        val ext = if (name.contains('.')) "." + name.substringAfterLast('.') else ""
+        var n = 2
+        while (f.exists()) f = java.io.File(dir, "$base ($n)$ext").also { n++ }
+        return f
+    }
+
+    private fun root(): DocumentFile? = rootDoc()
+
+    private fun rootDoc(): DocumentFile? {
+        val t = store.treeUri ?: return null
+        val u = Uri.parse(t)
+        return if (u.scheme == "file") java.io.File(u.path!!).apply { mkdirs() }.let { DocumentFile.fromFile(it) }
+        else DocumentFile.fromTreeUri(ctx, u)
+    }
+
 
     private fun resolve(rel: String): DocumentFile? {
         var cur = root() ?: return null

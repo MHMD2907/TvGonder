@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: sürüm numarası ve APK kurulum yardımcıları
+// v0.10 – 2026-10-13: depolama birimleri (USB/TV hafızası); sürüm ve APK kurulum yardımcıları
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -66,5 +66,28 @@ object Installer {
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         )
+    }
+}
+
+/** TV'de takılı depolama birimleri. Uygulamanın her birimdeki kendi klasörü izinsiz yazılabilir. */
+object Volumes {
+    data class Vol(val label: String, val dir: File, val removable: Boolean)
+
+    fun list(c: Context): List<Vol> {
+        val sm = c.getSystemService(android.os.storage.StorageManager::class.java)
+        return c.getExternalFilesDirs(null).filterNotNull().mapNotNull { f ->
+            val v = runCatching { sm.getStorageVolume(f) }.getOrNull()
+            val removable = v?.isRemovable ?: false
+            val label = v?.getDescription(c) ?: if (removable) "USB bellek" else "TV hafızası"
+            Vol(label, File(f, "TvGonder"), removable)
+        }.sortedByDescending { it.removable }
+    }
+
+    /** Kayıt yeri adresi (file://...) için okunur ad. */
+    fun labelFor(c: Context, tree: String): String? {
+        val u = Uri.parse(tree)
+        if (u.scheme != "file") return null
+        val path = u.path ?: return null
+        return list(c).firstOrNull { path.startsWith(it.dir.path) }?.label ?: "Klasör"
     }
 }
