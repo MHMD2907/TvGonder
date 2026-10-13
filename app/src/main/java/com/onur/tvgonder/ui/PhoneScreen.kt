@@ -567,12 +567,12 @@ private fun SendUi(
                         DropdownMenuItem(text = { Text("${store.tvName} uygulamasını güncelle") }, onClick = { menu = false; updateTv() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
-                        DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
+                        if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
-                        DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
+                        if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     }
                 }

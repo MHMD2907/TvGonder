@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: alıcı modu (tablet TV gibi çalışır, yatay); paylaş > karekod oku; TV kayıt yeri
+// v0.14 – 2026-10-13: alıcı moddaki tablet paylaşımları da alır (Gönder ekranına); alıcı modu, karekod paylaşımı
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
         tree = store.treeUri
         val tv = isTv(this) || store.receiverMode
         if (tv && !isTv(this)) requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        if (!tv) readShare(intent) else intent?.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
+        if (!isTv(this)) readShare(intent)
+        if (tv) intent?.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
         if (tv) ContextCompat.startForegroundService(this, Intent(this, ReceiverService::class.java))
 
         setContent {
@@ -55,6 +56,7 @@ class MainActivity : ComponentActivity() {
                         store, tree,
                         onPickSaf = { runCatching { pickTree.launch(null) }.isSuccess },
                         onSetStorage = { store.treeUri = it; tree = it },
+                        shared = shared, onSharedHandled = { shared = null },
                     ) else PhoneRoot(store, shared) { shared = null }
                 }
             }
@@ -64,8 +66,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (!isTv(this) && !store.receiverMode) readShare(intent)
-        else intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
+        if (!isTv(this)) readShare(intent)
+        if (isTv(this) || store.receiverMode) intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
     }
 
     override fun onResume() { super.onResume(); Hub.foreground = true }

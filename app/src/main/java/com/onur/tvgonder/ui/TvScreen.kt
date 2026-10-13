@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: tablet alıcı modu (dahili hafıza otomatik, gönderici moduna dön); çıkış; kayıt yeri penceresi
+// v0.14 – 2026-10-13: tablet hem alıcı hem verici: "Gönder" kartı telefon ekranını açar, paylaşımlar oraya gider
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -61,6 +61,7 @@ import com.onur.tvgonder.Net
 import com.onur.tvgonder.R
 import com.onur.tvgonder.ReceiverServer
 import com.onur.tvgonder.Received
+import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
 import com.onur.tvgonder.Volumes
 import com.onur.tvgonder.appVersionCode
@@ -78,12 +79,16 @@ sealed interface TvNav {
     data class Pdf(val uri: Uri, val name: String) : TvNav
     data class Video(val uri: Uri) : TvNav
     data class Web(val url: String) : TvNav
+    data object Send : TvNav
 }
 
 private val HomeBg = Brush.verticalGradient(listOf(Color(0xFF0B2633), Ink, Color(0xFF09131F)))
 
 @Composable
-fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage: (String) -> Unit) {
+fun TvScreen(
+    store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage: (String) -> Unit,
+    shared: Shared? = null, onSharedHandled: () -> Unit = {},
+) {
     val ctx = LocalContext.current
     val stack = remember { mutableStateListOf<TvNav>(TvNav.Home) }
     val top = stack.last()
@@ -146,6 +151,9 @@ fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage
         open(e, listOf(e))
     }
 
+    // Tablet: başka uygulamadan paylaşılan içerik gönderme ekranına gider
+    LaunchedEffect(shared) { if (shared != null && top != TvNav.Send) push(TvNav.Send) }
+
     // Telefondan gelen link: uygulamanın tarayıcısında aç
     LaunchedEffect(openUrl) {
         val u = openUrl ?: return@LaunchedEffect
@@ -181,6 +189,7 @@ fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage
                     onSlides = { if (treeUri != null) push(TvNav.Slides) else onPickStorage() },
                     onAddPhone = { if (ip != null) Hub.pairingCode.value = (100000..999999).random().toString() else note = "TV Wi‑Fi'ye bağlı değil." },
                     onSettings = { push(TvNav.Settings) },
+                    onSend = if (isTv(ctx)) null else ({ push(TvNav.Send) }),
                     onPickStorage = onPickStorage,
                     onOpenRecent = { openReceived(it) },
                 )
@@ -199,6 +208,7 @@ fun TvScreen(store: Store, tree: String?, onPickSaf: () -> Boolean, onSetStorage
                 is TvNav.Pdf -> TvPdfViewer(n.uri, n.name)
                 is TvNav.Video -> TvVideoPlayer(n.uri)
                 is TvNav.Web -> TvBrowser(n.url) { pop() }
+                TvNav.Send -> PhoneRoot(store, shared, onSharedHandled)
             }
         }
 
@@ -341,6 +351,7 @@ private fun TvHome(
     onSlides: () -> Unit,
     onAddPhone: () -> Unit,
     onSettings: () -> Unit,
+    onSend: (() -> Unit)?,
     onPickStorage: () -> Unit,
     onOpenRecent: (Received) -> Unit,
 ) {
@@ -384,6 +395,7 @@ private fun TvHome(
             HomeTile(m, "📁", "Dosyalarım", "Video, PDF ve resimleri aç", if (hasTree) first else null, onFiles)
             HomeTile(m, "🖼️", "Slayt gösterisi", "Bellekteki fotoğraflar", null, onSlides)
             HomeTile(m, "📱", "Telefon ekle", "QR kod ile eşleştir", null, onAddPhone)
+            if (onSend != null) HomeTile(m, "📤", "Gönder", "Buradan TV'ye link, dosya, yazdır", null, onSend)
             HomeTile(m, "⚙️", "Ayarlar", "USB, telefonlar, slayt", null, onSettings)
         }
         Spacer(Modifier.height(32.dp))
