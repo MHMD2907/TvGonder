@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: birden fazla alıcı (TV/tablet) arasında geçiş, yeni cihaz ekleme, bu cihazı alıcı yapma; karekod önizlemesi (yalnız QR)
+// v0.13.1 – 2026-10-13: "Nereye gönderilsin?" cihaz seçimi ana ekranda; çoklu alıcı, alıcı modu, karekod önizlemesi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -573,6 +574,24 @@ private fun SendUi(
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
+                    }
+                }
+            }
+        }
+        val targets = remember(paired) { store.targets() }
+        if (paired && targets.size > 1) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Nereye gönderilsin?", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    targets.forEach { t ->
+                        FilterChip(
+                            selected = t.token == store.tvToken,
+                            onClick = { if (t.token != store.tvToken) onSwitch(t) },
+                            label = { Text("📺  ${t.name}") },
+                        )
                     }
                 }
             }
