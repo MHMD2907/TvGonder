@@ -1,4 +1,4 @@
-// v0.11 – 2026-10-13: Paylaş > "TV Gönder ile karekod oku"; sürüm ana ekranda; bağlantı durumu /ping ile
+// v0.12 – 2026-10-13: ⋮ menüsünde "Uygulamadan çık"; paylaş > karekod oku; sürüm ana ekranda
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -94,6 +94,7 @@ import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.multi.qrcode.QRCodeMultiReader
 import com.onur.tvgonder.appVersionCode
+import com.onur.tvgonder.exitApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -298,6 +299,8 @@ private fun PairUi(pairing: Boolean, msg: String?, onScan: () -> Unit, onSkip: (
             enabled = !pairing, onClick = onSkip,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Şimdilik geç, uygulamayı gez") }
+        val c = LocalContext.current
+        TextButton(onClick = { exitApp(c) }, modifier = Modifier.fillMaxWidth()) { Text("Uygulamadan çık", color = TextMuted) }
         msg?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = if (pairing) Accent else Danger) }
     }
 }
@@ -503,9 +506,11 @@ private fun SendUi(
                         DropdownMenuItem(text = { Text("TV'deki uygulamayı güncelle") }, onClick = { menu = false; updateTv() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
+                        DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
+                        DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     }
                 }
             }

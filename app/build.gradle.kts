@@ -1,4 +1,4 @@
-// v0.11 – 2026-10-13: sürüm 0.11 (paylaş > karekod oku, sürüm ana ekranda)
+// v0.12 – 2026-10-13: sürüm 0.12 (uygulamadan çık)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.11"
+        versionCode = 12
+        versionName = "0.12"
     }
     signingConfigs {
         getByName("debug") {

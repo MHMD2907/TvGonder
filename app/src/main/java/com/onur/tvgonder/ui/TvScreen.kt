@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: kayıt yeri penceresi (USB otomatik bulunur, Android seçicisi gerekmez); kart yazıları sığar; sürüm adı
+// v0.12 – 2026-10-13: Ayarlar'da "Uygulamadan çık"; kayıt yeri penceresi, USB otomatik
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -64,6 +64,7 @@ import com.onur.tvgonder.Received
 import com.onur.tvgonder.Store
 import com.onur.tvgonder.Volumes
 import com.onur.tvgonder.appVersionCode
+import com.onur.tvgonder.exitApp
 import kotlinx.coroutines.delay
 
 /** TV'deki ekranlar (geri tuşu bir öncekine döner). */
@@ -482,6 +483,9 @@ private fun TvSettings(
                 SettingRow("📲", name, "Eşleşmiş telefon", "Kaldır", null) {
                     store.removeDevice(token); Hub.devices.value = store.devices()
                 }
+            }
+            item {
+                SettingRow("🚪", "Uygulamadan çık", "Telefondan gelenler yine de alınır", "Çık", null) { exitApp(ctx) }
             }
             item {
                 Spacer(Modifier.height(8.dp))

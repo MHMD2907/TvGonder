@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: depolama birimleri (USB/TV hafızası); sürüm ve APK kurulum yardımcıları
+// v0.12 – 2026-10-13: uygulamadan çıkış; depolama birimleri (USB/TV hafızası); sürüm ve APK kurulum yardımcıları
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -89,5 +89,14 @@ object Volumes {
         if (u.scheme != "file") return null
         val path = u.path ?: return null
         return list(c).firstOrNull { path.startsWith(it.dir.path) }?.label ?: "Klasör"
+    }
+}
+
+/** Uygulamayı kapatır (TV'de alıcı arka planda çalışmaya devam eder). */
+fun exitApp(c: Context) {
+    var x: Context? = c
+    while (x is android.content.ContextWrapper) {
+        if (x is android.app.Activity) { x.finishAffinity(); return }
+        x = x.baseContext
     }
 }
