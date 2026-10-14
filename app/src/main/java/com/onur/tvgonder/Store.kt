@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: birden fazla alıcı (TV/tablet), alıcı modu; son gelenler, boşta slayt
+// v0.15 – 2026-10-14: dosya adına gönderim tarihi ayarı, silinen dosya son gelenlerden çıkar; birden fazla alıcı (TV/tablet), alıcı modu; son gelenler, boşta slayt
 package com.onur.tvgonder
 
 import android.content.Context
@@ -39,6 +39,18 @@ class Store(ctx: Context) {
             Received(o.getString("n"), o.getString("u"), o.optString("m"), o.optLong("t"))
         }
     }.getOrDefault(emptyList())
+
+    fun removeReceived(uri: String) {
+        val list = received().filter { it.uri != uri }
+        val a = JSONArray()
+        list.forEach { a.put(JSONObject().put("n", it.name).put("u", it.uri).put("m", it.mime).put("t", it.at)) }
+        p.edit().putString("received", a.toString()).apply()
+    }
+
+    /** Gönderilen dosyanın adının başına gönderim tarihi eklensin mi (telefon). */
+    var datePrefix: Boolean
+        get() = p.getBoolean("datePrefix", true)
+        set(v) { p.edit().putBoolean("datePrefix", v).apply() }
 
     fun addReceived(r: Received) {
         val list = (listOf(r) + received().filter { it.uri != r.uri }).take(12)

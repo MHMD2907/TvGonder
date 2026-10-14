@@ -1,4 +1,4 @@
-// v0.13.1 – 2026-10-13: "Nereye gönderilsin?" cihaz seçimi ana ekranda; çoklu alıcı, alıcı modu, karekod önizlemesi
+// v0.15 – 2026-10-14: Müzik ve Klasör (toplu) gönderme, dosya adına tarih ayarı; çoklu alıcı, karekod önizlemesi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -86,6 +86,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.onur.tvgonder.R
 import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
+import androidx.documentfile.provider.DocumentFile
 import com.onur.tvgonder.Target
 import com.onur.tvgonder.PrintItem
 import com.onur.tvgonder.Printing
@@ -430,19 +431,16 @@ private fun SendUi(
         }
     }
 
-    fun sendFiles(uris: List<Uri>) {
-        if (uris.isEmpty()) return
-        if (!paired) { msg = notPaired; return }
-        val target = folder
-        store.lastFolder = target
-        val items = uris.map { Transfer(displayName(ctx, it)) to it }
+    /** Sırayla gönderir. items: (satır, (TV'deki klasör, dosya)). */
+    fun uploadAll(items: List<Pair<Transfer, Pair<String, Uri>>>, withDate: Boolean) {
         transfers.addAll(0, items.map { it.first })
         scope.launch {
-            for ((t, u) in items) {
+            for ((t, dest) in items) {
+                val (dir, u) = dest
                 t.state = TState.Sending
                 val r = withContext(Dispatchers.IO) {
                     runCatching {
-                        client.upload(ctx, u, target) { sent, total ->
+                        client.upload(ctx, u, dir, withDate) { sent, total ->
                             if (total > 0) {
                                 val p = sent.toFloat() / total
                                 if (p - t.progress >= 0.01f || p >= 1f) t.progress = p
@@ -456,6 +454,46 @@ private fun SendUi(
                     t.state = TState.Failed; t.error = friendly(r.exceptionOrNull())
                 }
             }
+            val done = items.count { it.first.state == TState.Done }
+            if (items.size > 1) msg = Msg("$done / ${items.size} dosya gönderildi.", done < items.size)
+        }
+    }
+
+    fun sendFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        if (!paired) { msg = notPaired; return }
+        val target = folder
+        store.lastFolder = target
+        uploadAll(uris.map { Transfer(displayName(ctx, it)) to (target to it) }, withDate = true)
+    }
+
+    /** Telefondaki bir klasörü alt klasörleriyle birlikte TV'ye gönderir (adlar korunur). */
+    fun sendFolder(tree: Uri) {
+        if (!paired) { msg = notPaired; return }
+        val root = DocumentFile.fromTreeUri(ctx, tree) ?: return
+        val target = folder
+        msg = Msg("Klasör hazırlanıyor…", false)
+        scope.launch {
+            val files = withContext(Dispatchers.IO) {
+                val out = mutableListOf<Pair<String, DocumentFile>>()
+                fun walk(d: DocumentFile, rel: String) {
+                    d.listFiles().forEach { f ->
+                        if (f.isDirectory) walk(f, join(rel, f.name ?: "klasor")) else if (f.isFile) out += rel to f
+                    }
+                }
+                walk(root, root.name ?: "Klasör")
+                out
+            }
+            if (files.isEmpty()) { msg = Msg("Klasör boş.", true); return@launch }
+            val dirs = files.map { it.first }.distinct()
+                .flatMap { rel -> rel.split('/').runningReduce { a, b -> "$a/$b" } }
+                .distinct().sortedBy { d -> d.count { it == '/' } }
+            val mk = withContext(Dispatchers.IO) {
+                runCatching { dirs.forEach { d -> client.mkdir(join(target, d.substringBeforeLast('/', "")), d.substringAfterLast('/')) } }
+            }
+            if (mk.isFailure) { msg = Msg(friendly(mk.exceptionOrNull()), true); return@launch }
+            msg = Msg("${files.size} dosya gönderiliyor…", false)
+            uploadAll(files.map { (rel, f) -> Transfer("$rel/${f.name}") to (join(target, rel) to f.uri) }, withDate = false)
         }
     }
 
@@ -536,6 +574,7 @@ private fun SendUi(
 
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { sendFiles(it) }
     val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { sendFiles(it) }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { if (it != null) sendFolder(it) }
 
     Column(
         Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())
@@ -711,8 +750,17 @@ private fun SendUi(
                 Tile("🖼️", "Fotoğraf / Video", Modifier.weight(1f)) {
                     pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                 }
-                Tile("📄", "Belge / Diğer", Modifier.weight(1f)) { pickDocs.launch(arrayOf("*/*")) }
+                Tile("🎵", "Müzik (MP3)", Modifier.weight(1f)) { pickDocs.launch(arrayOf("audio/*")) }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile("📄", "Belge / Diğer", Modifier.weight(1f)) { pickDocs.launch(arrayOf("*/*")) }
+                Tile("📁", "Klasör (toplu)", Modifier.weight(1f)) { runCatching { pickFolder.launch(null) } }
+            }
+            Text(
+                "Birden fazla dosya seçebilirsin; Klasör ile bir klasörün tamamı alt klasörleriyle gider." +
+                    if (store.datePrefix) " Dosya adının başına gönderim tarihi eklenir." else "",
+                style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+            )
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi)
                     .clickable { if (paired) showFolders = true else msg = notPaired }.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1058,6 +1106,7 @@ private fun ScanResultDialog(
 private fun SettingsDialog(store: Store, paired: Boolean, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     var autoClip by remember { mutableStateOf(store.autoClip) }
+    var datePrefix by remember { mutableStateOf(store.datePrefix) }
     var a5 by remember { mutableStateOf(store.defA5) }
     var color by remember { mutableStateOf(store.defColor) }
 
@@ -1077,6 +1126,14 @@ private fun SettingsDialog(store: Store, paired: Boolean, onDismiss: () -> Unit)
                         style = MaterialTheme.typography.bodyMedium, color = TextMain,
                     )
                     Switch(checked = autoClip, onCheckedChange = { autoClip = it; store.autoClip = it })
+                }
+                Text("Dosya gönderme", style = MaterialTheme.typography.labelLarge, color = Accent)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Dosya adına gönderim tarihini ekle\n(ör. 2026-10-14 15.30 - foto.jpg)", Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium, color = TextMain,
+                    )
+                    Switch(checked = datePrefix, onCheckedChange = { datePrefix = it; store.datePrefix = it })
                 }
 
                 HorizontalDivider(color = Panel)

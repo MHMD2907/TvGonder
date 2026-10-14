@@ -1,4 +1,4 @@
-// v0.14 – 2026-10-13: sürüm 0.14 (tablet hem alıcı hem verici)
+// v0.15 – 2026-10-14: sürüm 0.15 (küçük resimler, seçip silme, müzik/klasör gönderme, tarihli ad)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.14"
+        versionCode = 16
+        versionName = "0.15"
     }
     signingConfigs {
         getByName("debug") {

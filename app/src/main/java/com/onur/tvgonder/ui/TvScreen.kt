@@ -1,4 +1,4 @@
-// v0.14 – 2026-10-13: tablet hem alıcı hem verici: "Gönder" kartı telefon ekranını açar, paylaşımlar oraya gider
+// v0.15 – 2026-10-14: Son gelenler küçük resimli; tablet hem alıcı hem verici; kayıt yeri penceresi
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -411,10 +411,9 @@ private fun TvHome(
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)) {
                 items(recent, key = { it.uri }) { r ->
-                    val kind = Entry(r.name, Uri.EMPTY, r.mime, 0, 0).kind
-                    TvCard(Modifier.width(280.dp).height(120.dp), padding = PaddingValues(18.dp), onClick = { onOpenRecent(r) }) {
+                    TvCard(Modifier.width(320.dp).height(120.dp), padding = PaddingValues(12.dp), onClick = { onOpenRecent(r) }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(kind.emoji, fontSize = 34.sp)
+                            EntryThumb(Entry(r.name, Uri.parse(r.uri), r.mime, 0, r.at), Modifier.size(width = 130.dp, height = 96.dp))
                             Spacer(Modifier.width(14.dp))
                             Column {
                                 Text(r.name, style = MaterialTheme.typography.titleMedium, color = TextMain, maxLines = 2, overflow = TextOverflow.Ellipsis)

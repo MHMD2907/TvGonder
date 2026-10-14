@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: eşleşen cihaz alıcı listesine eklenir; tvInfo
+// v0.15 – 2026-10-14: dosya adına gönderim tarihi, boyutu bilinmeyen dosyalar (müzik vb.) için yedek yol; tvInfo, çoklu alıcı
 package com.onur.tvgonder
 
 import android.content.Context
@@ -102,26 +102,44 @@ class TvClient(private val store: Store) {
     }
 
     /** onProgress(gönderilen, toplam) arka plan iş parçacığında çağrılır. */
-    fun upload(ctx: Context, uri: Uri, folder: String, onProgress: (Long, Long) -> Unit = { _, _ -> }) {
+    /**
+     * Dosyayı TV'ye gönderir. withDate: ayarlarda açıksa adın başına "2026-10-14 15.30 - " eklenir.
+     * Boyutunu söylemeyen uygulamalardan (bazı müzik uygulamaları) gelen dosya önce geçici kopyalanır.
+     */
+    fun upload(ctx: Context, uri: Uri, folder: String, withDate: Boolean = true, onProgress: (Long, Long) -> Unit = { _, _ -> }) {
         var name = "dosya"
         var size = -1L
-        ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
-            if (c.moveToFirst()) {
-                val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                val si = c.getColumnIndex(OpenableColumns.SIZE)
-                if (ni >= 0) name = c.getString(ni) ?: name
-                if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+        runCatching {
+            ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val si = c.getColumnIndex(OpenableColumns.SIZE)
+                    if (ni >= 0) name = c.getString(ni) ?: name
+                    if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+                }
             }
         }
-        if (size < 0) size = ctx.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-        if (size < 0) error("$name boyutu okunamadı")
-        val mime = ctx.contentResolver.getType(uri) ?: "application/octet-stream"
+        if (name == "dosya") uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }?.let { name = it }
+        if (size <= 0) size = runCatching { ctx.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } }.getOrNull() ?: -1L
+        var tmp: java.io.File? = null
+        if (size <= 0) {
+            tmp = java.io.File(ctx.cacheDir, "up_${System.nanoTime()}")
+            (ctx.contentResolver.openInputStream(uri) ?: error("$name açılamadı")).use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
+            size = tmp.length()
+            if (size <= 0) { tmp.delete(); error("$name okunamadı") }
+        }
+        val mime = ctx.contentResolver.getType(uri)
+            ?: android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
+            ?: "application/octet-stream"
+        val finalName = if (withDate && store.datePrefix)
+            java.text.SimpleDateFormat("yyyy-MM-dd HH.mm", java.util.Locale("tr")).format(java.util.Date()) + " - " + name
+        else name
 
         val body = object : RequestBody() {
             override fun contentType() = mime.toMediaTypeOrNull()
             override fun contentLength() = size
             override fun writeTo(sink: BufferedSink) {
-                val input = ctx.contentResolver.openInputStream(uri) ?: error("$name açılamadı")
+                val input = tmp?.inputStream() ?: ctx.contentResolver.openInputStream(uri) ?: error("$name açılamadı")
                 input.use {
                     val buf = ByteArray(64 * 1024)
                     var sent = 0L
@@ -137,8 +155,12 @@ class TvClient(private val store: Store) {
         }
         val req = builder("${base()}/upload")
             .header("X-Folder", URLEncoder.encode(folder, "UTF-8"))
-            .header("X-Name", URLEncoder.encode(name, "UTF-8"))
+            .header("X-Name", URLEncoder.encode(finalName, "UTF-8"))
             .post(body).build()
-        http.newCall(req).execute().use { check(it) }
+        try {
+            http.newCall(req).execute().use { check(it) }
+        } finally {
+            tmp?.delete()
+        }
     }
 }
