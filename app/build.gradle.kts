@@ -1,4 +1,4 @@
-// v0.20 – 2026-10-15: sürüm 0.20 (TV'den çoklu indirme)
+// v0.21 – 2026-10-15: sürüm 0.21 (uygulama içi kullanım kılavuzu)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 22
-        versionName = "0.20"
+        versionCode = 23
+        versionName = "0.21"
     }
     signingConfigs {
         getByName("debug") {

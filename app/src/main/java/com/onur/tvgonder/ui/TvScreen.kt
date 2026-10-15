@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: fare artık ayrı "TV Gönder Fare" eklentisi; Ayarlar satırı onu açar; tam ekran ayarları
+// v0.21 – 2026-10-15: Ayarlar'da Kullanım kılavuzu; fare eklentisi satırı, tam ekran ayarları, tablet alıcı+verici
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -80,6 +80,7 @@ sealed interface TvNav {
     data class Video(val list: List<Uri>, val start: Int, val audio: Boolean) : TvNav
     data class Web(val url: String) : TvNav
     data object Send : TvNav
+    data object Guide : TvNav
 }
 
 private val HomeBg = Brush.verticalGradient(listOf(Color(0xFF0B2633), Ink, Color(0xFF09131F)))
@@ -198,6 +199,7 @@ fun TvScreen(
                     onOpenRecent = { openReceived(it) },
                 )
                 TvNav.Settings -> TvSettings(
+                    onGuide = { push(TvNav.Guide) },
                     store = store, storageName = storageName, ip = ip, devices = devices,
                     onPickStorage = onPickStorage,
                     onAddPhone = { if (ip != null) Hub.pairingCode.value = (100000..999999).random().toString() },
@@ -213,6 +215,7 @@ fun TvScreen(
                 is TvNav.Video -> TvVideoPlayer(n.list, n.start, n.audio)
                 is TvNav.Web -> TvBrowser(n.url) { pop() }
                 TvNav.Send -> PhoneRoot(store, shared, onSharedHandled)
+                TvNav.Guide -> TvGuide()
             }
         }
 
@@ -469,6 +472,7 @@ private fun ReceivedCard(r: Received, autoFocus: Boolean, modifier: Modifier, on
 
 @Composable
 private fun TvSettings(
+    onGuide: () -> Unit,
     store: Store,
     storageName: String?,
     ip: String?,
@@ -533,6 +537,9 @@ private fun TvSettings(
                     var x: android.content.Context? = ctx
                     while (x is android.content.ContextWrapper) { if (x is android.app.Activity) { x.recreate(); break }; x = x.baseContext }
                 }
+            }
+            item {
+                SettingRow("📖", "Kullanım kılavuzu", "Bütün özellikler adım adım", "Aç", null, onGuide)
             }
             item {
                 SettingRow("🚪", "Uygulamadan çık", "Telefondan gelenler yine de alınır", "Çık", null) { exitApp(ctx) }

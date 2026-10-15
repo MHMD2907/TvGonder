@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: "Fare eklentisini TV'ye gönder"; fare durumu eklentiden sorulur; kumanda, TV'den indirme, geçmiş
+// v0.21 – 2026-10-15: ⋮ menüsünde Kullanım kılavuzu; fare eklentisi gönderme, kumanda, TV'den indirme, geçmiş
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -412,6 +412,7 @@ private fun SendUi(
     var showHistory by remember { mutableStateOf(false) }
     var showRemote by remember { mutableStateOf(false) }
     var showTvFiles by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(false) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
 
@@ -636,6 +637,7 @@ private fun SendUi(
                         if (paired) DropdownMenuItem(text = { Text("Fare eklentisini ${store.tvName}'ye gönder") }, onClick = { menu = false; updateTv(fare = true) })
                         DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
+                        DropdownMenuItem(text = { Text("📖 Kullanım kılavuzu") }, onClick = { menu = false; showGuide = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
                         if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
@@ -644,6 +646,7 @@ private fun SendUi(
                         if (paired) DropdownMenuItem(text = { Text("Fare eklentisini ${store.tvName}'ye gönder") }, onClick = { menu = false; updateTv(fare = true) })
                         DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
+                        DropdownMenuItem(text = { Text("📖 Kullanım kılavuzu") }, onClick = { menu = false; showGuide = true })
                         if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     }
@@ -914,6 +917,7 @@ private fun SendUi(
     }
 
     if (showRemote) RemoteDialog(store) { showRemote = false }
+    if (showGuide) GuideDialog { showGuide = false }
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
 
     if (showHistory) {
