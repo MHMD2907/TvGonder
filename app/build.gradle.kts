@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: sürüm 0.15 (küçük resimler, seçip silme, müzik/klasör gönderme, tarihli ad)
+// v0.16 – 2026-10-15: sürüm 0.16 (otomatik bulma, kaldığı yerden devam, çalma listesi, geçmiş)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.15"
+        versionCode = 17
+        versionName = "0.16"
     }
     signingConfigs {
         getByName("debug") {

@@ -426,6 +426,7 @@ private fun SendUi(
             if (r.isSuccess) {
                 online = true
                 store.addRecentLink(url); store.lastClip = url
+                store.addHistory(Sent("link", url, url, store.tvName, System.currentTimeMillis()))
                 recent = store.recentLinks()
                 link = ""; fromClip = false
                 msg = Msg("Link TV'de açıldı.", false)
@@ -454,6 +455,7 @@ private fun SendUi(
                 }
                 if (r.isSuccess) {
                     t.progress = 1f; t.state = TState.Done; online = true
+                    store.addHistory(Sent("file", t.name, u.toString(), store.tvName, System.currentTimeMillis()))
                 } else {
                     t.state = TState.Failed; t.error = friendly(r.exceptionOrNull())
                 }
@@ -610,7 +612,8 @@ private fun SendUi(
                     style = MaterialTheme.typography.headlineMedium, color = TextMain,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                if (paired) StatusPill(online)
+                if (paired && searching) Text("TV ağda aranıyor…", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                else if (paired) StatusPill(online)
                 else Text("TV eşleşmemiş", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
             }
             Box {
@@ -623,12 +626,14 @@ private fun SendUi(
                         }
                         DropdownMenuItem(text = { Text("Yeni cihaz ekle (TV / tablet)") }, onClick = { menu = false; onPair() })
                         DropdownMenuItem(text = { Text("${store.tvName} uygulamasını güncelle") }, onClick = { menu = false; updateTv() })
+                        DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
                         if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
+                        DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
@@ -889,6 +894,53 @@ private fun SendUi(
             onPhone = { url -> scanned = null; openOnPhone(ctx, url) },
             onCopy = { scanned = null; copyText(ctx, text); msg = Msg("Kopyalandı.", false) },
             onDismiss = { scanned = null },
+        )
+    }
+
+    if (showHistory) {
+        var items by remember { mutableStateOf(store.history()) }
+        AlertDialog(
+            onDismissRequest = { showHistory = false },
+            containerColor = PanelHi,
+            title = { Text("Gönderim geçmişi", color = TextMain) },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (items.isEmpty()) Text("Henüz bir şey gönderilmedi.", color = TextMuted)
+                    items.forEach { h ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showHistory = false
+                                    if (h.kind == "link") sendLink(h.uri) else sendFiles(listOf(Uri.parse(h.uri)))
+                                }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(if (h.kind == "link") "🔗" else "📄", fontSize = 22.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (h.kind == "link") prettyUrl(h.name) else h.name,
+                                    style = MaterialTheme.typography.bodyMedium, color = TextMain,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    "→ ${h.target}  ·  " + android.text.format.DateFormat.format("d MMM HH:mm", h.at),
+                                    style = MaterialTheme.typography.bodyMedium, color = TextMuted, maxLines = 1,
+                                )
+                            }
+                            Text("Tekrar", style = MaterialTheme.typography.labelLarge, color = Accent)
+                        }
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = { showHistory = false }) { Text("Kapat") } },
+            dismissButton = {
+                if (items.isNotEmpty()) TextButton(onClick = { store.clearHistory(); items = emptyList() }) { Text("Geçmişi temizle", color = Danger) }
+            },
         )
     }
 
