@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: müzik klasör çalma listesi, video devam; son gelenler resimli; tablet alıcı+verici
+// v0.17 – 2026-10-15: Ayarlar'da "Telefonla fare kontrolü"; müzik çalma listesi, video devam; tablet alıcı+verici
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -495,6 +495,18 @@ private fun TvSettings(
             }
             item {
                 SettingRow("📱", "Telefon ekle", "QR kod ile yeni telefon eşleştir", "Ekle", null, onAddPhone)
+            }
+            item {
+                val on = com.onur.tvgonder.MouseService.instance != null
+                SettingRow(
+                    "🖱️", "Telefonla fare kontrolü",
+                    if (on) "Açık – telefonda ⋮ → Fare / Kumanda" else "Kapalı – açılan ekranda \"TV Gönder Fare\"yi seç ve aç",
+                    if (on) "Ayarlar" else "Aç", null,
+                ) {
+                    runCatching {
+                        ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }
             }
             items(devices.entries.toList(), key = { it.key }) { (token, name) ->
                 SettingRow("📲", name, "Eşleşmiş telefon", "Kaldır", null) {

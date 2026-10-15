@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: IP değişince alıcıyı ağda arayıp bulma (rediscover); tarihli ad, müzik yedek yolu, tvInfo
+// v0.17 – 2026-10-15: TV'deki dosyaları listeleme ve indirme; otomatik bulma, tarihli ad, müzik yedek yolu
 package com.onur.tvgonder
 
 import android.content.Context
@@ -15,6 +15,29 @@ import okio.BufferedSink
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+
+/** TV'deki bir dosya/klasör (telefondan gezmek için). */
+data class RemoteFile(val name: String, val dir: Boolean, val size: Long, val mime: String, val mod: Long)
+
+/** Fare/kumanda komutlarını TV'ye UDP ile yollar (düşük gecikme). */
+class Remote(private val host: String, private val token: String) {
+    private val sock = runCatching { java.net.DatagramSocket() }.getOrNull()
+    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
+    @Volatile private var addr: java.net.InetAddress? = null
+
+    fun send(cmd: String) {
+        if (exec.isShutdown) return
+        exec.execute {
+            runCatching {
+                val a = addr ?: java.net.InetAddress.getByName(host).also { addr = it }
+                val b = "$token $cmd".toByteArray()
+                sock?.send(java.net.DatagramPacket(b, b.size, a, RemoteListener.PORT))
+            }
+        }
+    }
+
+    fun close() { exec.shutdown(); runCatching { sock?.close() } }
+}
 
 /** Telefonun TV ile konuşan tarafı. */
 class TvClient(private val store: Store) {
@@ -126,6 +149,37 @@ class TvClient(private val store: Store) {
             }
         }
         http.newCall(builder("${base()}/update").post(body).build()).execute().use { check(it) }
+    }
+
+    fun files(path: String): List<RemoteFile> {
+        val url = "${base()}/files".toHttpUrl().newBuilder().addQueryParameter("path", path).build()
+        http.newCall(builder(url.toString()).build()).execute().use { resp ->
+            val arr = check(resp).getJSONArray("items")
+            return List(arr.length()) { i ->
+                arr.getJSONObject(i).let { RemoteFile(it.optString("name"), it.optBoolean("dir"), it.optLong("size"), it.optString("mime"), it.optLong("mod")) }
+            }
+        }
+    }
+
+    /** TV'deki dosyayı out'a yazar. */
+    fun download(path: String, name: String, out: java.io.OutputStream, onProgress: (Long, Long) -> Unit) {
+        val url = "${base()}/download".toHttpUrl().newBuilder().addQueryParameter("path", path).addQueryParameter("name", name).build()
+        http.newCall(builder(url.toString()).build()).execute().use { resp ->
+            if (!resp.isSuccessful) check(resp)
+            val body = resp.body ?: error("Boş yanıt")
+            val total = body.contentLength()
+            body.byteStream().use { input ->
+                val buf = ByteArray(64 * 1024)
+                var got = 0L
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    out.write(buf, 0, n)
+                    got += n
+                    onProgress(got, total)
+                }
+            }
+        }
     }
 
     fun folders(path: String): List<String> {

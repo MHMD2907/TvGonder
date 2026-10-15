@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: Dosyalarım: küçük resimler (video karesi, PDF sayfası, kapak), seçip silme, tarih+saat
+// v0.17 – 2026-10-15: Dosyalarım: tür filtresi (Video/Müzik/Resim/PDF) ve isimle arama; küçük resimler, seçip silme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -271,6 +271,9 @@ fun TvFilesScreen(
     val selected = remember { androidx.compose.runtime.mutableStateListOf<Uri>() }
     var confirm by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<String?>(null) }
+    var filter by remember { mutableStateOf<Kind?>(null) }
+    var query by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
     val first = remember(dir) { FocusRequester() }
 
     LaunchedEffect(dir, reload) {
@@ -311,12 +314,41 @@ fun TvFilesScreen(
                 }
             }
         }
-        Spacer(Modifier.height(20.dp))
-        val list = entries
+        Spacer(Modifier.height(14.dp))
+        // Filtre + arama
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val chip = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            listOf(null to "Tümü", Kind.Video to "🎬 Video", Kind.Audio to "🎵 Müzik", Kind.Image to "🖼️ Resim", Kind.Pdf to "📄 PDF").forEach { (k, label) ->
+                TvCard(padding = chip, onClick = { filter = k }) { f ->
+                    Text(label, style = MaterialTheme.typography.bodyLarge, color = if (filter == k) Accent else if (f) TextMain else TextMuted)
+                }
+                Spacer(Modifier.width(10.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            if (searching) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    placeholder = { Text("Dosya adı…") }, modifier = Modifier.width(320.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                TvCard(padding = chip, onClick = { query = ""; searching = false }) { Text("✕", color = TextMain) }
+            } else {
+                TvCard(padding = chip, onClick = { searching = true }) { Text("🔍 Ara", style = MaterialTheme.typography.bodyLarge, color = TextMain) }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        val q = query.trim().lowercase(java.util.Locale("tr"))
+        val list = entries?.filter { e ->
+            (filter == null || e.kind == filter) &&
+                (q.isEmpty() || e.name.lowercase(java.util.Locale("tr")).contains(q))
+        }
         when {
             list == null -> Text("Yükleniyor…", style = MaterialTheme.typography.bodyLarge, color = TextMuted)
             error != null -> Text(error!!, style = MaterialTheme.typography.bodyLarge, color = Danger)
-            list.isEmpty() -> Text("Bu klasör boş.", style = MaterialTheme.typography.bodyLarge, color = TextMuted)
+            list.isEmpty() -> Text(
+                if (filter != null || q.isNotEmpty()) "Bu klasörde eşleşen dosya yok." else "Bu klasör boş.",
+                style = MaterialTheme.typography.bodyLarge, color = TextMuted,
+            )
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),

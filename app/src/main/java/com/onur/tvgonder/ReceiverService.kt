@@ -1,4 +1,4 @@
-// v0.13 – 2026-10-13: alıcı modundaki tablet de açılışta alıcıyı başlatır
+// v0.17 – 2026-10-15: fare/kumanda komut alıcısını (UDP) da başlatır; tablet alıcı modunda açılışta başlar
 package com.onur.tvgonder
 
 import android.app.Notification
@@ -17,6 +17,7 @@ import fi.iki.elonen.NanoHTTPD
 
 class ReceiverService : Service() {
     private var server: ReceiverServer? = null
+    private var remote: RemoteListener? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -31,12 +32,14 @@ class ReceiverService : Service() {
             ReceiverServer(applicationContext, store).also { it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false) }
         }.getOrNull()
         Hub.running.value = server != null
+        remote = RemoteListener(applicationContext, store).also { it.isDaemon = true; it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
         server?.stop()
+        remote?.close()
         Hub.running.value = false
         super.onDestroy()
     }

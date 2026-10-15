@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: IP değişince alıcıyı otomatik bulma, gönderim geçmişi; müzik/klasör gönderme, çoklu alıcı
+// v0.17 – 2026-10-15: Fare / Kumanda ve TV'deki dosyalar (indirme) kartları; otomatik bulma, geçmiş, müzik/klasör gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -410,6 +410,9 @@ private fun SendUi(
     var tvStorage by remember { mutableStateOf(true) }
     var searching by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var showRemote by remember { mutableStateOf(false) }
+    var showTvFiles by remember { mutableStateOf(false) }
+    var tvMouse by remember { mutableStateOf(false) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
 
@@ -544,6 +547,7 @@ private fun SendUi(
             online = info != null
             tvVer = info?.optLong("version", 0L)
             tvStorage = info?.optBoolean("storage", true) ?: true
+            tvMouse = info?.optBoolean("mouse", false) ?: false
         }
     }
 
@@ -708,6 +712,13 @@ private fun SendUi(
                 "TV açık mı ve telefonla aynı Wi‑Fi'de mi? TV'de uygulama en az bir kez açılmış olmalı.",
                 style = MaterialTheme.typography.bodyMedium, color = TextMuted,
             )
+        }
+
+        if (paired) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile("🖱️", "Fare / Kumanda", Modifier.weight(1f)) { showRemote = true }
+                Tile("📥", "TV'deki dosyalar", Modifier.weight(1f)) { showTvFiles = true }
+            }
         }
 
         // Link
@@ -896,6 +907,9 @@ private fun SendUi(
             onDismiss = { scanned = null },
         )
     }
+
+    if (showRemote) RemoteDialog(store, tvMouse) { showRemote = false }
+    if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
 
     if (showHistory) {
         var items by remember { mutableStateOf(store.history()) }

@@ -1,4 +1,5 @@
-<!-- v0.6 – 2026-10-12: TV güncellemesi için APK'nın kurulum ekranına verilmesi -->
+<!-- v0.17 – 2026-10-15: TV güncellemesi (cache/update) ve eski telefonlarda indirilen dosyalar (Download/TvGonder) -->
 <paths>
     <cache-path name="update" path="update/" />
+    <external-files-path name="downloads" path="Download/" />
 </paths>

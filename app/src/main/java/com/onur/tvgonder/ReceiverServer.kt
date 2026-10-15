@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: /ping ve /pair kalıcı alıcı kimliği (id) bildirir — telefon IP değişince bulur; kayıt yeri, güncelleme
+// v0.17 – 2026-10-15: /files ve /download (telefona indirme), /ping fare durumu; kimlik, kayıt yeri, güncelleme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -33,7 +33,7 @@ class ReceiverServer(
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
         if (path == "/ping") return json(
-            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId),
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId).put("mouse", MouseService.instance != null),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
 
@@ -47,6 +47,8 @@ class ReceiverServer(
             path == "/upload" && s.method == Method.POST -> upload(s)
             path == "/link" && s.method == Method.POST -> link(s)
             path == "/update" && s.method == Method.POST -> update(s)
+            path == "/files" && s.method == Method.GET -> files(s)
+            path == "/download" && s.method == Method.GET -> download(s)
             else -> json(404, JSONObject().put("error", "Bulunamadı"))
         }
     }
@@ -164,6 +166,33 @@ class ReceiverServer(
     }
 
     // ---- yardımcılar ----
+    /** Klasördeki dosya ve klasörler (telefondan gezip indirmek için). */
+    private fun files(s: IHTTPSession): Response {
+        if (store.treeUri == null) return noStorage
+        val dir = resolve(s.parms["path"] ?: "")
+        if (dir == null || !dir.isDirectory) return json(404, JSONObject().put("error", "Klasör yok"))
+        val arr = JSONArray()
+        dir.listFiles().filter { !(it.name ?: ".").startsWith(".") }
+            .sortedWith(compareBy<DocumentFile> { !it.isDirectory }.thenByDescending { it.lastModified() })
+            .forEach { f ->
+                arr.put(
+                    JSONObject().put("name", f.name).put("dir", f.isDirectory).put("size", f.length())
+                        .put("mime", f.type ?: "").put("mod", f.lastModified())
+                )
+            }
+        return json(200, JSONObject().put("items", arr))
+    }
+
+    private fun download(s: IHTTPSession): Response {
+        if (store.treeUri == null) return noStorage
+        val dir = resolve(s.parms["path"] ?: "") ?: return json(404, JSONObject().put("error", "Klasör yok"))
+        val f = dir.findFile(s.parms["name"] ?: "") ?: return json(404, JSONObject().put("error", "Dosya yok"))
+        if (f.isDirectory) return json(400, JSONObject().put("error", "Klasör indirilemez"))
+        val input = (if (f.uri.scheme == "file") java.io.File(f.uri.path!!).inputStream() else ctx.contentResolver.openInputStream(f.uri))
+            ?: return json(500, JSONObject().put("error", "Dosya açılamadı"))
+        return newFixedLengthResponse(Response.Status.OK, f.type ?: "application/octet-stream", input, f.length())
+    }
+
     /** Aynı adda dosya varsa "ad (2).uzantı" yapar. */
     private fun uniqueFile(dir: java.io.File, name: String): java.io.File {
         dir.mkdirs()
