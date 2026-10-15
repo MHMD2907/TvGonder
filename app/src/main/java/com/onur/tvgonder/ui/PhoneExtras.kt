@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: fare durumu eklentiden (ping) sorulur; fare/kumanda ekranı, TV'den indirme
+// v0.20 – 2026-10-15: TV'deki dosyalar: çoklu seçip toplu indirme (Seç / Tümü / Seçilenleri indir); fare/kumanda
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -208,33 +208,47 @@ fun TvFilesDialog(client: TvClient, onDismiss: () -> Unit) {
     var status by remember { mutableStateOf<String?>(null) }
     var lastSaved by remember { mutableStateOf<Pair<Uri, String>?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var selecting by remember { mutableStateOf(false) }
+    val picked = remember { androidx.compose.runtime.mutableStateListOf<String>() }
 
     LaunchedEffect(path) {
-        items = null; err = null
+        items = null; err = null; picked.clear()
         val r = withContext(Dispatchers.IO) { runCatching { client.files(path) } }
         items = r.getOrNull()
         err = r.exceptionOrNull()?.message?.let { if (r.exceptionOrNull() is java.io.IOException) "TV'ye ulaşılamadı." else it }
     }
 
-    fun download(f: RemoteFile) {
-        if (busy) return
+    /** Dosyaları sırayla indirir. */
+    fun downloadAll(list: List<RemoteFile>) {
+        if (busy || list.isEmpty()) return
         busy = true; lastSaved = null
-        status = "İndiriliyor: ${f.name}"
+        val dir = path
         scope.launch {
-            val r = withContext(Dispatchers.IO) {
-                runCatching {
-                    saveDownload(ctx, f.name, f.mime) { out ->
-                        client.download(path, f.name, out) { got, total ->
-                            if (total > 0) status = "İndiriliyor: ${f.name}  %${got * 100 / total}"
+            var ok = 0
+            list.forEachIndexed { i, f ->
+                val pre = if (list.size > 1) "(${i + 1}/${list.size}) " else ""
+                status = "${pre}İndiriliyor: ${f.name}"
+                val r = withContext(Dispatchers.IO) {
+                    runCatching {
+                        saveDownload(ctx, f.name, f.mime) { out ->
+                            client.download(dir, f.name, out) { got, total ->
+                                if (total > 0) status = "${pre}İndiriliyor: ${f.name}  %${got * 100 / total}"
+                            }
                         }
                     }
                 }
+                r.onSuccess { uri -> ok++; lastSaved = uri to f.mime }
             }
             busy = false
-            r.onSuccess { uri -> status = "✓ İndirildi: İndirilenler/TvGonder/${f.name}"; lastSaved = uri to f.mime }
-                .onFailure { status = "İndirilemedi: ${it.message}" }
+            status = if (list.size == 1) {
+                if (ok == 1) "✓ İndirildi: İndirilenler/TvGonder/${list[0].name}" else "İndirilemedi: ${list[0].name}"
+            } else "✓ $ok / ${list.size} dosya indirildi (İndirilenler/TvGonder)"
+            if (list.size > 1) lastSaved = null
+            picked.clear(); selecting = false
         }
     }
+
+    fun download(f: RemoteFile) = downloadAll(listOf(f))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -242,7 +256,25 @@ fun TvFilesDialog(client: TvClient, onDismiss: () -> Unit) {
         title = { Text(if (path.isEmpty()) "📥 TV'deki dosyalar" else "📁 " + path.substringAfterLast('/'), color = TextMain, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Dosyaya dokun: telefona indir (İndirilenler/TvGonder).", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (selecting) "İndirmek istediklerini işaretle." else "Dosyaya dokun: telefona indir (İndirilenler/TvGonder).",
+                        Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+                    )
+                    TextButton(onClick = { selecting = !selecting; picked.clear() }) { Text(if (selecting) "Vazgeç" else "☑ Seç") }
+                }
+                if (selecting) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            val files = items.orEmpty().filter { !it.dir }.map { it.name }
+                            if (picked.size == files.size) picked.clear() else { picked.clear(); picked.addAll(files) }
+                        }) { Text("Tümü") }
+                        Button(
+                            enabled = picked.isNotEmpty() && !busy,
+                            onClick = { downloadAll(items.orEmpty().filter { it.name in picked && !it.dir }) },
+                        ) { Text("Seçilenleri indir (${picked.size})") }
+                    }
+                }
                 if (path.isNotEmpty()) {
                     Text(
                         "‹  Üst klasör", Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -258,7 +290,13 @@ fun TvFilesDialog(client: TvClient, onDismiss: () -> Unit) {
                     else -> l.forEach { f ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .clickable { if (f.dir) path = if (path.isEmpty()) f.name else "$path/${f.name}" else download(f) }
+                                .clickable {
+                                    when {
+                                        f.dir -> path = if (path.isEmpty()) f.name else "$path/${f.name}"
+                                        selecting -> if (f.name in picked) picked.remove(f.name) else picked.add(f.name)
+                                        else -> download(f)
+                                    }
+                                }
                                 .padding(vertical = 10.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -271,7 +309,10 @@ fun TvFilesDialog(client: TvClient, onDismiss: () -> Unit) {
                                     style = MaterialTheme.typography.bodyMedium, color = TextMuted,
                                 )
                             }
-                            if (!f.dir) Text("İndir", style = MaterialTheme.typography.labelLarge, color = Accent)
+                            if (!f.dir) {
+                                if (selecting) Text(if (f.name in picked) "☑" else "☐", fontSize = 22.sp, color = Accent)
+                                else Text("İndir", style = MaterialTheme.typography.labelLarge, color = Accent)
+                            }
                         }
                     }
                 }

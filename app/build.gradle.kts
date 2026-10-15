@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: sürüm 0.19 (fare ayrı eklentide; telefona kurulum engeli kalktı)
+// v0.20 – 2026-10-15: sürüm 0.20 (TV'den çoklu indirme)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 21
-        versionName = "0.19"
+        versionCode = 22
+        versionName = "0.20"
     }
     signingConfigs {
         getByName("debug") {
