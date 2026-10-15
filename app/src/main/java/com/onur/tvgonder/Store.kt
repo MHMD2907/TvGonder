@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: alıcı kimliği (otomatik bulma), gönderim geçmişi, video konumları; tarih ayarı, çoklu alıcı
+// v0.18 – 2026-10-15: resim tam ekran tercihi ve resim başına döndürme; kimlik, geçmiş, video konumları, çoklu alıcı
 package com.onur.tvgonder
 
 import android.content.Context
@@ -154,6 +154,17 @@ class Store(ctx: Context) {
     }
 
     fun clearHistory() { p.edit().remove("history").apply() }
+
+    /** Resimler ekranı doldursun mu (oran korunur, kenar kırpılır). */
+    var imageFill: Boolean
+        get() = p.getBoolean("imageFill", true)
+        set(v) { p.edit().putBoolean("imageFill", v).apply() }
+
+    /** Resmin elle verilen dönüş açısı (0/90/180/270). */
+    fun rotation(key: String): Int = p.getInt("rot_" + key.hashCode(), 0)
+    fun setRotation(key: String, deg: Int) {
+        p.edit().apply { if (deg % 360 == 0) remove("rot_" + key.hashCode()) else putInt("rot_" + key.hashCode(), ((deg % 360) + 360) % 360) }.apply()
+    }
 
     /** Video kaldığı yer (ms). */
     fun position(key: String): Long = p.getLong("pos_" + key.hashCode(), 0L)

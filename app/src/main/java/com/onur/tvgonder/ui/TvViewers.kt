@@ -1,4 +1,4 @@
-// v0.16 – 2026-10-15: video kaldığı yerden devam, müzik çalma listesi (sıradaki/önceki, karıştır, tekrar); resim, PDF, tarayıcı, slayt
+// v0.18 – 2026-10-15: resim: tam ekran (oran korunur) / tamamını göster, ▲▼ ile döndürme (hatırlanır), tablette dokunmatik düğmeler; video devam, çalma listesi
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -19,6 +19,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,12 +105,31 @@ private fun isKey(e: androidx.compose.ui.input.key.KeyEvent, keys: List<Key>) =
 @Composable
 fun TvImageViewer(images: List<Entry>, start: Int) {
     val ctx = LocalContext.current
+    val store = remember { com.onur.tvgonder.Store(ctx) }
+    val touch = remember { !com.onur.tvgonder.isTv(ctx) }
     var index by remember { mutableIntStateOf(start.coerceIn(0, max(0, images.size - 1))) }
+    var rot by remember(index) { mutableIntStateOf(store.rotation(images[index].uri.toString())) }
+    var fill by remember { mutableStateOf(store.imageFill) }
     var bmp by remember { mutableStateOf<Bitmap?>(null) }
+    var raw by remember { mutableStateOf<Bitmap?>(null) }
     val focus = remember { FocusRequester() }
 
+    fun rotate(d: Int) {
+        rot = ((rot + d) % 360 + 360) % 360
+        store.setRotation(images[index].uri.toString(), rot)
+    }
+    fun toggleFill() { fill = !fill; store.imageFill = fill }
+
     LaunchedEffect(index) {
-        bmp = withContext(Dispatchers.IO) { decodeForTv(ctx, images[index].uri) }
+        bmp = null
+        raw = withContext(Dispatchers.IO) { decodeForTv(ctx, images[index].uri, 2400, 2400) }
+    }
+    LaunchedEffect(raw, rot) {
+        val r = raw ?: return@LaunchedEffect
+        bmp = if (rot == 0) r else withContext(Dispatchers.Default) {
+            val m = android.graphics.Matrix().apply { postRotate(rot.toFloat()) }
+            Bitmap.createBitmap(r, 0, 0, r.width, r.height, m, true)
+        }
     }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
@@ -120,15 +140,49 @@ fun TvImageViewer(images: List<Entry>, start: Int) {
                 when {
                     isKey(it, listOf(Key.DirectionRight, Key.MediaNext)) -> { if (index < images.size - 1) index++; true }
                     isKey(it, listOf(Key.DirectionLeft, Key.MediaPrevious)) -> { if (index > 0) index--; true }
+                    isKey(it, listOf(Key.DirectionUp)) -> { rotate(-90); true }
+                    isKey(it, listOf(Key.DirectionDown)) -> { rotate(90); true }
+                    isKey(it, listOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)) -> { toggleFill(); true }
                     else -> false
                 }
             },
         contentAlignment = Alignment.Center,
     ) {
         val b = bmp
-        if (b != null) Image(b.asImageBitmap(), images[index].name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-        else Text("Açılıyor…", color = Color.White)
-        Hint("${images[index].name}   ·   ${index + 1} / ${images.size}   ·   ◀ ▶ önceki / sonraki", Modifier.align(Alignment.BottomCenter).padding(24.dp))
+        if (b != null) Image(
+            b.asImageBitmap(), images[index].name, Modifier.fillMaxSize(),
+            contentScale = if (fill) ContentScale.Crop else ContentScale.Fit,
+        ) else Text("Açılıyor…", color = Color.White)
+
+        if (touch) {
+            // Tablet: dokunmatik düğmeler
+            androidx.compose.foundation.layout.Row(
+                Modifier.align(Alignment.BottomCenter).padding(20.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+            ) {
+                listOf(
+                    "◀" to { if (index > 0) index-- },
+                    "⟲" to { rotate(-90) },
+                    (if (fill) "⛶ Tamamı" else "⛶ Tam ekran") to { toggleFill() },
+                    "⟳" to { rotate(90) },
+                    "▶" to { if (index < images.size - 1) index++ },
+                ).forEach { (label, act) ->
+                    Text(
+                        label,
+                        Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xAA000000))
+                            .clickable { act() }.padding(horizontal = 20.dp, vertical = 12.dp),
+                        color = Color.White, style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+            Hint("${images[index].name}   ·   ${index + 1} / ${images.size}", Modifier.align(Alignment.TopCenter).padding(16.dp))
+        } else {
+            Hint(
+                "${images[index].name}   ·   ${index + 1} / ${images.size}   ·   ◀ ▶ önceki/sonraki   ·   ▲ ▼ döndür   ·   OK " +
+                    if (fill) "tamamını göster" else "tam ekran",
+                Modifier.align(Alignment.BottomCenter).padding(24.dp),
+            )
+        }
     }
 }
 

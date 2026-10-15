@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: sürüm 0.17 (telefon fare/kumanda, TV'den indirme, arama/filtre)
+// v0.18 – 2026-10-15: sürüm 0.18 (resim tam ekran ve döndürme)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 18
-        versionName = "0.17"
+        versionCode = 19
+        versionName = "0.18"
     }
     signingConfigs {
         getByName("debug") {
