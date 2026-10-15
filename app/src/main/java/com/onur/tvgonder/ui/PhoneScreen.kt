@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: Müzik ve Klasör (toplu) gönderme, dosya adına tarih ayarı; çoklu alıcı, karekod önizlemesi
+// v0.16 – 2026-10-15: IP değişince alıcıyı otomatik bulma, gönderim geçmişi; müzik/klasör gönderme, çoklu alıcı
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -88,6 +88,7 @@ import com.onur.tvgonder.Shared
 import com.onur.tvgonder.Store
 import androidx.documentfile.provider.DocumentFile
 import com.onur.tvgonder.Target
+import com.onur.tvgonder.Sent
 import com.onur.tvgonder.PrintItem
 import com.onur.tvgonder.Printing
 import com.onur.tvgonder.TvClient
@@ -146,6 +147,7 @@ private fun displayName(ctx: Context, uri: Uri): String = runCatching {
 
 private fun friendly(e: Throwable?): String = when (e) {
     is IOException -> "TV'ye ulaşılamadı. TV açık ve aynı Wi‑Fi'de mi?"
+    is SecurityException -> "Bu dosyaya artık erişilemiyor; dosyayı yeniden seç."
     null -> "Bilinmeyen hata"
     else -> e.message ?: "Bilinmeyen hata"
 }
@@ -406,6 +408,8 @@ private fun SendUi(
     var showReceiver by remember { mutableStateOf(false) }
     var tvVer by remember { mutableStateOf<Long?>(null) }
     var tvStorage by remember { mutableStateOf(true) }
+    var searching by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
 
@@ -519,7 +523,22 @@ private fun SendUi(
             link = clip; fromClip = true
         }
         if (paired) {
-            val info = withContext(Dispatchers.IO) { runCatching { client.tvInfo() }.getOrNull() }
+            var info = withContext(Dispatchers.IO) { runCatching { client.tvInfo() }.getOrNull() }
+            if (info == null) {
+                // Modem IP'yi değiştirmiş olabilir: ağda ara
+                online = null; searching = true
+                val ok = withContext(Dispatchers.IO) { runCatching { client.rediscover() }.getOrDefault(false) }
+                searching = false
+                if (ok) {
+                    info = withContext(Dispatchers.IO) { runCatching { client.tvInfo() }.getOrNull() }
+                    if (info != null) msg = Msg("${store.tvName} yeni adreste bulundu (${store.tvHost}).", false)
+                }
+            }
+            // Eski eşleşmelerde kalıcı kimliği öğren
+            info?.optString("id")?.takeIf { it.isNotBlank() && store.tvId.isBlank() }?.let { id ->
+                store.tvId = id
+                store.tvToken?.let { tok -> store.addTarget(Target(store.tvName, store.tvHost ?: "", store.tvPort, tok, id)) }
+            }
             online = info != null
             tvVer = info?.optLong("version", 0L)
             tvStorage = info?.optBoolean("storage", true) ?: true

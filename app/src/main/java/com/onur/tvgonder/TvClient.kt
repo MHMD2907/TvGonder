@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: dosya adına gönderim tarihi, boyutu bilinmeyen dosyalar (müzik vb.) için yedek yol; tvInfo, çoklu alıcı
+// v0.16 – 2026-10-15: IP değişince alıcıyı ağda arayıp bulma (rediscover); tarihli ad, müzik yedek yolu, tvInfo
 package com.onur.tvgonder
 
 import android.content.Context
@@ -43,13 +43,58 @@ class TvClient(private val store: Store) {
             store.tvPort = port
             store.tvToken = o.getString("token")
             store.tvName = o.optString("tvName", "TV")
-            store.addTarget(Target(store.tvName, host, port, store.tvToken!!))
+            store.tvId = o.optString("id")
+            store.addTarget(Target(store.tvName, host, port, store.tvToken!!, store.tvId))
         }
     }
 
     /** TV'ye ulaşılabiliyor mu, sürümü ve kayıt yeri seçili mi (USB'den bağımsız). */
     fun tvInfo(): JSONObject {
         http.newCall(Request.Builder().url("${base()}/ping").build()).execute().use { return check(it) }
+    }
+
+    /**
+     * Seçili alıcıya ulaşılamıyorsa (modem IP'yi değiştirmiş olabilir) aynı ağda arar.
+     * Bulursa yeni adresi kaydeder ve true döner. ~3-5 saniye sürer.
+     */
+    fun rediscover(): Boolean {
+        val ip = Net.localIp() ?: return false
+        val token = store.tvToken ?: return false
+        val prefix = ip.substringBeforeLast('.')
+        val port = store.tvPort
+        val wantId = store.tvId
+        val wantName = store.tvName
+        val quick = http.newBuilder()
+            .connectTimeout(400, TimeUnit.MILLISECONDS)
+            .readTimeout(800, TimeUnit.MILLISECONDS)
+            .build()
+        val found = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(32)
+        try {
+            val jobs = (1..254).map { i ->
+                pool.submit(Runnable {
+                    if (found.get() != null) return@Runnable
+                    val h = "$prefix.$i"
+                    runCatching {
+                        quick.newCall(Request.Builder().url("http://$h:$port/ping").build()).execute().use { r ->
+                            if (r.isSuccessful) {
+                                val o = JSONObject(r.body?.string() ?: "{}")
+                                val match = if (wantId.isNotBlank()) o.optString("id") == wantId
+                                else o.optString("app") == "tvgonder" && o.optString("name") == wantName
+                                if (match) found.compareAndSet(null, h)
+                            }
+                        }
+                    }
+                })
+            }
+            jobs.forEach { runCatching { it.get() } }
+        } finally {
+            pool.shutdownNow()
+        }
+        val h = found.get() ?: return false
+        store.tvHost = h
+        store.addTarget(Target(store.tvName, h, port, token, wantId))
+        return true
     }
 
     /** TV'deki uygulamanın sürüm kodu; eski sürümlerde 0 döner. */

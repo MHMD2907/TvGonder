@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: dosya adına gönderim tarihi ayarı, silinen dosya son gelenlerden çıkar; birden fazla alıcı (TV/tablet), alıcı modu; son gelenler, boşta slayt
+// v0.16 – 2026-10-15: alıcı kimliği (otomatik bulma), gönderim geçmişi, video konumları; tarih ayarı, çoklu alıcı
 package com.onur.tvgonder
 
 import android.content.Context
@@ -6,7 +6,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Telefonun eşleştiği bir alıcı (TV veya tablet). */
-data class Target(val name: String, val host: String, val port: Int, val token: String)
+data class Target(val name: String, val host: String, val port: Int, val token: String, val id: String = "")
+
+/** Telefonda gönderim geçmişi satırı. kind: "link" ya da "file". */
+data class Sent(val kind: String, val name: String, val uri: String, val target: String, val at: Long)
 
 class Store(ctx: Context) {
     private val p = ctx.applicationContext.getSharedPreferences("tvgonder", Context.MODE_PRIVATE)
@@ -111,23 +114,52 @@ class Store(ctx: Context) {
         val a = runCatching { JSONArray(p.getString("targets", "[]") ?: "[]") }.getOrDefault(JSONArray())
         val list = List(a.length()) { i ->
             val o = a.getJSONObject(i)
-            Target(o.optString("n", "TV"), o.getString("h"), o.optInt("p", ReceiverServer.PORT), o.getString("t"))
+            Target(o.optString("n", "TV"), o.getString("h"), o.optInt("p", ReceiverServer.PORT), o.getString("t"), o.optString("i"))
         }
         // Eski sürümden kalan tek eşleşmeyi listeye taşı
         val tok = tvToken; val host = tvHost
-        if (list.isEmpty() && tok != null && host != null) return listOf(Target(tvName, host, tvPort, tok)).also { saveTargets(it) }
+        if (list.isEmpty() && tok != null && host != null) return listOf(Target(tvName, host, tvPort, tok, tvId)).also { saveTargets(it) }
         return list
     }
 
     private fun saveTargets(list: List<Target>) {
         val a = JSONArray()
-        list.forEach { a.put(JSONObject().put("n", it.name).put("h", it.host).put("p", it.port).put("t", it.token)) }
+        list.forEach { a.put(JSONObject().put("n", it.name).put("h", it.host).put("p", it.port).put("t", it.token).put("i", it.id)) }
         p.edit().putString("targets", a.toString()).apply()
     }
 
     fun addTarget(t: Target) = saveTargets(targets().filter { it.token != t.token && it.host != t.host } + t)
 
-    fun selectTarget(t: Target) { tvHost = t.host; tvPort = t.port; tvToken = t.token; tvName = t.name }
+    fun selectTarget(t: Target) { tvHost = t.host; tvPort = t.port; tvToken = t.token; tvName = t.name; tvId = t.id }
+
+    /** Seçili alıcının kalıcı kimliği (IP değişse de aynı kalır). */
+    var tvId: String
+        get() = p.getString("tvId", "") ?: ""
+        set(v) { p.edit().putString("tvId", v).apply() }
+
+    /** Bu cihaz alıcıyken kullandığı kalıcı kimlik. */
+    val receiverId: String
+        get() = p.getString("receiverId", null) ?: java.util.UUID.randomUUID().toString().also { p.edit().putString("receiverId", it).apply() }
+
+    fun history(): List<Sent> = runCatching {
+        val a = JSONArray(p.getString("history", "[]") ?: "[]")
+        List(a.length()) { i -> a.getJSONObject(i).let { Sent(it.getString("k"), it.getString("n"), it.getString("u"), it.optString("t"), it.optLong("a")) } }
+    }.getOrDefault(emptyList())
+
+    fun addHistory(s: Sent) {
+        val list = (listOf(s) + history()).take(150)
+        val a = JSONArray()
+        list.forEach { a.put(JSONObject().put("k", it.kind).put("n", it.name).put("u", it.uri).put("t", it.target).put("a", it.at)) }
+        p.edit().putString("history", a.toString()).apply()
+    }
+
+    fun clearHistory() { p.edit().remove("history").apply() }
+
+    /** Video kaldığı yer (ms). */
+    fun position(key: String): Long = p.getLong("pos_" + key.hashCode(), 0L)
+    fun setPosition(key: String, ms: Long) {
+        p.edit().apply { if (ms <= 0) remove("pos_" + key.hashCode()) else putLong("pos_" + key.hashCode(), ms) }.apply()
+    }
 
     /** Seçili alıcıyı listeden çıkarır; başka varsa ona geçer. */
     fun removeCurrentTarget() {
@@ -138,6 +170,6 @@ class Store(ctx: Context) {
     }
 
     fun clearTv() {
-        p.edit().remove("tvHost").remove("tvToken").remove("tvName").apply()
+        p.edit().remove("tvHost").remove("tvToken").remove("tvName").remove("tvId").apply()
     }
 }

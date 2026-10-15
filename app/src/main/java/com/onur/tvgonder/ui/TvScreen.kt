@@ -1,4 +1,4 @@
-// v0.15 – 2026-10-14: Son gelenler küçük resimli; tablet hem alıcı hem verici; kayıt yeri penceresi
+// v0.16 – 2026-10-15: müzik klasör çalma listesi, video devam; son gelenler resimli; tablet alıcı+verici
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -77,7 +77,7 @@ sealed interface TvNav {
     data class Folder(val dir: Uri, val title: String) : TvNav
     data class Images(val list: List<Entry>, val start: Int) : TvNav
     data class Pdf(val uri: Uri, val name: String) : TvNav
-    data class Video(val uri: Uri) : TvNav
+    data class Video(val list: List<Uri>, val start: Int, val audio: Boolean) : TvNav
     data class Web(val url: String) : TvNav
     data object Send : TvNav
 }
@@ -133,7 +133,11 @@ fun TvScreen(
                 push(TvNav.Images(imgs, imgs.indexOf(e).coerceAtLeast(0)))
             }
             Kind.Pdf -> push(TvNav.Pdf(e.uri, e.name))
-            Kind.Video, Kind.Audio -> push(TvNav.Video(e.uri))
+            Kind.Video -> push(TvNav.Video(listOf(e.uri), 0, audio = false))
+            Kind.Audio -> {
+                val songs = siblings.filter { it.kind == Kind.Audio }.ifEmpty { listOf(e) }
+                push(TvNav.Video(songs.map { it.uri }, songs.indexOf(e).coerceAtLeast(0), audio = true))
+            }
             else -> {
                 val ok = runCatching {
                     ctx.startActivity(
@@ -206,7 +210,7 @@ fun TvScreen(
                 )
                 is TvNav.Images -> TvImageViewer(n.list, n.start)
                 is TvNav.Pdf -> TvPdfViewer(n.uri, n.name)
-                is TvNav.Video -> TvVideoPlayer(n.uri)
+                is TvNav.Video -> TvVideoPlayer(n.list, n.start, n.audio)
                 is TvNav.Web -> TvBrowser(n.url) { pop() }
                 TvNav.Send -> PhoneRoot(store, shared, onSharedHandled)
             }

@@ -1,4 +1,4 @@
-// v0.10 – 2026-10-13: kayıt yeri doğrudan klasör (USB/TV hafızası) olabilir; /ping kayıt yeri durumunu bildirir
+// v0.16 – 2026-10-15: /ping ve /pair kalıcı alıcı kimliği (id) bildirir — telefon IP değişince bulur; kayıt yeri, güncelleme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -33,7 +33,7 @@ class ReceiverServer(
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
         if (path == "/ping") return json(
-            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null),
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
 
@@ -69,7 +69,7 @@ class ReceiverServer(
         store.addDevice(token, name)
         Hub.devices.value = store.devices()
         Hub.pairingCode.value = null
-        return json(200, JSONObject().put("token", token).put("tvName", Build.MODEL))
+        return json(200, JSONObject().put("token", token).put("tvName", Build.MODEL).put("id", store.receiverId))
     }
 
     private val noStorage get() = json(409, JSONObject().put("error", "TV'de kayıt yeri seçilmemiş. TV'de \"USB belleği seç\"e bas."))

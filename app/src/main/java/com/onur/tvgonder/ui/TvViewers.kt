@@ -1,4 +1,4 @@
-// v0.7.1 – 2026-10-12: TV görüntüleyicileri: resim, PDF, video/müzik (Media3), tarayıcı (WebView), slayt gösterisi
+// v0.16 – 2026-10-15: video kaldığı yerden devam, müzik çalma listesi (sıradaki/önceki, karıştır, tekrar); resim, PDF, tarayıcı, slayt
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -210,32 +210,96 @@ private suspend fun androidx.compose.foundation.ScrollState.animateScrollBy(d: F
 
 // ---------------------------------------------------------------- video / müzik
 
+/**
+ * Video/müzik oynatıcı. Müzikte klasördeki tüm şarkılar sırayla çalar (list + start).
+ * Videoda kaldığın yer hatırlanır ve bir sonraki açılışta oradan devam eder.
+ */
 @Composable
-fun TvVideoPlayer(uri: Uri) {
+fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean) {
     val ctx = LocalContext.current
+    val store = remember { com.onur.tvgonder.Store(ctx) }
+    var hint by remember { mutableStateOf<String?>(null) }
     val player = remember {
         ExoPlayer.Builder(ctx).build().apply {
-            setMediaItem(MediaItem.fromUri(uri))
+            setMediaItems(list.map { MediaItem.fromUri(it) }, start.coerceIn(0, maxOf(0, list.size - 1)), 0L)
+            if (audio) repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
             prepare()
             playWhenReady = true
         }
     }
-    DisposableEffect(Unit) { onDispose { player.release() } }
-    AndroidView(
-        factory = { c ->
-            PlayerView(c).apply {
-                this.player = player
-                useController = true
-                keepScreenOn = true
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                isFocusable = true
-                post { requestFocus() }
+    // Video: kaldığı yerden devam
+    LaunchedEffect(Unit) {
+        if (!audio && list.isNotEmpty()) {
+            val key = list[start.coerceIn(0, list.size - 1)].toString()
+            val pos = store.position(key)
+            if (pos > 5_000) {
+                player.seekTo(pos)
+                val m = pos / 60_000; val sec = (pos / 1000) % 60
+                hint = "Kaldığın yerden devam: %d:%02d".format(m, sec)
+                delay(4000); hint = null
             }
-        },
-        modifier = Modifier.fillMaxSize().background(Color.Black),
-    )
+        }
+    }
+    // Konumu düzenli kaydet; sona gelince sil
+    LaunchedEffect(Unit) {
+        if (audio) return@LaunchedEffect
+        while (true) {
+            delay(5000)
+            val key = player.currentMediaItem?.localConfiguration?.uri?.toString() ?: continue
+            val d = player.duration; val p = player.currentPosition
+            store.setPosition(key, if (d > 0 && p > d - 15_000) 0 else p)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            if (!audio) {
+                val key = player.currentMediaItem?.localConfiguration?.uri?.toString()
+                val d = player.duration; val p = player.currentPosition
+                if (key != null) store.setPosition(key, if (d > 0 && p > d - 15_000) 0 else p)
+            }
+            player.release()
+        }
+    }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        AndroidView(
+            factory = { c ->
+                PlayerView(c).apply {
+                    this.player = player
+                    useController = true
+                    keepScreenOn = true
+                    setShowNextButton(audio && list.size > 1)
+                    setShowPreviousButton(audio && list.size > 1)
+                    if (audio) {
+                        setShowShuffleButton(true)
+                        setRepeatToggleModes(
+                            androidx.media3.common.util.RepeatModeUtil.REPEAT_TOGGLE_MODE_ONE or
+                                androidx.media3.common.util.RepeatModeUtil.REPEAT_TOGGLE_MODE_ALL
+                        )
+                        controllerShowTimeoutMs = 0
+                        controllerHideOnTouch = false
+                    }
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    isFocusable = true
+                    post { requestFocus(); if (audio) showController() }
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (audio) {
+            var title by remember { mutableStateOf("") }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    val md = player.mediaMetadata
+                    title = listOfNotNull(md.title?.toString(), md.artist?.toString()).joinToString("  ·  ").ifBlank {
+                        player.currentMediaItem?.localConfiguration?.uri?.lastPathSegment?.substringAfterLast('/') ?: ""
+                    } + "   (${player.currentMediaItemIndex + 1} / ${player.mediaItemCount})"
+                    delay(1000)
+                }
+            }
+            Hint("🎵  $title", Modifier.align(Alignment.TopCenter).padding(24.dp))
+        }
+        hint?.let { Hint(it, Modifier.align(Alignment.TopCenter).padding(24.dp)) }
+    }
 }
 
 // ---------------------------------------------------------------- tarayıcı
