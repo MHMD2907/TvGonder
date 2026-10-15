@@ -1,3 +1,4 @@
+// v0.19 – 2026-10-15: fare eklentisi modülü
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }
@@ -7,3 +8,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TvGonder"
 include(":app")
+include(":fare")

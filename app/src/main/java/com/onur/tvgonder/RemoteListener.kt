@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: telefondan gelen fare/kumanda komutlarını (UDP 8766) alır: imleç, tıklama, kaydırma, medya tuşları, ses
+// v0.19 – 2026-10-15: telefondan medya/ses komutları (UDP 8766); fare komutları ayrı eklentide (8767)
 package com.onur.tvgonder
 
 import android.content.Context
@@ -10,7 +10,7 @@ import java.net.DatagramSocket
 
 /**
  * Paket biçimi: "<token> <komut> [a] [b]"
- * Komutlar: m dx dy | c | lc | s dy | back | home | play | next | prev | ff | rw | vu | vd | mute
+ * Komutlar: play | next | prev | ff | rw | vu | vd | mute  (imleç komutları "TV Gönder Fare" eklentisinde)
  * Sadece eşleşmiş telefonların anahtarı kabul edilir.
  */
 class RemoteListener(private val ctx: Context, private val store: Store) : Thread("tvgonder-remote") {
@@ -37,14 +37,7 @@ class RemoteListener(private val ctx: Context, private val store: Store) : Threa
     }
 
     private fun handle(cmd: String, a: Float, b: Float) {
-        val m = MouseService.instance
         when (cmd) {
-            "m" -> m?.move(a, b)
-            "c" -> m?.click()
-            "lc" -> m?.longPress()
-            "s" -> m?.scroll(a)
-            "back" -> m?.back()
-            "home" -> m?.home()
             "play" -> media(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
             "next" -> media(KeyEvent.KEYCODE_MEDIA_NEXT)
             "prev" -> media(KeyEvent.KEYCODE_MEDIA_PREVIOUS)

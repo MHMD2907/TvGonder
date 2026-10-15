@@ -1,4 +1,4 @@
-// v0.18.1 – 2026-10-15: Ayarlar: video/resim görüntüsü tam ekran veya sığdır; fare kontrolü, tablet alıcı+verici
+// v0.19 – 2026-10-15: fare artık ayrı "TV Gönder Fare" eklentisi; Ayarlar satırı onu açar; tam ekran ayarları
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -315,10 +315,10 @@ fun TvScreen(
         AlertDialog(
             onDismissRequest = { Hub.updateReady.value = null },
             containerColor = PanelHi,
-            title = { Text("Yeni sürüm hazır") },
+            title = { Text("Kurulum dosyası geldi") },
             text = {
                 Text(
-                    info ?: "Telefondan TV Gönder'in yeni sürümü geldi. Yükle'ye bas, açılan ekranda tekrar Yükle'yi seç.",
+                    info ?: "Telefondan bir kurulum geldi (TV Gönder'in yeni sürümü ya da Fare eklentisi). Yükle'ye bas, açılan ekranda tekrar Yükle'yi seç.",
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -509,13 +509,14 @@ private fun TvSettings(
                 SettingRow("📱", "Telefon ekle", "QR kod ile yeni telefon eşleştir", "Ekle", null, onAddPhone)
             }
             item {
-                val on = com.onur.tvgonder.MouseService.instance != null
+                val installed = remember { runCatching { ctx.packageManager.getPackageInfo("com.onur.tvgonder.fare", 0) }.isSuccess }
                 SettingRow(
                     "🖱️", "Telefonla fare kontrolü",
-                    if (on) "Açık – telefonda ⋮ → Fare / Kumanda" else "Kapalı – açılan ekranda \"TV Gönder Fare\"yi seç ve aç",
-                    if (on) "Ayarlar" else "Aç", null,
+                    if (installed) "TV Gönder Fare kurulu – açılan ekranda \"TV Gönder Fare\"yi seçip aç"
+                    else "Eklenti kurulu değil – telefonda ⋮ → \"Fare eklentisini TV'ye gönder\"",
+                    if (installed) "Aç" else "Nasıl?", null,
                 ) {
-                    runCatching {
+                    if (installed) runCatching {
                         ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                     }
                 }

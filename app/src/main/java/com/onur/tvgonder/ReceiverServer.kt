@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: /files ve /download (telefona indirme), /ping fare durumu; kimlik, kayıt yeri, güncelleme
+// v0.19 – 2026-10-15: /auth (yalnız aynı cihazdaki Fare eklentisi için anahtar doğrulama); indirme, kimlik, kayıt yeri
 package com.onur.tvgonder
 
 import android.content.Context
@@ -33,9 +33,15 @@ class ReceiverServer(
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
         if (path == "/ping") return json(
-            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId).put("mouse", MouseService.instance != null),
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
+        if (path == "/auth") {
+            // Sadece TV'nin kendisinden (Fare eklentisi) sorulabilir
+            val local = s.remoteIpAddress == "127.0.0.1" || s.remoteIpAddress == "::1"
+            val ok = local && store.devices().containsKey(s.parms["token"] ?: "")
+            return json(if (ok) 200 else 401, JSONObject().put("ok", ok))
+        }
 
         val token = s.headers["x-token"]
         if (token == null || !store.devices().containsKey(token)) {

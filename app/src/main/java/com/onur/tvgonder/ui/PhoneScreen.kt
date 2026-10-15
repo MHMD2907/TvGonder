@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: Fare / Kumanda ve TV'deki dosyalar (indirme) kartları; otomatik bulma, geçmiş, müzik/klasör gönderme
+// v0.19 – 2026-10-15: "Fare eklentisini TV'ye gönder"; fare durumu eklentiden sorulur; kumanda, TV'den indirme, geçmiş
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -412,7 +412,6 @@ private fun SendUi(
     var showHistory by remember { mutableStateOf(false) }
     var showRemote by remember { mutableStateOf(false) }
     var showTvFiles by remember { mutableStateOf(false) }
-    var tvMouse by remember { mutableStateOf(false) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
 
@@ -547,7 +546,6 @@ private fun SendUi(
             online = info != null
             tvVer = info?.optLong("version", 0L)
             tvStorage = info?.optBoolean("storage", true) ?: true
-            tvMouse = info?.optBoolean("mouse", false) ?: false
         }
     }
 
@@ -567,14 +565,16 @@ private fun SendUi(
 
     LaunchedEffect(msg) { if (msg != null) { delay(5000); msg = null } }
 
-    fun updateTv() {
+    fun updateTv(fare: Boolean = false) {
         if (!paired) { msg = notPaired; return }
         if (updating != null) return
         updating = 0f
+        if (fare) msg = Msg("Fare eklentisi indiriliyor…", false)
         scope.launch {
             val r = withContext(Dispatchers.IO) {
                 runCatching {
-                    client.sendUpdate(ctx) { sent, total ->
+                    val file = if (fare) client.fetchFareApk(ctx) else null
+                    client.sendUpdate(ctx, file) { sent, total ->
                         if (total > 0) {
                             val p = sent.toFloat() / total
                             if (p - (updating ?: 0f) >= 0.01f || p >= 1f) updating = p
@@ -583,7 +583,10 @@ private fun SendUi(
                 }
             }
             updating = null
-            msg = if (r.isSuccess) Msg("Yeni sürüm TV'ye gönderildi. TV'de \"Yükle\"ye bas.", false)
+            msg = if (r.isSuccess) Msg(
+                if (fare) "Fare eklentisi gönderildi. TV'de \"Yükle\"ye bas, sonra TV Gönder → Ayarlar → Telefonla fare kontrolü → Aç."
+                else "Yeni sürüm TV'ye gönderildi. TV'de \"Yükle\"ye bas.", false,
+            )
             else Msg(friendly(r.exceptionOrNull()), true)
         }
     }
@@ -630,6 +633,7 @@ private fun SendUi(
                         }
                         DropdownMenuItem(text = { Text("Yeni cihaz ekle (TV / tablet)") }, onClick = { menu = false; onPair() })
                         DropdownMenuItem(text = { Text("${store.tvName} uygulamasını güncelle") }, onClick = { menu = false; updateTv() })
+                        if (paired) DropdownMenuItem(text = { Text("Fare eklentisini ${store.tvName}'ye gönder") }, onClick = { menu = false; updateTv(fare = true) })
                         DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         DropdownMenuItem(text = { Text("Eşleşmeyi kaldır", color = Danger) }, onClick = { menu = false; onUnpair() })
@@ -637,6 +641,7 @@ private fun SendUi(
                         DropdownMenuItem(text = { Text("Uygulamadan çık") }, onClick = { menu = false; exitApp(ctx) })
                     } else {
                         DropdownMenuItem(text = { Text("TV'yi eşleştir") }, onClick = { menu = false; onPair() })
+                        if (paired) DropdownMenuItem(text = { Text("Fare eklentisini ${store.tvName}'ye gönder") }, onClick = { menu = false; updateTv(fare = true) })
                         DropdownMenuItem(text = { Text("Gönderim geçmişi") }, onClick = { menu = false; showHistory = true })
                         DropdownMenuItem(text = { Text("Ayarlar") }, onClick = { menu = false; showSettings = true })
                         if (!store.receiverMode) DropdownMenuItem(text = { Text("Bu cihazı alıcı yap (tablet)") }, onClick = { menu = false; showReceiver = true })
@@ -908,7 +913,7 @@ private fun SendUi(
         )
     }
 
-    if (showRemote) RemoteDialog(store, tvMouse) { showRemote = false }
+    if (showRemote) RemoteDialog(store) { showRemote = false }
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
 
     if (showHistory) {

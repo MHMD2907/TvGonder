@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: TV'deki dosyaları listeleme ve indirme; otomatik bulma, tarihli ad, müzik yedek yolu
+// v0.19 – 2026-10-15: fare komutları eklentiye (8767), medya ana uygulamaya (8766); Fare eklentisini GitHub'dan indirip TV'ye gönderme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -25,16 +25,33 @@ class Remote(private val host: String, private val token: String) {
     private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
     @Volatile private var addr: java.net.InetAddress? = null
 
+    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home", "ping")
+
     fun send(cmd: String) {
         if (exec.isShutdown) return
         exec.execute {
             runCatching {
                 val a = addr ?: java.net.InetAddress.getByName(host).also { addr = it }
                 val b = "$token $cmd".toByteArray()
-                sock?.send(java.net.DatagramPacket(b, b.size, a, RemoteListener.PORT))
+                // İmleç komutları "TV Gönder Fare" eklentisine, medya/ses ana uygulamaya
+                val port = if (cmd.substringBefore(' ') in mouseCmds) 8767 else RemoteListener.PORT
+                sock?.send(java.net.DatagramPacket(b, b.size, a, port))
             }
         }
     }
+
+    /** TV'de Fare eklentisi kurulu ve açık mı (ping → pong). Arka planda çağır. */
+    fun probeMouse(): Boolean = runCatching {
+        java.net.DatagramSocket().use { s ->
+            s.soTimeout = 1200
+            val b = "$token ping".toByteArray()
+            s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName(host), 8767))
+            val buf = ByteArray(16)
+            val p = java.net.DatagramPacket(buf, buf.size)
+            s.receive(p)
+            String(buf, 0, p.length) == "pong"
+        }
+    }.getOrDefault(false)
 
     fun close() { exec.shutdown(); runCatching { sock?.close() } }
 }
@@ -128,8 +145,21 @@ class TvClient(private val store: Store) {
     }
 
     /** Telefonda kurulu APK'yı TV'ye gönderir (telefon ve TV aynı APK'yı kullanır). */
-    fun sendUpdate(ctx: Context, onProgress: (Long, Long) -> Unit) {
-        val apk = java.io.File(ctx.applicationInfo.sourceDir)
+    /** Fare eklentisinin en son sürümünü GitHub'dan indirir (telefonun internete ihtiyacı var). */
+    fun fetchFareApk(ctx: Context): java.io.File {
+        val f = java.io.File(ctx.cacheDir, "TvGonderFare.apk")
+        val req = Request.Builder().url("https://github.com/MHMD2907/TvGonder/releases/latest/download/TvGonderFare.apk").build()
+        http.newBuilder().followRedirects(true).build().newCall(req).execute().use { r ->
+            if (!r.isSuccessful) error("Fare eklentisi indirilemedi (${r.code}). İnternet bağlantısını kontrol et.")
+            r.body?.byteStream()?.use { i -> f.outputStream().use { o -> i.copyTo(o) } } ?: error("Boş dosya")
+        }
+        if (f.length() < 10_000) error("Fare eklentisi indirilemedi.")
+        return f
+    }
+
+    /** Telefondaki APK'yı (varsayılan: bu uygulamanın kendisi) TV'ye kurulum için gönderir. */
+    fun sendUpdate(ctx: Context, file: java.io.File? = null, onProgress: (Long, Long) -> Unit) {
+        val apk = file ?: java.io.File(ctx.applicationInfo.sourceDir)
         val size = apk.length()
         val body = object : RequestBody() {
             override fun contentType() = "application/vnd.android.package-archive".toMediaTypeOrNull()

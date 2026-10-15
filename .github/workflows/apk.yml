@@ -1,4 +1,4 @@
-# v0.2.2 – 2026-10-12: derleme hataları not (annotation) olarak yazılır; hazır Android SDK; her gönderimde APK derler ve "Releases" sayfasına koyar
+# v0.3 – 2026-10-15: TvGonder ve TvGonderFare (eklenti) APK'ları derlenip Releases'a konur
 name: APK derle
 
 on:
@@ -34,12 +34,16 @@ jobs:
           }
 
       - name: APK adını düzenle
-        run: cp app/build/outputs/apk/debug/app-debug.apk TvGonder-${{ github.run_number }}.apk
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk TvGonder-${{ github.run_number }}.apk
+          cp fare/build/outputs/apk/debug/fare-debug.apk TvGonderFare.apk
 
       - name: Sürüm sayfasına koy
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: TV Gönder – derleme ${{ github.run_number }}
-          body: "Telefona ve TV'ye bu APK'yı kur. Commit: ${{ github.sha }}"
-          files: TvGonder-${{ github.run_number }}.apk
+          body: "TvGonder: telefon, TV ve tablete. TvGonderFare: sadece TV/tablete (fare için). Commit: ${{ github.sha }}"
+          files: |
+            TvGonder-${{ github.run_number }}.apk
+            TvGonderFare.apk

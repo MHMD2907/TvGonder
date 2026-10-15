@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: telefon: fare/kumanda ekranı ve TV'deki dosyaları gezip indirme
+// v0.19 – 2026-10-15: fare durumu eklentiden (ping) sorulur; fare/kumanda ekranı, TV'den indirme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -70,9 +70,11 @@ import java.io.OutputStream
 
 /** Telefonu TV için fare + kumanda yapar. mouseOn: TV'de "TV Gönder Fare" açık mı. */
 @Composable
-fun RemoteDialog(store: Store, mouseOn: Boolean, onClose: () -> Unit) {
+fun RemoteDialog(store: Store, onClose: () -> Unit) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val remote = remember { Remote(store.tvHost ?: "", store.tvToken ?: "") }
+        var mouseOn by remember { mutableStateOf(true) }
+        LaunchedEffect(Unit) { mouseOn = withContext(Dispatchers.IO) { remote.probeMouse() } }
         DisposableEffect(Unit) { onDispose { remote.close() } }
         val speed = 1.8f
         var rx by remember { mutableStateOf(0f) }
@@ -92,8 +94,8 @@ fun RemoteDialog(store: Store, mouseOn: Boolean, onClose: () -> Unit) {
             }
             if (!mouseOn) {
                 Text(
-                    "İmleç için TV'de bir kez: TV Gönder → Ayarlar → \"Telefonla fare kontrolü\" → TV Gönder Fare'yi aç. " +
-                        "Oynat/ses düğmeleri şimdiden çalışır.",
+                    "İmleç için: telefonda ⋮ → \"Fare eklentisini TV'ye gönder\", TV'de Yükle; sonra TV'de TV Gönder → Ayarlar → " +
+                        "Telefonla fare kontrolü → TV Gönder Fare'yi aç. Oynat/ses düğmeleri şimdiden çalışır.",
                     Modifier.clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(12.dp),
                     style = MaterialTheme.typography.bodyMedium, color = Danger,
                 )

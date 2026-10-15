@@ -1,5 +1,5 @@
-// v0.17 – 2026-10-15: telefonla fare: ekranda imleç, tıklama, uzun basma, kaydırma, geri/ana ekran (erişilebilirlik hizmeti)
-package com.onur.tvgonder
+// v0.19 – 2026-10-15: TV Gönder Fare: imleç, tıklama, uzun basma, kaydırma, geri/ana ekran; komutları kendi dinleyicisinden alır
+package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -56,7 +56,10 @@ class MouseService : AccessibilityService() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         runCatching { wm?.addView(view, params) }
         cursor = view; lp = params
+        listener = MouseListener(this).also { it.isDaemon = true; it.start() }
     }
+
+    private var listener: MouseListener? = null
 
     /** Beyaz, siyah kenarlı ok imleci. */
     private fun arrow(s: Int): Bitmap {
@@ -114,6 +117,7 @@ class MouseService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        listener?.close()
         main.removeCallbacks(hide)
         runCatching { cursor?.let { wm?.removeView(it) } }
         super.onDestroy()

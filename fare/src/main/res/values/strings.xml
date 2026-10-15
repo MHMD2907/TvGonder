@@ -1,0 +1,5 @@
+<!-- v0.19 – 2026-10-15 -->
+<resources>
+    <string name="app_name">TV Gönder Fare</string>
+    <string name="mouse_desc">Telefondaki TV Gönder ile TV ekranında imleç kullanmanı sağlar: gezinme, tıklama, kaydırma, geri ve ana ekran. Ekrandaki içeriği okumaz, hiçbir şey kaydetmez.</string>
+</resources>

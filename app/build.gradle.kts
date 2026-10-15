@@ -1,4 +1,4 @@
-// v0.18.1 – 2026-10-15: sürüm 0.18.1 (video ve resim tam ekran)
+// v0.19 – 2026-10-15: sürüm 0.19 (fare ayrı eklentide; telefona kurulum engeli kalktı)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 20
-        versionName = "0.18.1"
+        versionCode = 21
+        versionName = "0.19"
     }
     signingConfigs {
         getByName("debug") {
