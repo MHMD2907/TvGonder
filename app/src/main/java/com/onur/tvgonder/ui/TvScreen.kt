@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: Ayarlar'da "Telefonla fare kontrolü"; müzik çalma listesi, video devam; tablet alıcı+verici
+// v0.18.1 – 2026-10-15: Ayarlar: video/resim görüntüsü tam ekran veya sığdır; fare kontrolü, tablet alıcı+verici
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -479,6 +479,8 @@ private fun TvSettings(
     val ctx = LocalContext.current
     val first = remember { FocusRequester() }
     var idle by remember { mutableStateOf(store.idleSlides) }
+    var vfill by remember { mutableStateOf(store.videoFill) }
+    var ifill by remember { mutableStateOf(store.imageFill) }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 
     Column(Modifier.fillMaxSize().background(HomeBg).padding(horizontal = 64.dp, vertical = 44.dp)) {
@@ -491,6 +493,16 @@ private fun TvSettings(
             item {
                 SettingRow("🖼️", "Boşta slayt gösterisi", if (idle) "Açık – 5 dakika işlem olmazsa başlar" else "Kapalı", if (idle) "Kapat" else "Aç", null) {
                     idle = !idle; store.idleSlides = idle
+                }
+            }
+            item {
+                SettingRow("🎬", "Video görüntüsü", if (vfill) "Tam ekran – oran korunur, kenarlar kırpılabilir" else "Sığdır – görüntünün tamamı, kenarlarda siyah boşluk", if (vfill) "Sığdır" else "Tam ekran", null) {
+                    vfill = !vfill; store.videoFill = vfill
+                }
+            }
+            item {
+                SettingRow("🖼️", "Resim görüntüsü", if (ifill) "Tam ekran – oran korunur (resimde OK ile değişir)" else "Sığdır – resmin tamamı (resimde OK ile değişir)", if (ifill) "Sığdır" else "Tam ekran", null) {
+                    ifill = !ifill; store.imageFill = ifill
                 }
             }
             item {

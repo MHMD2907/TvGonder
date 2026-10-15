@@ -1,4 +1,4 @@
-// v0.18 – 2026-10-15: resim: tam ekran (oran korunur) / tamamını göster, ▲▼ ile döndürme (hatırlanır), tablette dokunmatik düğmeler; video devam, çalma listesi
+// v0.18.1 – 2026-10-15: video tam ekran (oran korunur, Ayarlar'dan seçilir); resim tam ekran/döndürme; video devam, çalma listesi
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -321,6 +321,8 @@ fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean) {
                     this.player = player
                     useController = true
                     keepScreenOn = true
+                    if (!audio) resizeMode = if (store.videoFill) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                     setShowNextButton(audio && list.size > 1)
                     setShowPreviousButton(audio && list.size > 1)
                     if (audio) {

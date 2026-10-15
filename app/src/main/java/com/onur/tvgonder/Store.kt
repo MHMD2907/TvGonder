@@ -160,6 +160,11 @@ class Store(ctx: Context) {
         get() = p.getBoolean("imageFill", true)
         set(v) { p.edit().putBoolean("imageFill", v).apply() }
 
+    /** Video ekranı doldursun mu (oran korunur, kenar kırpılır). */
+    var videoFill: Boolean
+        get() = p.getBoolean("videoFill", true)
+        set(v) { p.edit().putBoolean("videoFill", v).apply() }
+
     /** Resmin elle verilen dönüş açısı (0/90/180/270). */
     fun rotation(key: String): Int = p.getInt("rot_" + key.hashCode(), 0)
     fun setRotation(key: String, deg: Int) {
