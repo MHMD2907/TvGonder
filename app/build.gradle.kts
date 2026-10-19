@@ -1,4 +1,4 @@
-// v0.21 – 2026-10-15: sürüm 0.21 (uygulama içi kullanım kılavuzu)
+// v0.22 – 2026-10-19: sürüm 0.22 (tablet dokunmatik, tarayıcı video, YouTube, fare düzeltmeleri; HLS/DASH oynatma)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 23
-        versionName = "0.21"
+        versionCode = 24
+        versionName = "0.22"
     }
     signingConfigs {
         getByName("debug") {
@@ -45,6 +45,8 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.zxing:core:3.5.3")

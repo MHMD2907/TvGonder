@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: "TV Gönder Fare" eklentisi — yalnız TV/tablete kurulur (erişilebilirlik izni ana uygulamada olmasın diye)
+// v0.22 – 2026-10-19: "TV Gönder Fare" 1.1 — çökmeye karşı korumalı hizmet; yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
     signingConfigs {
         getByName("debug") {

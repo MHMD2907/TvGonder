@@ -1,4 +1,4 @@
-// v0.20 – 2026-10-15: TV'deki dosyalar: çoklu seçip toplu indirme (Seç / Tümü / Seçilenleri indir); fare/kumanda
+// v0.22 – 2026-10-19: fare: eklenti kapalıyken TV Gönder'in kendi faresine geçer; TV'deki dosyalar: çoklu seçip toplu indirme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -73,8 +73,18 @@ import java.io.OutputStream
 fun RemoteDialog(store: Store, onClose: () -> Unit) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val remote = remember { Remote(store.tvHost ?: "", store.tvToken ?: "") }
-        var mouseOn by remember { mutableStateOf(true) }
-        LaunchedEffect(Unit) { mouseOn = withContext(Dispatchers.IO) { remote.probeMouse() } }
+        // 2: eklenti açık (her yerde imleç), 1: yalnız TV Gönder ekranlarında, 0: TV cevap vermiyor, -1: bakılıyor
+        var mode by remember { mutableStateOf(-1) }
+        LaunchedEffect(Unit) {
+            mode = withContext(Dispatchers.IO) {
+                when {
+                    remote.probeMouse() || remote.probeMouse() -> 2
+                    remote.probeApp() || remote.probeApp() -> 1
+                    else -> 0
+                }
+            }
+            remote.mousePort = if (mode == 2) 8767 else com.onur.tvgonder.RemoteListener.PORT
+        }
         DisposableEffect(Unit) { onDispose { remote.close() } }
         val speed = 1.8f
         var rx by remember { mutableStateOf(0f) }
@@ -92,12 +102,14 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 }
                 TextButton(onClick = onClose) { Text("Kapat") }
             }
-            if (!mouseOn) {
+            if (mode == 1 || mode == 0) {
                 Text(
-                    "İmleç için: telefonda ⋮ → \"Fare eklentisini TV'ye gönder\", TV'de Yükle; sonra TV'de TV Gönder → Ayarlar → " +
-                        "Telefonla fare kontrolü → TV Gönder Fare'yi aç. Oynat/ses düğmeleri şimdiden çalışır.",
+                    if (mode == 1)
+                        "İmleç şu an yalnızca TV Gönder açıkken çalışır (tarayıcı, dosyalar, oynatıcı). Her uygulamada imleç için: " +
+                            "⋮ → \"Fare eklentisini TV'ye gönder\" → TV'de Yükle → TV Gönder Ayarlar'dan aç."
+                    else "TV cevap vermiyor. TV açık ve aynı Wi‑Fi'da mı? Oynat/ses düğmelerini yine deneyebilirsin.",
                     Modifier.clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium, color = Danger,
+                    style = MaterialTheme.typography.bodyMedium, color = if (mode == 1) TextMuted else Danger,
                 )
             }
             // Dokunmatik yüzey + kaydırma şeridi

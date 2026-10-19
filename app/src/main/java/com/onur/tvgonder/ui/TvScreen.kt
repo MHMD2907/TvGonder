@@ -1,4 +1,4 @@
-// v0.21 – 2026-10-15: Ayarlar'da Kullanım kılavuzu; fare eklentisi satırı, tam ekran ayarları, tablet alıcı+verici
+// v0.22 – 2026-10-19: Ayarlar: fare eklentisi durumu/kaldır, link açma izni; tarayıcıdaki videoyu oynatıcıda açma; resim tam ekran ayarı kaldırıldı
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,7 +78,7 @@ sealed interface TvNav {
     data class Folder(val dir: Uri, val title: String) : TvNav
     data class Images(val list: List<Entry>, val start: Int) : TvNav
     data class Pdf(val uri: Uri, val name: String) : TvNav
-    data class Video(val list: List<Uri>, val start: Int, val audio: Boolean) : TvNav
+    data class Video(val list: List<Uri>, val start: Int, val audio: Boolean, val referer: String? = null, val ua: String? = null) : TvNav
     data class Web(val url: String) : TvNav
     data object Send : TvNav
     data object Guide : TvNav
@@ -212,8 +213,8 @@ fun TvScreen(
                 )
                 is TvNav.Images -> TvImageViewer(n.list, n.start)
                 is TvNav.Pdf -> TvPdfViewer(n.uri, n.name)
-                is TvNav.Video -> TvVideoPlayer(n.list, n.start, n.audio)
-                is TvNav.Web -> TvBrowser(n.url) { pop() }
+                is TvNav.Video -> TvVideoPlayer(n.list, n.start, n.audio, n.referer, n.ua)
+                is TvNav.Web -> TvBrowser(n.url, onClose = { pop() }, onVideo = { m, ref, ua -> push(TvNav.Video(listOf(Uri.parse(m)), 0, audio = false, referer = ref, ua = ua)) })
                 TvNav.Send -> PhoneRoot(store, shared, onSharedHandled)
                 TvNav.Guide -> TvGuide()
             }
@@ -484,7 +485,6 @@ private fun TvSettings(
     val first = remember { FocusRequester() }
     var idle by remember { mutableStateOf(store.idleSlides) }
     var vfill by remember { mutableStateOf(store.videoFill) }
-    var ifill by remember { mutableStateOf(store.imageFill) }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 
     Column(Modifier.fillMaxSize().background(HomeBg).padding(horizontal = 64.dp, vertical = 44.dp)) {
@@ -505,24 +505,73 @@ private fun TvSettings(
                 }
             }
             item {
-                SettingRow("🖼️", "Resim görüntüsü", if (ifill) "Tam ekran – oran korunur (resimde OK ile değişir)" else "Sığdır – resmin tamamı (resimde OK ile değişir)", if (ifill) "Sığdır" else "Tam ekran", null) {
-                    ifill = !ifill; store.imageFill = ifill
-                }
-            }
-            item {
                 SettingRow("📱", "Telefon ekle", "QR kod ile yeni telefon eşleştir", "Ekle", null, onAddPhone)
             }
             item {
-                val installed = remember { runCatching { ctx.packageManager.getPackageInfo("com.onur.tvgonder.fare", 0) }.isSuccess }
+                // Eklenti durumu ekrana her dönüldüğünde yeniden okunur
+                var tick by remember { mutableStateOf(0) }
+                val life = androidx.compose.ui.platform.LocalLifecycleOwner.current
+                DisposableEffect(life) {
+                    val o = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) tick++ }
+                    life.lifecycle.addObserver(o)
+                    onDispose { life.lifecycle.removeObserver(o) }
+                }
+                val installed = remember(tick) { runCatching { ctx.packageManager.getPackageInfo("com.onur.tvgonder.fare", 0) }.isSuccess }
+                val enabled = remember(tick) {
+                    (android.provider.Settings.Secure.getString(ctx.contentResolver, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
+                        .contains("com.onur.tvgonder.fare")
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SettingRow(
                     "🖱️", "Telefonla fare kontrolü",
-                    if (installed) "TV Gönder Fare kurulu – açılan ekranda \"TV Gönder Fare\"yi seçip aç"
-                    else "Eklenti kurulu değil – telefonda ⋮ → \"Fare eklentisini TV'ye gönder\"",
-                    if (installed) "Aç" else "Nasıl?", null,
+                    when {
+                        !installed -> "Eklenti yok – TV Gönder ekranlarında fare yine çalışır. Her yerde imleç için telefonda ⋮ → \"Fare eklentisini TV'ye gönder\""
+                        enabled -> "TV Gönder Fare açık ✓ – imleç her uygulamada çalışır"
+                        else -> "Eklenti kurulu ama kapalı – açılan listede \"TV Gönder Fare\"yi seç ve aç. Anahtar kendiliğinden kapanıyorsa aşağıdan kaldırıp telefondan yeniden gönder"
+                    },
+                    if (installed && !enabled) "Aç" else if (installed) "Ayarlar" else "Nasıl?", null,
                 ) {
                     if (installed) runCatching {
                         ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                     }
+                }
+                if (installed && !enabled) {
+                    SettingRow(
+                        "♻️", "Fare eklentisini kaldır",
+                        "Anahtar kapanıyorsa: kaldır, sonra telefonda ⋮ → \"Fare eklentisini TV'ye gönder\" → TV'de Yükle. Yeni kurulumda engel kalkar",
+                        "Kaldır", null,
+                    ) {
+                        runCatching {
+                            ctx.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_DELETE, android.net.Uri.parse("package:com.onur.tvgonder.fare"))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                }
+                }
+            }
+            item {
+                var tick by remember { mutableStateOf(0) }
+                val ok = remember(tick) { android.os.Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(ctx) }
+                if (!ok) SettingRow(
+                    "🚀", "Linkleri her an açabilme izni",
+                    "Başka uygulama (ör. YouTube) açıkken gelen linklerin açılması için \"Diğer uygulamaların üzerinde göster\" iznini ver",
+                    "İzin ver", null,
+                ) {
+                    val opened = runCatching {
+                        ctx.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${ctx.packageName}"))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }.isSuccess || runCatching {
+                        ctx.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${ctx.packageName}"))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }.isSuccess
+                    if (!opened) android.widget.Toast.makeText(ctx, "TV ayarlarında bu izin ekranı yok", android.widget.Toast.LENGTH_LONG).show()
+                    tick++
                 }
             }
             items(devices.entries.toList(), key = { it.key }) { (token, name) ->

@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: TV Gönder Fare açılış ekranı: durum ve erişilebilirlik ayarına kısayol
+// v0.22 – 2026-10-19: TV Gönder Fare açılış ekranı: durum, erişilebilirlik ayarı ve "kısıtlanmış ayar" çözümü
 package com.onur.tvgonder.fare
 
 import android.app.Activity
@@ -35,6 +35,15 @@ class SetupActivity : Activity() {
             })
             addView(status)
             addView(btn)
+            addView(Button(context).apply {
+                text = "Uygulama bilgisi (kısıtlanmış ayara izin ver)"
+                textSize = 16f
+                setOnClickListener {
+                    runCatching {
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
+                    }
+                }
+            })
         })
         btn.requestFocus()
     }
@@ -44,6 +53,9 @@ class SetupActivity : Activity() {
         status.text = if (MouseService.instance != null)
             "\nAçık ✓\nTelefonda TV Gönder → Fare / Kumanda ile kullanabilirsin.\n"
         else
-            "\nKapalı.\nAşağıdaki düğmeye bas, listeden \"TV Gönder Fare\"yi seç ve aç.\n"
+            "\nKapalı.\nAşağıdaki düğmeye bas, listeden \"TV Gönder Fare\"yi seç ve aç.\n\n" +
+                "Anahtar kendiliğinden kapanıyorsa Android bu eklentiyi \"kısıtlanmış\" saymıştır:\n" +
+                "• TV'de: TV Gönder → Ayarlar → \"Fare eklentisini kaldır\", sonra telefondan eklentiyi yeniden gönder (yeni kurulumda engel olmaz).\n" +
+                "• Tablette: \"Uygulama bilgisi\" → sağ üstte ⋮ → \"Kısıtlanmış ayarlara izin ver\", sonra tekrar aç.\n"
     }
 }

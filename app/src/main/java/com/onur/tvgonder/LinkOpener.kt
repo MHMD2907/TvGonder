@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: YouTube dışındaki linkler uygulamanın kendi tarayıcısında açılır
+// v0.22 – 2026-10-19: YouTube zaten açıkken gelen yeni link de açılır (görev sıfırlanarak); diğerleri kendi tarayıcımızda
 package com.onur.tvgonder
 
 import android.content.ActivityNotFoundException
@@ -12,12 +12,26 @@ object LinkOpener {
     /** YouTube linkleri YouTube uygulamasında, diğerleri TV Gönder'in tarayıcısında açılır. */
     fun open(ctx: Context, url: String) {
         val uri = Uri.parse(url)
+        // Android, izin yoksa arka plandan uygulama açılmasını engelleyebilir: en azından haber ver
+        if (!Hub.foreground && android.os.Build.VERSION.SDK_INT >= 29 && !android.provider.Settings.canDrawOverlays(ctx)) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching {
+                    android.widget.Toast.makeText(
+                        ctx, "TV Gönder: link geldi. Açılmazsa TV Gönder'i aç (Ayarlar → \"Linkleri her an açabilme izni\").",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
         val host = uri.host?.lowercase() ?: ""
         val yt = host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com")
         if (yt) {
-            for (pkg in listOf("com.google.android.youtube.tv", "com.google.android.youtube")) {
-                val i = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).setPackage(pkg)
-                try { ctx.startActivity(i); return } catch (_: ActivityNotFoundException) { }
+            // YouTube açıksa eski görev öne gelip yeni videoyu yok sayıyordu: CLEAR_TASK ile yeniden başlatılır
+            val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
+            for (pkg in listOf("com.google.android.youtube.tv", "com.google.android.youtube", "com.google.android.apps.youtube.kids")) {
+                val i = Intent(Intent.ACTION_VIEW, uri).addFlags(flags).setPackage(pkg)
+                    .putExtra("force_fullscreen", true).putExtra("finish_on_ended", true)
+                try { ctx.startActivity(i); return } catch (_: ActivityNotFoundException) { } catch (_: SecurityException) { }
             }
         }
         // Kendi tarayıcımız: ekran öndeyse doğrudan, değilse uygulamayı öne getirerek

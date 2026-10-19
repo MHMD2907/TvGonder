@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: telefondan medya/ses komutları (UDP 8766); fare komutları ayrı eklentide (8767)
+// v0.22 – 2026-10-19: medya/ses komutları (UDP 8766) + eklentisiz fare (TV Gönder ekrandayken); eklenti varsa fare 8767'de
 package com.onur.tvgonder
 
 import android.content.Context
@@ -10,7 +10,8 @@ import java.net.DatagramSocket
 
 /**
  * Paket biçimi: "<token> <komut> [a] [b]"
- * Komutlar: play | next | prev | ff | rw | vu | vd | mute  (imleç komutları "TV Gönder Fare" eklentisinde)
+ * Komutlar: play | next | prev | ff | rw | vu | vd | mute | ping | m dx dy | c | lc | s dy | back | home
+ * (Fare komutları burada yalnız TV Gönder ekrandayken çalışır; her yerde çalışan imleç "TV Gönder Fare" eklentisindedir.)
  * Sadece eşleşmiş telefonların anahtarı kabul edilir.
  */
 class RemoteListener(private val ctx: Context, private val store: Store) : Thread("tvgonder-remote") {
@@ -32,6 +33,10 @@ class RemoteListener(private val ctx: Context, private val store: Store) : Threa
             if (parts.size < 2) continue
             if (SystemClock.elapsedRealtime() - tokensAt > 5000) { tokens = store.devices().keys; tokensAt = SystemClock.elapsedRealtime() }
             if (parts[0] !in tokens) continue
+            if (parts[1] == "ping") {
+                runCatching { val b = "pong".toByteArray(); s.send(DatagramPacket(b, b.size, pkt.address, pkt.port)) }
+                continue
+            }
             runCatching { handle(parts[1], parts.getOrNull(2)?.toFloatOrNull() ?: 0f, parts.getOrNull(3)?.toFloatOrNull() ?: 0f) }
         }
     }
@@ -46,6 +51,12 @@ class RemoteListener(private val ctx: Context, private val store: Store) : Threa
             "vu" -> audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
             "vd" -> audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
             "mute" -> audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI)
+            "m" -> InAppMouse.move(a, b)
+            "c" -> InAppMouse.click()
+            "lc" -> InAppMouse.longPress()
+            "s" -> InAppMouse.scroll(a)
+            "back" -> InAppMouse.back()
+            "home" -> InAppMouse.home()
         }
     }
 

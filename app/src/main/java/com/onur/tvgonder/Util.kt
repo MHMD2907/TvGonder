@@ -1,4 +1,4 @@
-// v0.12 – 2026-10-13: uygulamadan çıkış; depolama birimleri (USB/TV hafızası); sürüm ve APK kurulum yardımcıları
+// v0.22 – 2026-10-19: oturumlu APK kurulumu (kısıtlanmış ayar engeli olmaz); çıkış, depolama birimleri, sürüm yardımcıları
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -59,8 +59,41 @@ object Installer {
         )
     }.isSuccess
 
-    /** Android'in kurulum ekranını açar. */
+    /**
+     * APK'yı kurar. Önce Android'in "oturumlu" kurulumunu kullanır: böyle kurulan uygulamalarda
+     * Android 13+ "kısıtlanmış ayar" engeli olmaz (Fare eklentisinin erişilebilirlik anahtarı kapanmaz).
+     * Olmazsa eski yöntemle kurulum ekranını açar.
+     */
     fun install(c: Context, apk: File) {
+        if (Build.VERSION.SDK_INT >= 23 && runCatching { sessionInstall(c, apk) }.isSuccess) return
+        viewInstall(c, apk)
+    }
+
+    private fun sessionInstall(c: Context, apk: File) {
+        val pi = c.packageManager.packageInstaller
+        val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+        if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+        params.setSize(apk.length())
+        val id = pi.createSession(params)
+        try {
+            pi.openSession(id).use { s ->
+                apk.inputStream().use { inp ->
+                    s.openWrite("app.apk", 0, apk.length()).use { out -> inp.copyTo(out); s.fsync(out) }
+                }
+                val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (Build.VERSION.SDK_INT >= 31) android.app.PendingIntent.FLAG_MUTABLE else 0)
+                val p = android.app.PendingIntent.getBroadcast(
+                    c, id, Intent(c, InstallReceiver::class.java).setPackage(c.packageName), flags,
+                )
+                s.commit(p.intentSender)
+            }
+        } catch (e: Exception) {
+            runCatching { pi.abandonSession(id) }
+            throw e
+        }
+    }
+
+    private fun viewInstall(c: Context, apk: File) {
         val uri = FileProvider.getUriForFile(c, "${c.packageName}.files", apk)
         c.startActivity(
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")

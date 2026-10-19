@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: TV Gönder Fare: imleç, tıklama, uzun basma, kaydırma, geri/ana ekran; komutları kendi dinleyicisinden alır
+// v0.22 – 2026-10-19: TV Gönder Fare 1.1: hizmet hiçbir hatada çökmez (Android çöken hizmetin anahtarını kapatır); imleç, tıklama, kaydırma
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -41,8 +41,18 @@ class MouseService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        runCatching { setup() }
+        if (listener == null) runCatching { listener = MouseListener(this).also { it.isDaemon = true; it.start() } }
+    }
+
+    private fun setup() {
         val m = resources.displayMetrics
         w = m.widthPixels; h = m.heightPixels
+        runCatching {
+            val dm = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION") (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(dm)
+            if (dm.widthPixels > 0) { w = dm.widthPixels; h = dm.heightPixels }
+        }
         x = w / 2f; y = h / 2f
         val size = (m.density * 28).toInt().coerceAtLeast(32)
         val view = ImageView(this).apply { setImageBitmap(arrow(size)); visibility = View.GONE }
@@ -56,7 +66,6 @@ class MouseService : AccessibilityService() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         runCatching { wm?.addView(view, params) }
         cursor = view; lp = params
-        listener = MouseListener(this).also { it.isDaemon = true; it.start() }
     }
 
     private var listener: MouseListener? = null
@@ -75,7 +84,9 @@ class MouseService : AccessibilityService() {
         return b
     }
 
-    private fun show() {
+    private fun show() = runCatching { showInner() }
+
+    private fun showInner() {
         val v = cursor ?: return
         val p = lp ?: return
         v.visibility = View.VISIBLE
@@ -92,8 +103,11 @@ class MouseService : AccessibilityService() {
     }
 
     private fun gesture(path: Path, duration: Long) {
-        val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, duration)).build()
-        dispatchGesture(g, null, null)
+        if (android.os.Build.VERSION.SDK_INT < 24) return
+        runCatching {
+            val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, duration)).build()
+            dispatchGesture(g, null, null)
+        }
     }
 
     fun click() = main.post { show(); gesture(Path().apply { moveTo(x, y) }, 60) }
@@ -109,15 +123,21 @@ class MouseService : AccessibilityService() {
         gesture(Path().apply { moveTo(x, sy); lineTo(x, ey) }, 250)
     }
 
-    fun back() = main.post { performGlobalAction(GLOBAL_ACTION_BACK) }
-    fun home() = main.post { performGlobalAction(GLOBAL_ACTION_HOME) }
+    fun back() = main.post { runCatching { performGlobalAction(GLOBAL_ACTION_BACK) } }
+    fun home() = main.post { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } }
+
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        instance = null
+        return super.onUnbind(intent)
+    }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
 
     override fun onDestroy() {
         instance = null
-        listener?.close()
+        runCatching { listener?.close() }
+        listener = null
         main.removeCallbacks(hide)
         runCatching { cursor?.let { wm?.removeView(it) } }
         super.onDestroy()

@@ -1,4 +1,4 @@
-// v0.14 – 2026-10-13: alıcı moddaki tablet paylaşımları da alır (Gönder ekranına); alıcı modu, karekod paylaşımı
+// v0.22 – 2026-10-19: eklentisiz fare için ekrandaki aktiviteyi InAppMouse'a bağlar; alıcı modu, paylaşımlar
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -70,8 +70,8 @@ class MainActivity : ComponentActivity() {
         if (isTv(this) || store.receiverMode) intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
     }
 
-    override fun onResume() { super.onResume(); Hub.foreground = true }
-    override fun onPause() { Hub.foreground = false; super.onPause() }
+    override fun onResume() { super.onResume(); Hub.foreground = true; InAppMouse.attach(this) }
+    override fun onPause() { Hub.foreground = false; InAppMouse.detach(this); super.onPause() }
 
     private fun readShare(i: Intent?) {
         if (i == null) return

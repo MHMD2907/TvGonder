@@ -1,4 +1,4 @@
-// v0.21 – 2026-10-15: uygulama içi kullanım kılavuzu (telefon: ⋮ menüsü, TV/tablet: Ayarlar)
+// v0.22 – 2026-10-19: kılavuz güncel: resim/PDF büyütme ve dokunmatik, tarayıcıda video, fare (eklentili/eklentisiz), YouTube
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -53,7 +53,9 @@ object GuideText {
         ),
         "3. Link ve karekod" to listOf(
             "• Kopyaladığın link, uygulamayı açınca kutuya gelir; \"TV'de aç\" de. Yapıştır düğmesi de var.",
-            "• YouTube linkleri TV'de YouTube'da, diğerleri TV Gönder'in tarayıcısında açılır.",
+            "• YouTube linkleri TV'de YouTube'da açılır (YouTube zaten açıksa yeni video onun yerine açılır); diğerleri TV Gönder'in tarayıcısında.",
+            "• Tarayıcıda video: sayfadaki oynatıcının tam ekran düğmesi çalışır. Video bulununca sağ altta \"🎬 Videoyu tam ekran aç\" çıkar (kumandada ⏯ veya OK'e uzun bas); video TV Gönder oynatıcısında açılır.",
+            "• Tablette tarayıcı iki parmakla büyütülür.",
             "• Karekod okut (kamera): kitaptaki kodu okut.",
             "• Resimden / PDF'ten karekod oku: sayfadaki tüm kodlar bulunur; önizlemede kırmızı numaralar listeyle aynıdır.",
             "• Sonuç: Telefonda aç, TV'de aç veya Kopyala. Kodda link yoksa \"Link değil\" yazar.",
@@ -76,11 +78,13 @@ object GuideText {
         "6. Fare / Kumanda" to listOf(
             "• Parmağı kaydır: imleç. Dokun: tıkla. Basılı tut: uzun bas. Sağdaki ↕ şerit: kaydır.",
             "• Geri, Ana ekran, ⏮ ⏪ ⏯ ⏩ ⏭, ses −/sessiz/+.",
-            "İlk kullanım (bir kez):",
+            "• Eklenti olmadan da fare TV Gönder açıkken çalışır (tarayıcı, dosyalar, oynatıcı).",
+            "Her uygulamada imleç için (bir kez):",
             "1. Telefonda ⋮ → Fare eklentisini gönder → TV'de Yükle, sonra tekrar Yükle.",
             "2. TV'de Ayarlar → Telefonla fare kontrolü → Aç.",
             "3. Erişilebilirlik ekranında \"TV Gönder Fare\" → anahtarı Açık yap → İzin ver.",
-            "• Fare ekranında kırmızı uyarı yoksa hazırdır. Bazı TV uygulamaları imleçle tıklamaya tepki vermez; onlarda medya ve Geri düğmelerini kullan.",
+            "• Anahtar kendiliğinden kapanıyorsa: TV Gönder Ayarlar → \"Fare eklentisini kaldır\" → telefondan eklentiyi yeniden gönder → Yükle → tekrar aç. Yeni kurulum yöntemiyle engel kalkar.",
+            "• Bazı TV uygulamaları imleçle tıklamaya tepki vermez; onlarda medya ve Geri düğmelerini kullan.",
         ),
         "7. TV'deki dosyaları telefona indirme" to listOf(
             "• \"TV'deki dosyalar\" kartı: klasörleri gez; dosyaya dokun, iner.",
@@ -91,11 +95,12 @@ object GuideText {
             "• Kumanda: oklar gezinir, OK seçer, Geri bir önceki ekrana döner.",
             "• Ana ekran: Dosyalarım, Slayt gösterisi, Telefon ekle, Ayarlar, resimli Son gelenler. Yeni dosya gelince \"Aç\" kartı çıkar.",
             "• Dosyalarım: küçük resimler, filtre (Video / Müzik / Resim / PDF), Ara, ☑ Seç / Sil.",
-            "• Resim: ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK tam ekran ↔ tamamı.",
-            "• PDF: ◀ ▶ sayfa, OK yakınlaştır, ▲ ▼ kaydır.",
+            "• Resim tam ekran ve her zaman TAMAMI görünür açılır. ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK büyüt (büyükken oklar kaydırır, Geri küçültür).",
+            "• PDF: sayfa ekrana sığar. ◀ ▶ sayfa, OK genişliğe büyüt, ▲ ▼ kaydır (sayfa sonunda sonrakine geçer).",
+            "• Ekrandaki yazı ve düğmeler 3-4 saniyede kaybolur; bir tuşa basınca ya da dokununca geri gelir.",
             "• Video: kaldığı yerden devam eder. Müzik: klasördeki şarkılar sırayla çalar (karıştır, tekrar).",
-            "• Slayt gösterisi: TV 5 dk boşta kalınca başlar; herhangi bir tuş çıkarır.",
-            "• Resim ve video tam ekran açılır; oran bozulmaz, kenar kırpılır. Ayarlar → Video/Resim görüntüsü → Sığdır.",
+            "• Slayt gösterisi: TV 5 dk boşta kalınca başlar; herhangi bir tuş ya da dokunuş çıkarır.",
+            "• Video tam ekran açılır; oran bozulmaz, kenar kırpılabilir. Ayarlar → Video görüntüsü → Sığdır.",
         ),
         "9. Tablet: alıcı ve verici" to listOf(
             "1. Tablete kur → Şimdilik geç → ⋮ → Bu cihazı alıcı yap → Alıcı yap.",
@@ -103,6 +108,7 @@ object GuideText {
             "3. Telefonda \"Nereye gönderilsin?\"den tableti seç.",
             "• Tabletten TV'ye göndermek: tablette \"Gönder\" kartı → ⋮ → Yeni cihaz ekle → TV'deki QR.",
             "• Geri dönmek: tablette Ayarlar → Gönderici moduna dön.",
+            "• Dokunmatik: resim ve PDF'te iki parmakla büyüt/küçült, sürükle; çift dokun = büyüt/sığdır; sağa-sola kaydır = önceki/sonraki; tek dokun = düğmeler.",
         ),
         "10. Güncelleme" to listOf(
             "1. Telefona en yeni TvGonder APK'yı kur (GitHub Releases); ayarlar silinmez.",
@@ -115,7 +121,9 @@ object GuideText {
             "• \"Kayıt yeri seçilmemiş\": USB'yi tak, TV'de USB belleği seç.",
             "• TV'de Yükle çalışmıyor: açılan ekranda TV Gönder'e bilinmeyen kaynak izni ver.",
             "• Fare ekranında kırmızı uyarı: bölüm 6'daki ilk kullanım adımları.",
-            "• Resim ters: ▲ veya ▼ ile döndür. Kenar kesik: OK veya Ayarlar → Sığdır.",
+            "• Resim ters: ▲ veya ▼ ile döndür.",
+            "• YouTube açıkken link açılmıyor: TV Gönder Ayarlar → \"Linkleri her an açabilme izni\" → izin ver.",
+            "• Tarayıcıda video oynamıyor: \"🎬 Videoyu tam ekran aç\" düğmesini dene; bazı siteler videoyu korur.",
             "• Yazıcı yok: ⋮ → Ayarlar → Telefonun yazıcı ayarlarını aç, hizmeti aç.",
         ),
     )

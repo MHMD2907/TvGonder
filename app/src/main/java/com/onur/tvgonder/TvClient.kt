@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: fare komutları eklentiye (8767), medya ana uygulamaya (8766); Fare eklentisini GitHub'dan indirip TV'ye gönderme
+// v0.22 – 2026-10-19: fare komutları eklentiye (8767) ya da TV Gönder'in kendi faresine (8766); Fare eklentisini GitHub'dan indirip TV'ye gönderme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -25,7 +25,10 @@ class Remote(private val host: String, private val token: String) {
     private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
     @Volatile private var addr: java.net.InetAddress? = null
 
-    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home", "ping")
+    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home")
+
+    /** Fare komutlarının gideceği yer: 8767 = Fare eklentisi (her yerde), 8766 = TV Gönder'in kendi faresi. */
+    @Volatile var mousePort = 8767
 
     fun send(cmd: String) {
         if (exec.isShutdown) return
@@ -34,18 +37,23 @@ class Remote(private val host: String, private val token: String) {
                 val a = addr ?: java.net.InetAddress.getByName(host).also { addr = it }
                 val b = "$token $cmd".toByteArray()
                 // İmleç komutları "TV Gönder Fare" eklentisine, medya/ses ana uygulamaya
-                val port = if (cmd.substringBefore(' ') in mouseCmds) 8767 else RemoteListener.PORT
+                val port = if (cmd.substringBefore(' ') in mouseCmds) mousePort else RemoteListener.PORT
                 sock?.send(java.net.DatagramPacket(b, b.size, a, port))
             }
         }
     }
 
     /** TV'de Fare eklentisi kurulu ve açık mı (ping → pong). Arka planda çağır. */
-    fun probeMouse(): Boolean = runCatching {
+    fun probeMouse(): Boolean = probe(8767)
+
+    /** TV Gönder (ana uygulama) cevap veriyor mu. */
+    fun probeApp(): Boolean = probe(RemoteListener.PORT)
+
+    private fun probe(port: Int): Boolean = runCatching {
         java.net.DatagramSocket().use { s ->
             s.soTimeout = 1200
             val b = "$token ping".toByteArray()
-            s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName(host), 8767))
+            s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName(host), port))
             val buf = ByteArray(16)
             val p = java.net.DatagramPacket(buf, buf.size)
             s.receive(p)
