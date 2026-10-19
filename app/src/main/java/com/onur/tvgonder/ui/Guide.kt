@@ -103,6 +103,7 @@ object GuideText {
             "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle.",
             "2. Telefon: \"Oyun kolu\" → Bağlantı → \"Telefonu görünür yap\" → TV listesinden telefonu seç, eşle. (Olmazsa telefonun Bluetooth ayarlarından TV'yi eşle.)",
             "3. Bağlantı sekmesinde TV'ye dokun → \"Bağlı\". Sonraki seferlerde sadece bu adım.",
+            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
             "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
             "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
         ),

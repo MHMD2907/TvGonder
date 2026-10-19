@@ -741,7 +741,7 @@ private fun SendUi(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
-                Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
+                Tile("🎮", "Bluetooth kumanda / oyun kolu", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
         }
 

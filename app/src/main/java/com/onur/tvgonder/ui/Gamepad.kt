@@ -1,4 +1,4 @@
-// v0.25 – 2026-10-19: oyun kolu tam ekran sayfada (yatay, çubuklar gizli); yön tuşları, analog çubuk, A B X Y, fare, medya tuşları
+// v0.27 – 2026-10-19: Bluetooth Kumanda sekmesi (yön, OK, Geri, Ana ekran, ses — TV'nin kendi kumandası gibi anında); oyun kolu, fare
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -61,7 +61,7 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
     val status by BtPad.status.collectAsState()
     val ready by BtPad.ready.collectAsState()
     val connected by BtPad.connected.collectAsState()
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(3) }
     var devices by remember { mutableStateOf(BtPad.bonded()) }
 
     val perms = remember {
@@ -88,6 +88,7 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("🎮", fontSize = 22.sp)
                 Text(status, Modifier.weight(1f), color = if (connected != null) Accent else TextMuted, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                PadTab("Kumanda", tab == 3) { tab = 3 }
                 PadTab("Kol", tab == 0) { tab = 0 }
                 PadTab("Fare", tab == 1) { tab = 1 }
                 PadTab("Bağlantı", tab == 2) { tab = 2 }
@@ -95,6 +96,7 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
+                    3 -> PadRemote()
                     0 -> PadControls()
                     1 -> PadMouse()
                     else -> PadConnect(ready, devices,
@@ -176,6 +178,65 @@ private fun PadConnect(
                 "3. Buraya dön, soldaki listede TV'ye dokun → \"Bağlı\" yazar.",
                 "Sonra her seferinde sadece 3. adım. TV gerçek oyun kolu + fare görür; fare eklentisi gerekmez.",
             ).forEach { Text(it, color = TextMuted, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- kumanda (TV'nin kendi kumandası gibi, Bluetooth ile anında)
+
+@Composable
+private fun PadRemote() {
+    @Composable
+    fun Arrow(label: String, h: Int, m: Modifier) {
+        var down by remember { mutableStateOf(false) }
+        Box(
+            m.clip(RoundedCornerShape(18.dp)).background(if (down) Accent else PanelHi)
+                .pointerInput(h) {
+                    detectTapGestures(onPress = {
+                        down = true; BtPad.pressHat(h)
+                        tryAwaitRelease()   // basılı tutunca TV kendisi tekrarlar
+                        down = false; if (BtPad.hat == h) BtPad.pressHat(8)
+                    })
+                },
+            contentAlignment = Alignment.Center,
+        ) { Text(label, fontSize = 30.sp, color = if (down) Ink else TextMain) }
+    }
+    @Composable
+    fun Key(label: String, usage: Int, m: Modifier) {
+        Box(
+            m.clip(RoundedCornerShape(16.dp)).background(PanelHi).clickable { BtPad.key(usage) },
+            contentAlignment = Alignment.Center,
+        ) { Text(label, color = TextMain, maxLines = 1, fontSize = 18.sp) }
+    }
+    Row(Modifier.fillMaxSize().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Yön tuşları + OK
+        Column(Modifier.weight(1.1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val b = Modifier.size(84.dp)
+            Arrow("▲", 0, b)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Arrow("◀", 6, b)
+                var ok by remember { mutableStateOf(false) }
+                Box(
+                    b.clip(CircleShape).background(if (ok) Accent else Color(0xFF2E6F8E))
+                        .pointerInput(Unit) {
+                            detectTapGestures(onPress = {
+                                ok = true; BtPad.press(BtPad.A, true)
+                                tryAwaitRelease()
+                                ok = false; BtPad.press(BtPad.A, false)
+                            })
+                        },
+                    contentAlignment = Alignment.Center,
+                ) { Text("OK", fontSize = 24.sp, color = Color.White) }
+                Arrow("▶", 2, b)
+            }
+            Arrow("▼", 4, b)
+        }
+        // Diğer tuşlar
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val k = Modifier.weight(1f).height(60.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("⟵ Geri", BtPad.C_BACK, k); Key("⌂ Ana ekran", BtPad.C_HOME, k) }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("☰ Menü", BtPad.C_MENU, k); Key("⏯", BtPad.C_PLAY, k) }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("🔉", BtPad.C_VOL_DOWN, k); Key("🔇", BtPad.C_MUTE, k); Key("🔊", BtPad.C_VOL_UP, k) }
         }
     }
 }

@@ -1,4 +1,4 @@
-// v0.26 – 2026-10-19: sürüm 0.26 (telefondaki ⏯ ⏪ ⏩ ⏮ tuşları TV Gönder oynatıcısını kontrol eder: medya oturumu)
+// v0.27 – 2026-10-19: sürüm 0.27 (Bluetooth Kumanda sekmesi: TV kumandası gibi anında)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 28
-        versionName = "0.26"
+        versionCode = 29
+        versionName = "0.27"
     }
     signingConfigs {
         getByName("debug") {
