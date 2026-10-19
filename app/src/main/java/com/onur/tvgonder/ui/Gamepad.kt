@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: Bluetooth oyun kolu ekranı: yön tuşları, analog çubuk, A B X Y, L/R, Start; fare sekmesi; Geri/Ana ekran/ses
+// v0.25 – 2026-10-19: oyun kolu tam ekran sayfada (yatay, çubuklar gizli); yön tuşları, analog çubuk, A B X Y, fare, medya tuşları
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -56,7 +56,7 @@ private fun Context.act(): Activity? {
 }
 
 @Composable
-fun GamepadDialog(onClose: () -> Unit) {
+fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val status by BtPad.status.collectAsState()
     val ready by BtPad.ready.collectAsState()
@@ -73,7 +73,7 @@ fun GamepadDialog(onClose: () -> Unit) {
     }
     val discover = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { devices = BtPad.bonded() }
 
-    DisposableEffect(Unit) {
+    if (!full) DisposableEffect(Unit) {
         val a = ctx.act()
         val old = a?.requestedOrientation
         a?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -82,7 +82,7 @@ fun GamepadDialog(onClose: () -> Unit) {
     LaunchedEffect(Unit) { if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) }
     LaunchedEffect(ready) { if (ready) devices = BtPad.bonded() }
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    MaybeDialog(full, onClose) {
         Column(Modifier.fillMaxSize().background(Ink).padding(horizontal = 14.dp, vertical = 8.dp)) {
             // Üst çubuk
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -119,6 +119,15 @@ fun GamepadDialog(onClose: () -> Unit) {
             }
         }
     }
+}
+
+/** Tam ekran sayfada doğrudan, değilse pencere içinde gösterir. */
+@Composable
+fun MaybeDialog(full: Boolean, onClose: () -> Unit, content: @Composable () -> Unit) {
+    if (full) {
+        androidx.activity.compose.BackHandler { onClose() }
+        Box(Modifier.fillMaxSize().background(Ink).windowInsetsPadding(WindowInsets.displayCutout)) { content() }
+    } else Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) { content() }
 }
 
 @Composable

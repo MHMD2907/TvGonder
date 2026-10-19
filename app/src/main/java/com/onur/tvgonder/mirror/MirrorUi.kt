@@ -1,4 +1,4 @@
-// v0.24 – 2026-10-19: yansıtma ekranları: TV ekranını gör penceresi düzeltildi (görünür açıklama, her zaman Kapat); telefondan başlat; gelen görüntü
+// v0.25 – 2026-10-19: TV ekranını gör tam ekran sayfada; yansıtma ekranları, telefondan başlatma, gelen görüntü
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -182,7 +182,7 @@ fun rememberMirrorStarter(store: Store): () -> Unit {
  * TV'de bir kez "Başla" (ekran kaydı izni) verilir. Dokunuşlar Fare eklentisiyle TV'de tıklamaya dönüşür.
  */
 @Composable
-fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
+fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClose: () -> Unit) {
     val ctx = LocalContext.current
     var phase by remember { mutableStateOf("TV'ye istek gönderiliyor…") }
     var session by remember { mutableStateOf<MirrorSession?>(null) }
@@ -192,7 +192,7 @@ fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
 
     // Dokunmatik tablette yatay daha rahat
     DisposableEffect(Unit) {
-        val act = ctx.findActivity()
+        val act = if (full) null else ctx.findActivity()
         val old = act?.requestedOrientation
         act?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         onDispose {
@@ -230,7 +230,7 @@ fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
         }
     }
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    com.onur.tvgonder.ui.MaybeDialog(full, onClose) {
         val s = session
         if (s != null) {
             Box(Modifier.fillMaxSize()) {

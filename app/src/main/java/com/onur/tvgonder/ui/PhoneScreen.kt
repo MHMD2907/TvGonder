@@ -737,11 +737,11 @@ private fun SendUi(
                 Tile(if (mirroring) "⏹️" else "📲", if (mirroring) "Yansıtmayı durdur" else "Ekranı TV'de göster", Modifier.weight(1f)) {
                     if (mirroring) com.onur.tvgonder.mirror.MirrorService.stop(ctx) else mirrorStart()
                 }
-                Tile("📺", "TV ekranını gör", Modifier.weight(1f)) { showTvScreen = true }
+                Tile("📺", "TV ekranını gör", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "tv") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
-                Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { showPad = true }
+                Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
         }
 

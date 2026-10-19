@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: ekranı (ve sesi) başka cihaza yansıtır: MediaProjection → H.264 + PCM ses → TCP; dönünce boyutu yeniler
+// v0.25 – 2026-10-19: ekranı (ve sesi) yansıtır; telefon dönünce görüntü yataya geçer (ekran dinleyicisi + güvenli kodlayıcı değişimi)
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -142,7 +142,9 @@ class MirrorService : Service() {
             display = projection!!.createVirtualDisplay(
                 "TvGonder", w, h, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, surface, null, null,
             )
+            main.post { runCatching { getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, main) } }
             startAudio()
+            checkRotation()
         } catch (e: Exception) {
             fail(if (e is java.net.ConnectException || e is java.net.SocketTimeoutException) "Cihaza bağlanılamadı (aynı Wi‑Fi'da mı, TV Gönder güncel mi?)" else (e.message ?: "hata"))
         }
@@ -212,19 +214,31 @@ class MirrorService : Service() {
     /** Telefon dönünce (dikey ↔ yatay) görüntü boyutu yenilenir; karşı taraf kendini ayarlar. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        checkRotation()
+    }
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(id: Int) {}
+        override fun onDisplayRemoved(id: Int) {}
+        override fun onDisplayChanged(id: Int) { if (id == android.view.Display.DEFAULT_DISPLAY) checkRotation() }
+    }
+
+    private fun checkRotation() {
         if (!running) return
         worker.execute {
             runCatching {
                 val (w, h, dpi) = dims()
-                if (w == vw && h == vh) return@runCatching
+                if (w == vw && h == vh || display == null) return@runCatching
+                // Eski kodlayıcıyı tamamen kapat, sonra yenisini aç (bazı telefonlar aynı anda iki kodlayıcıya izin vermez)
                 val old = codec
                 gen++
-                drain?.join(400)
-                val surface = startEncoder(w, h)
-                display?.resize(w, h, dpi)
-                display?.surface = surface
+                display?.surface = null
+                drain?.join(500)
                 runCatching { old?.stop() }; runCatching { old?.release() }
-            }
+                codec = null
+                display?.resize(w, h, dpi)
+                display?.surface = startEncoder(w, h)
+            }.onFailure { main.post { Toast.makeText(this, "Yansıtma: dönüş ayarlanamadı", Toast.LENGTH_SHORT).show() } }
         }
     }
 
@@ -280,6 +294,7 @@ class MirrorService : Service() {
     }
 
     override fun onDestroy() {
+        runCatching { getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener) }
         running = false
         gen++
         Hub.mirrorOut.value = false

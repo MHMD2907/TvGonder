@@ -1,4 +1,4 @@
-// v0.24 – 2026-10-19: sürüm 0.24 (cihaza özel klasör, fare eklentisini TV kurar, son linkler silinir, TV ekranı penceresi)
+// v0.25 – 2026-10-19: sürüm 0.25 (oyun kolu ve TV ekranı tam ekran yatay sayfada; yansıtmada dönüş düzeltmesi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 26
-        versionName = "0.24"
+        versionCode = 27
+        versionName = "0.25"
     }
     signingConfigs {
         getByName("debug") {
