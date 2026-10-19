@@ -231,9 +231,9 @@ private fun DPad() {
             Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(if (down) Accent else PanelHi)
                 .pointerInput(h) {
                     detectTapGestures(onPress = {
-                        down = true; BtPad.setHat(h)
+                        down = true; BtPad.pressHat(h)
                         tryAwaitRelease()
-                        down = false; if (BtPad.hat == h) BtPad.setHat(8)
+                        down = false; if (BtPad.hat == h) BtPad.pressHat(8)
                     })
                 },
             contentAlignment = Alignment.Center,

@@ -153,7 +153,7 @@ object BtPad {
         sendPad()
     }
 
-    fun setHat(h: Int) { hat = h; sendPad() }
+    fun pressHat(h: Int) { hat = h; sendPad() }
 
     @Volatile private var mouseButtons = 0
 
