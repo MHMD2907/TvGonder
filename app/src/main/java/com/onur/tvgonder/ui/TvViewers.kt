@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: resim/PDF her zaman tamamı görünür + büyütme/dokunmatik (iki parmak, kaydırma), yazılar kendiliğinden gizlenir; tarayıcıda video tam ekran ve videoyu oynatıcıda açma
+// v0.26 – 2026-10-19: oynatıcı medya oturumu (telefondan oynat/durdur/ileri/geri/başa al); resim/PDF büyütme, tarayıcıda video
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -496,6 +496,10 @@ fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean, referer: String? 
             })
         }
     }
+    // Telefondaki kumanda (⏯ ⏪ ⏩ ⏮ ⏭) ve TV kumandasının medya tuşları bu oynatıcıya ulaşsın
+    val session = remember {
+        runCatching { androidx.media3.session.MediaSession.Builder(ctx, player).setId("tvgonder-${System.nanoTime()}").build() }.getOrNull()
+    }
     // Video: kaldığı yerden devam
     LaunchedEffect(Unit) {
         if (!audio && list.isNotEmpty() && list[0].scheme != "http" && list[0].scheme != "https") {
@@ -526,6 +530,7 @@ fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean, referer: String? 
                 val d = player.duration; val p = player.currentPosition
                 if (key != null) store.setPosition(key, if (d > 0 && p > d - 15_000) 0 else p)
             }
+            runCatching { session?.release() }
             player.release()
         }
     }

@@ -1,4 +1,4 @@
-// v0.25 – 2026-10-19: sürüm 0.25 (oyun kolu ve TV ekranı tam ekran yatay sayfada; yansıtmada dönüş düzeltmesi)
+// v0.26 – 2026-10-19: sürüm 0.26 (telefondaki ⏯ ⏪ ⏩ ⏮ tuşları TV Gönder oynatıcısını kontrol eder: medya oturumu)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 27
-        versionName = "0.25"
+        versionCode = 28
+        versionName = "0.26"
     }
     signingConfigs {
         getByName("debug") {
@@ -47,6 +47,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
+    implementation("androidx.media3:media3-session:1.4.1")
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.zxing:core:3.5.3")
