@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: fare komutlarını UDP 8767'den alır; anahtarı ana uygulamaya (127.0.0.1:8765/auth) doğrulatır
+// v0.23 – 2026-10-19: fare komutları + konumla dokunma/kaydırma (t, lp, sw: tablette TV ekranı); anahtarı ana uygulamaya doğrulatır
 package com.onur.tvgonder.fare
 
 import android.os.SystemClock
@@ -10,6 +10,7 @@ import java.net.URLEncoder
 
 /**
  * Paket: "<token> <komut> [a] [b]". Komutlar: ping | m dx dy | c | lc | s dy | back | home
+ *   | t x y | lp x y | sw x1 y1 x2 y2 ms   (x,y: ekranın 0..1 oranı)
  * "ping"e "pong" ile cevap verir (telefon farenin açık olduğunu böyle anlar).
  */
 class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
@@ -40,6 +41,8 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
             val parts = String(pkt.data, 0, pkt.length, Charsets.UTF_8).trim().split(' ')
             if (parts.size < 2 || !valid(parts[0])) continue
             val a = parts.getOrNull(2)?.toFloatOrNull() ?: 0f
+            val f = parts.drop(2).map { it.toFloatOrNull() ?: 0f }
+            fun g(i: Int, d: Float = 0f) = f.getOrElse(i) { d }
             when (parts[1]) {
                 "ping" -> runCatching {
                     val b = "pong".toByteArray()
@@ -51,6 +54,9 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
                 "s" -> svc.scroll(a)
                 "back" -> svc.back()
                 "home" -> svc.home()
+                "t" -> svc.tapAt(g(0), g(1), 60)
+                "lp" -> svc.tapAt(g(0), g(1), 800)
+                "sw" -> svc.swipe(g(0), g(1), g(2), g(3), g(4, 250f).toLong())
             }
         }
     }

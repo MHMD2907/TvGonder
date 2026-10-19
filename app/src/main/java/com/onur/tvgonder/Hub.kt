@@ -1,4 +1,4 @@
-// v0.7 – 2026-10-12: gelen dosya bildirimi, uygulama içi link açma, ön planda mı bilgisi
+// v0.23 – 2026-10-19: ekran yansıtma durumu (gelen/giden); gelen dosya bildirimi, link açma, ön planda mı
 package com.onur.tvgonder
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,4 +24,8 @@ object Hub {
     val openUrl = MutableStateFlow<String?>(null)
     /** TV ekranı şu an önde mi. */
     @Volatile var foreground = false
+    /** Bu cihaza gelen ekran yansıtması (TV/tablette gösterilir). */
+    val mirrorIn = MutableStateFlow<com.onur.tvgonder.mirror.MirrorSession?>(null)
+    /** Bu cihaz şu an ekranını yansıtıyor mu. */
+    val mirrorOut = MutableStateFlow(false)
 }

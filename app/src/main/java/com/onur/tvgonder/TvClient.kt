@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: fare komutları eklentiye (8767) ya da TV Gönder'in kendi faresine (8766); Fare eklentisini GitHub'dan indirip TV'ye gönderme
+// v0.23 – 2026-10-19: uzaktan uygulama listesi/aç/kaldır, TV ekranını isteme; fare komutları eklentiye ya da TV Gönder'e; indirme, eşleşme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -25,7 +25,7 @@ class Remote(private val host: String, private val token: String) {
     private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
     @Volatile private var addr: java.net.InetAddress? = null
 
-    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home")
+    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home", "t", "lp", "sw")
 
     /** Fare komutlarının gideceği yer: 8767 = Fare eklentisi (her yerde), 8766 = TV Gönder'in kendi faresi. */
     @Volatile var mousePort = 8767
@@ -232,6 +232,40 @@ class TvClient(private val store: Store) {
         val body = JSONObject().put("path", path).put("name", name).toString().toRequestBody(jsonType)
         http.newCall(builder("${base()}/mkdir").post(body).build()).execute().use { check(it) }
     }
+
+    data class RemoteApp(val pkg: String, val label: String, val system: Boolean, val size: Long)
+
+    fun apps(system: Boolean): List<RemoteApp> {
+        val url = "${base()}/apps".toHttpUrl().newBuilder().addQueryParameter("system", if (system) "1" else "0").build()
+        http.newCall(builder(url.toString()).build()).execute().use { resp ->
+            val arr = check(resp).getJSONArray("apps")
+            return List(arr.length()) { i -> arr.getJSONObject(i).let { RemoteApp(it.optString("pkg"), it.optString("label"), it.optBoolean("system"), it.optLong("size")) } }
+        }
+    }
+
+    fun appIcon(pkg: String): ByteArray? = runCatching {
+        val url = "${base()}/appicon".toHttpUrl().newBuilder().addQueryParameter("pkg", pkg).build()
+        http.newCall(builder(url.toString()).build()).execute().use { if (it.isSuccessful) it.body?.bytes() else null }
+    }.getOrNull()
+
+    fun appOpen(pkg: String) {
+        val body = JSONObject().put("pkg", pkg).toString().toRequestBody(jsonType)
+        http.newCall(builder("${base()}/appopen").post(body).build()).execute().use { check(it) }
+    }
+
+    fun appRemove(pkg: String) {
+        val body = JSONObject().put("pkg", pkg).toString().toRequestBody(jsonType)
+        http.newCall(builder("${base()}/appremove").post(body).build()).execute().use { check(it) }
+    }
+
+    /** TV'den ekranını bu cihaza (port) yansıtmasını ister. */
+    fun mirrorRequest(port: Int, key: String, name: String) {
+        val body = JSONObject().put("port", port).put("key", key).put("name", name).toString().toRequestBody(jsonType)
+        http.newCall(builder("${base()}/mirror/request").post(body).build()).execute().use { check(it) }
+    }
+
+    val host: String? get() = store.tvHost
+    val token: String? get() = store.tvToken
 
     fun link(url: String) {
         val body = JSONObject().put("url", url).toString().toRequestBody(jsonType)

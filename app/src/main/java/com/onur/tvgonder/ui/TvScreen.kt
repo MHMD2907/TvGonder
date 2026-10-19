@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: Ayarlar: fare eklentisi durumu/kaldır, link açma izni; tarayıcıdaki videoyu oynatıcıda açma; resim tam ekran ayarı kaldırıldı
+// v0.23 – 2026-10-19: Uygulamalar ekranı, gelen ekran yansıtması; Ayarlar: fare eklentisi durumu, link açma izni
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -82,6 +82,8 @@ sealed interface TvNav {
     data class Web(val url: String) : TvNav
     data object Send : TvNav
     data object Guide : TvNav
+    data object Apps : TvNav
+    data object Mirror : TvNav
 }
 
 private val HomeBg = Brush.verticalGradient(listOf(Color(0xFF0B2633), Ink, Color(0xFF09131F)))
@@ -109,6 +111,7 @@ fun TvScreen(
     val update by Hub.updateReady.collectAsState()
     val openUrl by Hub.openUrl.collectAsState()
     val rec by Hub.received.collectAsState()
+    val mirror by Hub.mirrorIn.collectAsState()
 
     var note by remember { mutableStateOf<String?>(null) }
 
@@ -166,6 +169,11 @@ fun TvScreen(
         if (top is TvNav.Web) stack[stack.lastIndex] = TvNav.Web(u) else push(TvNav.Web(u))
         Hub.openUrl.value = null
     }
+    // Telefon/tablet ekranını yansıtmaya başladı: yansıtma ekranını aç; bitince kapanır
+    LaunchedEffect(mirror) {
+        if (mirror != null && top != TvNav.Mirror) push(TvNav.Mirror)
+        if (mirror == null && top == TvNav.Mirror) pop()
+    }
     // Yeni dosya geldi: kart göster (slayt gösterisi açıksa kapat)
     LaunchedEffect(rec) {
         val r = rec ?: return@LaunchedEffect
@@ -195,6 +203,7 @@ fun TvScreen(
                     onSlides = { if (treeUri != null) push(TvNav.Slides) else onPickStorage() },
                     onAddPhone = { if (ip != null) Hub.pairingCode.value = (100000..999999).random().toString() else note = "TV Wi‑Fi'ye bağlı değil." },
                     onSettings = { push(TvNav.Settings) },
+                    onApps = { push(TvNav.Apps) },
                     onSend = if (isTv(ctx)) null else ({ push(TvNav.Send) }),
                     onPickStorage = onPickStorage,
                     onOpenRecent = { openReceived(it) },
@@ -217,6 +226,8 @@ fun TvScreen(
                 is TvNav.Web -> TvBrowser(n.url, onClose = { pop() }, onVideo = { m, ref, ua -> push(TvNav.Video(listOf(Uri.parse(m)), 0, audio = false, referer = ref, ua = ua)) })
                 TvNav.Send -> PhoneRoot(store, shared, onSharedHandled)
                 TvNav.Guide -> TvGuide()
+                TvNav.Apps -> TvAppsScreen()
+                TvNav.Mirror -> com.onur.tvgonder.mirror.IncomingMirror { }
             }
         }
 
@@ -359,6 +370,7 @@ private fun TvHome(
     onSlides: () -> Unit,
     onAddPhone: () -> Unit,
     onSettings: () -> Unit,
+    onApps: () -> Unit,
     onSend: (() -> Unit)?,
     onPickStorage: () -> Unit,
     onOpenRecent: (Received) -> Unit,
@@ -401,6 +413,7 @@ private fun TvHome(
             val m = Modifier.weight(1f).height(190.dp)
             if (!hasTree) HomeTile(m, "💾", "USB belleği seç", "Gelen dosyalar buraya kaydedilir", first, onPickStorage)
             HomeTile(m, "📁", "Dosyalarım", "Video, PDF ve resimleri aç", if (hasTree) first else null, onFiles)
+            HomeTile(m, "🧩", "Uygulamalar", "Aç, kaldır", null, onApps)
             HomeTile(m, "🖼️", "Slayt gösterisi", "Bellekteki fotoğraflar", null, onSlides)
             HomeTile(m, "📱", "Telefon ekle", "QR kod ile eşleştir", null, onAddPhone)
             if (onSend != null) HomeTile(m, "📤", "Gönder", "Buradan TV'ye link, dosya, yazdır", null, onSend)

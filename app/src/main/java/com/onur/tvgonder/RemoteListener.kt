@@ -37,7 +37,14 @@ class RemoteListener(private val ctx: Context, private val store: Store) : Threa
                 runCatching { val b = "pong".toByteArray(); s.send(DatagramPacket(b, b.size, pkt.address, pkt.port)) }
                 continue
             }
-            runCatching { handle(parts[1], parts.getOrNull(2)?.toFloatOrNull() ?: 0f, parts.getOrNull(3)?.toFloatOrNull() ?: 0f) }
+            val f = parts.drop(2).map { it.toFloatOrNull() ?: 0f }
+            when (parts[1]) {
+                // Tablette TV ekranına dokunma (0..1 konum): yalnız TV Gönder ekrandayken
+                "t" -> InAppMouse.tapAt(f.getOrElse(0) { 0f }, f.getOrElse(1) { 0f }, 50)
+                "lp" -> InAppMouse.tapAt(f.getOrElse(0) { 0f }, f.getOrElse(1) { 0f }, 700)
+                "sw" -> InAppMouse.swipe(f.getOrElse(0) { 0f }, f.getOrElse(1) { 0f }, f.getOrElse(2) { 0f }, f.getOrElse(3) { 0f }, f.getOrElse(4) { 250f }.toLong())
+                else -> runCatching { handle(parts[1], f.getOrElse(0) { 0f }, f.getOrElse(1) { 0f }) }
+            }
         }
     }
 

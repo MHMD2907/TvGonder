@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: kılavuz güncel: resim/PDF büyütme ve dokunmatik, tarayıcıda video, fare (eklentili/eklentisiz), YouTube
+// v0.23 – 2026-10-19: kılavuz: uygulamalar, ekran yansıtma (iki yön), Bluetooth oyun kolu; resim/PDF, tarayıcı, fare
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -48,7 +48,7 @@ object GuideText {
         "2. Telefon ana ekranı" to listOf(
             "• Üstte seçili cihaz ve durumu: Bağlı / TV'ye ulaşılamıyor / TV ağda aranıyor (modem IP değiştirdiyse kendisi bulur).",
             "• \"Nereye gönderilsin?\": birden fazla cihaz eşleşmişse dokunduğun cihaz seçilir.",
-            "• Kartlar: Fare / Kumanda, TV'deki dosyalar, Link gönder, Dosya gönder, Gönderimler, Son linkler.",
+            "• Kartlar: Fare / Kumanda, TV'deki dosyalar, Ekranı TV'de göster, TV ekranını gör, TV'deki uygulamalar, Oyun kolu, Link gönder, Dosya gönder, Gönderimler, Son linkler.",
             "• ⋮ menüsü: cihaza geç, yeni cihaz ekle, güncelle, Fare eklentisini gönder, Gönderim geçmişi, Ayarlar, Kullanım kılavuzu, alıcı yap (tablet), çıkış.",
         ),
         "3. Link ve karekod" to listOf(
@@ -86,14 +86,33 @@ object GuideText {
             "• Anahtar kendiliğinden kapanıyorsa: TV Gönder Ayarlar → \"Fare eklentisini kaldır\" → telefondan eklentiyi yeniden gönder → Yükle → tekrar aç. Yeni kurulum yöntemiyle engel kalkar.",
             "• Bazı TV uygulamaları imleçle tıklamaya tepki vermez; onlarda medya ve Geri düğmelerini kullan.",
         ),
-        "7. TV'deki dosyaları telefona indirme" to listOf(
+        "7. Ekran yansıtma" to listOf(
+            "• Telefon/tablet → TV: \"Ekranı TV'de göster\" → ses izni → \"Şimdi başlat\". Telefonda ne açarsan TV'de görünür (sesiyle). Durdurmak: aynı kart ya da bildirimdeki Durdur; TV'de Geri.",
+            "• Telefonu yan çevirince TV'deki görüntü de yatay olur.",
+            "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
+            "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
+            "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
+        ),
+        "8. Uygulamalar" to listOf(
+            "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
+            "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",
+        ),
+        "9. Bluetooth oyun kolu ve fare" to listOf(
+            "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",
+            "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle.",
+            "2. Telefon: \"Oyun kolu\" → Bağlantı → \"Telefonu görünür yap\" → TV listesinden telefonu seç, eşle. (Olmazsa telefonun Bluetooth ayarlarından TV'yi eşle.)",
+            "3. Bağlantı sekmesinde TV'ye dokun → \"Bağlı\". Sonraki seferlerde sadece bu adım.",
+            "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
+            "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
+        ),
+        "10. TV'deki dosyaları telefona indirme" to listOf(
             "• \"TV'deki dosyalar\" kartı: klasörleri gez; dosyaya dokun, iner.",
             "• Çoklu: ☑ Seç → işaretle veya Tümü → \"Seçilenleri indir\".",
             "• İnenler telefonda İndirilenler/TvGonder klasörüne gider.",
         ),
-        "8. TV / tablet ekranı" to listOf(
+        "11. TV / tablet ekranı" to listOf(
             "• Kumanda: oklar gezinir, OK seçer, Geri bir önceki ekrana döner.",
-            "• Ana ekran: Dosyalarım, Slayt gösterisi, Telefon ekle, Ayarlar, resimli Son gelenler. Yeni dosya gelince \"Aç\" kartı çıkar.",
+            "• Ana ekran: Dosyalarım, Uygulamalar, Slayt gösterisi, Telefon ekle, Ayarlar, resimli Son gelenler. Yeni dosya gelince \"Aç\" kartı çıkar.",
             "• Dosyalarım: küçük resimler, filtre (Video / Müzik / Resim / PDF), Ara, ☑ Seç / Sil.",
             "• Resim tam ekran ve her zaman TAMAMI görünür açılır. ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK büyüt (büyükken oklar kaydırır, Geri küçültür).",
             "• PDF: sayfa ekrana sığar. ◀ ▶ sayfa, OK genişliğe büyüt, ▲ ▼ kaydır (sayfa sonunda sonrakine geçer).",
@@ -102,7 +121,7 @@ object GuideText {
             "• Slayt gösterisi: TV 5 dk boşta kalınca başlar; herhangi bir tuş ya da dokunuş çıkarır.",
             "• Video tam ekran açılır; oran bozulmaz, kenar kırpılabilir. Ayarlar → Video görüntüsü → Sığdır.",
         ),
-        "9. Tablet: alıcı ve verici" to listOf(
+        "12. Tablet: alıcı ve verici" to listOf(
             "1. Tablete kur → Şimdilik geç → ⋮ → Bu cihazı alıcı yap → Alıcı yap.",
             "2. Tablette Telefon ekle → telefonda ⋮ → Yeni cihaz ekle → QR'ı okut → Onayla.",
             "3. Telefonda \"Nereye gönderilsin?\"den tableti seç.",
@@ -110,14 +129,15 @@ object GuideText {
             "• Geri dönmek: tablette Ayarlar → Gönderici moduna dön.",
             "• Dokunmatik: resim ve PDF'te iki parmakla büyüt/küçült, sürükle; çift dokun = büyüt/sığdır; sağa-sola kaydır = önceki/sonraki; tek dokun = düğmeler.",
         ),
-        "10. Güncelleme" to listOf(
+        "13. Güncelleme" to listOf(
             "1. Telefona en yeni TvGonder APK'yı kur (GitHub Releases); ayarlar silinmez.",
             "2. TV/tablet: telefonda cihazı seç → ⋮ → uygulamasını güncelle → cihazda Yükle, sonra tekrar Yükle.",
             "• Fare eklentisi yalnız ilk kurulumda gönderilir.",
             "• Sürüm: telefonda ana ekranın en altı, TV'de Ayarlar'ın en altı.",
         ),
-        "11. Sorun giderme" to listOf(
+        "14. Sorun giderme" to listOf(
             "• \"TV'ye ulaşılamıyor\": TV açık ve aynı Wi‑Fi'de mi? ⋮ → Bağlantıyı yenile.",
+            "• Yansıtma/uygulama açma başlamıyor: TV'de TV Gönder açık olsun ya da Ayarlar → \"Linkleri her an açabilme izni\".",
             "• \"Kayıt yeri seçilmemiş\": USB'yi tak, TV'de USB belleği seç.",
             "• TV'de Yükle çalışmıyor: açılan ekranda TV Gönder'e bilinmeyen kaynak izni ver.",
             "• Fare ekranında kırmızı uyarı: bölüm 6'daki ilk kullanım adımları.",

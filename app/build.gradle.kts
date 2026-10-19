@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: sürüm 0.22 (tablet dokunmatik, tarayıcı video, YouTube, fare düzeltmeleri; HLS/DASH oynatma)
+// v0.23 – 2026-10-19: sürüm 0.23 (uygulamalar, ekran yansıtma iki yön, Bluetooth oyun kolu)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 24
-        versionName = "0.22"
+        versionCode = 25
+        versionName = "0.23"
     }
     signingConfigs {
         getByName("debug") {

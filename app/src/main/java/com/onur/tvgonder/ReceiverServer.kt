@@ -1,4 +1,4 @@
-// v0.19 – 2026-10-15: /auth (yalnız aynı cihazdaki Fare eklentisi için anahtar doğrulama); indirme, kimlik, kayıt yeri
+// v0.23 – 2026-10-19: /apps (uygulama listesi, simge, aç, kaldır), /mirror/request (TV ekranını tablete yansıtma); /auth, indirme, kayıt yeri
 package com.onur.tvgonder
 
 import android.content.Context
@@ -55,8 +55,60 @@ class ReceiverServer(
             path == "/update" && s.method == Method.POST -> update(s)
             path == "/files" && s.method == Method.GET -> files(s)
             path == "/download" && s.method == Method.GET -> download(s)
+            path == "/apps" && s.method == Method.GET -> apps(s)
+            path == "/appicon" && s.method == Method.GET -> {
+                val png = Apps.iconPng(ctx, s.parms["pkg"] ?: "") ?: return json(404, JSONObject().put("error", "Simge yok"))
+                newFixedLengthResponse(Response.Status.OK, "image/png", java.io.ByteArrayInputStream(png), png.size.toLong())
+            }
+            path == "/appopen" && s.method == Method.POST -> {
+                val pkg = JSONObject(readBody(s)).optString("pkg")
+                bringFront()
+                val ok = Apps.open(ctx, pkg)
+                json(if (ok) 200 else 404, JSONObject().put("ok", ok).put("error", "Uygulama açılamadı"))
+            }
+            path == "/appremove" && s.method == Method.POST -> {
+                val pkg = JSONObject(readBody(s)).optString("pkg")
+                val ok = Apps.remove(ctx, pkg)
+                json(if (ok) 200 else 400, JSONObject().put("ok", ok).put("error", "Kaldırma penceresi açılamadı"))
+            }
+            path == "/mirror/request" && s.method == Method.POST -> mirrorRequest(s)
             else -> json(404, JSONObject().put("error", "Bulunamadı"))
         }
+    }
+
+    private fun apps(s: IHTTPSession): Response {
+        val arr = JSONArray()
+        Apps.list(ctx, s.parms["system"] == "1").forEach {
+            arr.put(JSONObject().put("pkg", it.pkg).put("label", it.label).put("system", it.system).put("size", it.size))
+        }
+        return json(200, JSONObject().put("apps", arr))
+    }
+
+    /** Arka plandan açılış engellenmesin diye önce TV Gönder öne getirilir (izinliyse). */
+    private fun bringFront() {
+        if (Hub.foreground) return
+        runCatching {
+            ctx.startActivity(android.content.Intent(ctx, MainActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
+    }
+
+    /** Tablet "TV ekranını göster" dedi: TV'de izin penceresi açılır, izin verilince TV ekranı tablete akar. */
+    private fun mirrorRequest(s: IHTTPSession): Response {
+        val b = JSONObject(readBody(s))
+        val port = b.optInt("port")
+        val key = b.optString("key")
+        if (port <= 0 || key.isBlank()) return json(400, JSONObject().put("error", "Eksik bilgi"))
+        val host = s.remoteIpAddress
+        runCatching {
+            ctx.startActivity(
+                android.content.Intent(ctx, com.onur.tvgonder.mirror.MirrorConsentActivity::class.java)
+                    .putExtra("host", host).putExtra("port", port).putExtra("key", key)
+                    .putExtra("name", b.optString("name", "Tablet"))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+        return json(200, JSONObject().put("ok", true))
     }
 
     private fun pair(s: IHTTPSession): Response {

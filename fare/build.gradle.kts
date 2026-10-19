@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: "TV Gönder Fare" 1.1 — çökmeye karşı korumalı hizmet; yalnız TV/tablete kurulur
+// v0.23 – 2026-10-19: "TV Gönder Fare" 1.2 — konumla dokunma (tablette TV ekranı); yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
     signingConfigs {
         getByName("debug") {

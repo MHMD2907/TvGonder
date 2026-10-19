@@ -1,4 +1,4 @@
-// v0.21 – 2026-10-15: ⋮ menüsünde Kullanım kılavuzu; fare eklentisi gönderme, kumanda, TV'den indirme, geçmiş
+// v0.23 – 2026-10-19: yeni kartlar: ekranı TV'de göster, TV ekranını gör, TV'deki uygulamalar, Bluetooth oyun kolu; kılavuz, fare, indirme, geçmiş
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -412,6 +412,11 @@ private fun SendUi(
     var showHistory by remember { mutableStateOf(false) }
     var showRemote by remember { mutableStateOf(false) }
     var showTvFiles by remember { mutableStateOf(false) }
+    var showApps by remember { mutableStateOf(false) }
+    var showPad by remember { mutableStateOf(false) }
+    var showTvScreen by remember { mutableStateOf(false) }
+    val mirroring by com.onur.tvgonder.Hub.mirrorOut.collectAsState()
+    val mirrorStart = com.onur.tvgonder.mirror.rememberMirrorStarter(store)
     var showGuide by remember { mutableStateOf(false) }
     var updating by remember { mutableStateOf<Float?>(null) }
     val myVer = remember { appVersionCode(ctx) }
@@ -727,6 +732,16 @@ private fun SendUi(
                 Tile("🖱️", "Fare / Kumanda", Modifier.weight(1f)) { showRemote = true }
                 Tile("📥", "TV'deki dosyalar", Modifier.weight(1f)) { showTvFiles = true }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile(if (mirroring) "⏹️" else "📲", if (mirroring) "Yansıtmayı durdur" else "Ekranı TV'de göster", Modifier.weight(1f)) {
+                    if (mirroring) com.onur.tvgonder.mirror.MirrorService.stop(ctx) else mirrorStart()
+                }
+                Tile("📺", "TV ekranını gör", Modifier.weight(1f)) { showTvScreen = true }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
+                Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { showPad = true }
+            }
         }
 
         // Link
@@ -919,6 +934,9 @@ private fun SendUi(
     if (showRemote) RemoteDialog(store) { showRemote = false }
     if (showGuide) GuideDialog { showGuide = false }
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
+    if (showApps) RemoteAppsDialog(client, store.tvName) { showApps = false }
+    if (showPad) GamepadDialog { showPad = false }
+    if (showTvScreen) com.onur.tvgonder.mirror.TvScreenViewer(client, store) { showTvScreen = false }
 
     if (showHistory) {
         var items by remember { mutableStateOf(store.history()) }

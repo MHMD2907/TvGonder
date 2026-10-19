@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: TV Gönder Fare 1.1: hizmet hiçbir hatada çökmez (Android çöken hizmetin anahtarını kapatır); imleç, tıklama, kaydırma
+// v0.23 – 2026-10-19: TV Gönder Fare 1.2: konumla dokunma/kaydırma (tablette TV ekranı); çökmeye karşı korumalı; imleç, tıklama
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -121,6 +121,20 @@ class MouseService : AccessibilityService() {
         val sy = y.coerceIn(h * 0.2f, h * 0.8f)
         val ey = (sy - d).coerceIn(5f, h - 5f)
         gesture(Path().apply { moveTo(x, sy); lineTo(x, ey) }, 250)
+    }
+
+    /** Ekranın oranına göre (0..1) bir noktaya dokunur. */
+    fun tapAt(nx: Float, ny: Float, ms: Long) = main.post {
+        x = (nx * w).coerceIn(0f, w - 2f); y = (ny * h).coerceIn(0f, h - 2f)
+        gesture(Path().apply { moveTo(x, y) }, ms)
+    }
+
+    fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long) = main.post {
+        val p = Path().apply {
+            moveTo((x1 * w).coerceIn(1f, w - 2f), (y1 * h).coerceIn(1f, h - 2f))
+            lineTo((x2 * w).coerceIn(1f, w - 2f), (y2 * h).coerceIn(1f, h - 2f))
+        }
+        gesture(p, ms.coerceIn(80, 2000))
     }
 
     fun back() = main.post { runCatching { performGlobalAction(GLOBAL_ACTION_BACK) } }

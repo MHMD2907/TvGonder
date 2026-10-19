@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: fare/kumanda komut alıcısını (UDP) da başlatır; tablet alıcı modunda açılışta başlar
+// v0.23 – 2026-10-19: ekran yansıtma alıcısını (8768) da başlatır; fare/kumanda (UDP); tablet alıcı modunda açılışta başlar
 package com.onur.tvgonder
 
 import android.app.Notification
@@ -18,6 +18,7 @@ import fi.iki.elonen.NanoHTTPD
 class ReceiverService : Service() {
     private var server: ReceiverServer? = null
     private var remote: RemoteListener? = null
+    private var mirror: com.onur.tvgonder.mirror.MirrorServer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -33,6 +34,7 @@ class ReceiverService : Service() {
         }.getOrNull()
         Hub.running.value = server != null
         remote = RemoteListener(applicationContext, store).also { it.isDaemon = true; it.start() }
+        mirror = com.onur.tvgonder.mirror.MirrorServer(applicationContext, store).also { it.isDaemon = true; it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
@@ -40,6 +42,7 @@ class ReceiverService : Service() {
     override fun onDestroy() {
         server?.stop()
         remote?.close()
+        mirror?.close()
         Hub.running.value = false
         super.onDestroy()
     }

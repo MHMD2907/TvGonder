@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: eklentisiz fare: TV Gönder açıkken (tarayıcı dahil) telefondan imleç, tıklama, kaydırma
+// v0.23 – 2026-10-19: eklentisiz fare + ekrana konumla dokunma/kaydırma (tablette TV ekranı); TV Gönder açıkken çalışır
 package com.onur.tvgonder
 
 import android.app.Activity
@@ -111,6 +111,33 @@ object InAppMouse {
             main.postDelayed({ touch(MotionEvent.ACTION_MOVE, down, px, sy + (ey - sy) * i / steps) }, i * 18L)
         }
         main.postDelayed({ touch(MotionEvent.ACTION_UP, down, px, ey) }, steps * 18L + 20)
+    }
+
+    /** Ekranın oranına göre (0..1) bir noktaya dokunur. */
+    fun tapAt(nx: Float, ny: Float, holdMs: Long) = main.post {
+        val r = root() ?: return@post
+        x = nx * r.width; y = ny * r.height
+        show()
+        val px = x; val py = y
+        val down = SystemClock.uptimeMillis()
+        touch(MotionEvent.ACTION_DOWN, down, px, py)
+        main.postDelayed({ touch(MotionEvent.ACTION_UP, down, px, py) }, holdMs)
+    }
+
+    /** (x1,y1)'den (x2,y2)'ye ms sürede kaydırır (0..1 konum). */
+    fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long) = main.post {
+        val r = root() ?: return@post
+        val w = r.width.toFloat(); val h = r.height.toFloat()
+        val sx = x1 * w; val sy = y1 * h; val ex = x2 * w; val ey = y2 * h
+        val dur = ms.coerceIn(80, 2000)
+        val steps = (dur / 16).toInt().coerceIn(4, 60)
+        val down = SystemClock.uptimeMillis()
+        touch(MotionEvent.ACTION_DOWN, down, sx, sy)
+        for (i in 1..steps) {
+            main.postDelayed({ touch(MotionEvent.ACTION_MOVE, down, sx + (ex - sx) * i / steps, sy + (ey - sy) * i / steps) }, dur * i / steps)
+        }
+        main.postDelayed({ touch(MotionEvent.ACTION_UP, down, ex, ey) }, dur + 16)
+        x = ex; y = ey
     }
 
     fun back() = main.post {
