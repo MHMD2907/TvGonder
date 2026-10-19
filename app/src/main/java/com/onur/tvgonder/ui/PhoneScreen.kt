@@ -1,4 +1,4 @@
-// v0.24 – 2026-10-19: Son linkler silinebilir (tek tek / tümü; geçmişi temizle de siler); kayıt klasörü cihaza özel; yansıtma, uygulamalar, oyun kolu
+// v0.28 – 2026-10-19: Kızılötesi kumanda kartı; Bluetooth kumanda, yansıtma, uygulamalar, son linkler, cihaza özel klasör
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -742,6 +742,12 @@ private fun SendUi(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
                 Tile("🎮", "Bluetooth kumanda / oyun kolu", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
+            }
+        }
+        // Kızılötesi: TV Gönder'den bağımsız (Panasonic TV, uydu alıcısı vb.), yalnız vericisi olan telefonlarda
+        if (remember { Ir.has(ctx) }) {
+            Tile("📡", "Kızılötesi kumanda (TV, uydu alıcısı…)", Modifier.fillMaxWidth()) {
+                ctx.startActivity(android.content.Intent(ctx, com.onur.tvgonder.IrActivity::class.java))
             }
         }
 

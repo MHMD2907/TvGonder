@@ -1,4 +1,4 @@
-// v0.27 – 2026-10-19: sürüm 0.27 (Bluetooth Kumanda sekmesi: TV kumandası gibi anında)
+// v0.28 – 2026-10-19: sürüm 0.28 (kızılötesi kumanda: 800+ cihaz arşivi, kod deneme)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 29
-        versionName = "0.27"
+        versionCode = 30
+        versionName = "0.28"
     }
     signingConfigs {
         getByName("debug") {

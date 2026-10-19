@@ -1,4 +1,4 @@
-// v0.25 – 2026-10-19: tam ekran yatay sayfa: oyun kolu ve "TV ekranını gör" (bildirim/alt çubuk gizli, dönünce boyut doğru)
+// v0.28 – 2026-10-19: tam ekran yatay sayfa (oyun kolu, TV ekranını gör) + kızılötesi kumanda sayfası
 package com.onur.tvgonder
 
 import android.content.Context
@@ -47,4 +47,12 @@ class FullActivity : ComponentActivity() {
 
     override fun onResume() { super.onResume(); InAppMouse.attach(this) }
     override fun onPause() { InAppMouse.detach(this); super.onPause() }
+}
+
+/** Kızılötesi kumanda sayfası (dikey; telefonun üst kenarı cihaza doğrultulur). */
+class IrActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { AppTheme { com.onur.tvgonder.ui.IrRemoteScreen { finish() } } }
+    }
 }

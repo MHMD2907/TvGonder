@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: kılavuz: uygulamalar, ekran yansıtma (iki yön), Bluetooth oyun kolu; resim/PDF, tarayıcı, fare
+// v0.28 – 2026-10-19: kılavuz: kızılötesi kumanda; Bluetooth kumanda, uygulamalar, yansıtma, resim/PDF, tarayıcı, fare
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -106,6 +106,13 @@ object GuideText {
             "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
             "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
             "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
+        ),
+        "9b. Kızılötesi kumanda" to listOf(
+            "• Kızılötesi vericisi olan telefonlarda (Xiaomi/Poco vb.) \"Kızılötesi kumanda\" kartı çıkar. TV Gönder kurulu olmayan cihazlarla da çalışır: Panasonic TV, uydu alıcısı, ses sistemi, projeksiyon.",
+            "1. + Cihaz ekle → tür (Televizyon, Uydu alıcısı…) → marka → model. Modelini bilmiyorsan ilkinden başla.",
+            "2. Telefonun üst kenarını cihaza doğrult, ⏻ / Ses + / OK ile dene. Tepki verirse \"Çalıştı, kaydet\", vermezse \"Sonraki\".",
+            "3. Marka listede yoksa (ör. Nextstar, Dijitsu): \"Tümünü sırayla dene\" ile o türdeki bütün kodlar tek tek denenir.",
+            "• Kodlar ilk seferde internetten indirilir, sonra internetsiz çalışır. Ses/kanal/yön tuşları basılı tutunca tekrarlar; cihazı silmek için adına uzun bas.",
         ),
         "10. TV'deki dosyaları telefona indirme" to listOf(
             "• \"TV'deki dosyalar\" kartı: klasörleri gez; dosyaya dokun, iner.",
