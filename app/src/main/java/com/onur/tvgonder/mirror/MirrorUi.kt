@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: yansıtma ekranları: gelen görüntüyü göster (TV/tablet), telefondan başlat, TV ekranını tablette gör + dokunarak kontrol
+// v0.24 – 2026-10-19: yansıtma ekranları: TV ekranını gör penceresi düzeltildi (görünür açıklama, her zaman Kapat); telefondan başlat; gelen görüntü
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -210,10 +210,13 @@ fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
         val key = UUID.randomUUID().toString()
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                val ss = ServerSocket().apply { reuseAddress = true; bind(InetSocketAddress(0)); soTimeout = 120_000 }
+                val ss = ServerSocket().apply { reuseAddress = true; bind(InetSocketAddress(0)); soTimeout = 90_000 }
                 server[0] = ss
                 client.mirrorRequest(ss.localPort, key, Build.MODEL)
-                withContext(Dispatchers.Main) { phase = "TV ekranında çıkan pencerede \"Şimdi başlat\" / \"Başla\" de (kumandayla)." }
+                withContext(Dispatchers.Main) {
+                    phase = "TV'ye istek gitti.\n\nŞimdi TV ekranına bak: \"TV ekranı paylaşılsın mı / Şimdi başlat\" penceresi çıkar, kumandayla \"Başla\"ya bas.\n\n" +
+                        "Pencere çıkmazsa TV'de TV Gönder'i açıp tekrar dene (Android, arka plandaki uygulamanın pencere açmasına izin vermeyebilir)."
+                }
                 val sock = ss.accept()
                 MirrorSession.accept(sock) { it == key }.also { runCatching { ss.close() } }
             }
@@ -222,15 +225,21 @@ fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
             if (s == null) phase = "Bağlantı reddedildi." else session = s
         }.onFailure {
             phase = if (it is java.net.SocketTimeoutException) "TV'den cevap gelmedi. TV'de izin penceresi çıktı mı? TV'de TV Gönder açık olmalı."
-            else "Olmadı: ${it.message}. TV'deki TV Gönder güncel mi?"
+            else if ("Bulunamad" in (it.message ?: "")) "TV'deki TV Gönder eski sürüm. Önce ⋮ → TV uygulamasını güncelle."
+            else "Olmadı: ${it.message}"
         }
     }
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val s = session
         if (s != null) {
             Box(Modifier.fillMaxSize()) {
                 MirrorScreen(s, touch = { remote.send(it) }, onEnd = onClose)
+                Text(
+                    "✕", Modifier.align(Alignment.TopEnd).padding(10.dp).clip(RoundedCornerShape(50)).background(Color(0xAA000000))
+                        .clickable { s.close(); onClose() }.padding(horizontal = 16.dp, vertical = 10.dp),
+                    color = Color.White, style = MaterialTheme.typography.titleMedium,
+                )
                 if (mouse == 1 || mouse == 0) {
                     Text(
                         "Dokunarak kontrol yalnızca TV Gönder ekranlarında çalışır. Her uygulama için TV'de Fare eklentisini aç.",
@@ -245,11 +254,15 @@ fun TvScreenViewer(client: TvClient, store: Store, onClose: () -> Unit) {
                 Modifier.fillMaxSize().background(com.onur.tvgonder.ui.Ink).padding(24.dp),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("📺  TV ekranı", style = MaterialTheme.typography.headlineSmall, color = com.onur.tvgonder.ui.TextMain)
+                Text("📺  TV ekranını gör", style = MaterialTheme.typography.headlineSmall, color = com.onur.tvgonder.ui.TextMain)
+                Text(
+                    "TV'nin ekranı bu cihazda görünür; dokununca TV'de tıklar, kaydırınca kaydırır.",
+                    color = com.onur.tvgonder.ui.TextMuted, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall,
+                )
                 Spacer(Modifier.height(16.dp))
                 Text(phase, color = com.onur.tvgonder.ui.TextMuted, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(24.dp))
-                TextButton(onClick = onClose) { Text("Kapat") }
+                androidx.compose.material3.Button(onClick = onClose) { Text("Kapat") }
             }
         }
     }

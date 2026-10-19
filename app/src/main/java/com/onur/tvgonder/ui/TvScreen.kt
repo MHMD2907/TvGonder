@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: Uygulamalar ekranı, gelen ekran yansıtması; Ayarlar: fare eklentisi durumu, link açma izni
+// v0.24 – 2026-10-19: Ayarlar: Fare eklentisini TV kendisi kurar/günceller, kaldır her zaman görünür; Uygulamalar, gelen yansıtma, link izni
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +70,8 @@ import com.onur.tvgonder.appVersionCode
 import com.onur.tvgonder.exitApp
 import com.onur.tvgonder.isTv
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** TV'deki ekranlar (geri tuşu bir öncekine döner). */
 sealed interface TvNav {
@@ -529,29 +532,39 @@ private fun TvSettings(
                     life.lifecycle.addObserver(o)
                     onDispose { life.lifecycle.removeObserver(o) }
                 }
-                val installed = remember(tick) { runCatching { ctx.packageManager.getPackageInfo("com.onur.tvgonder.fare", 0) }.isSuccess }
-                val enabled = remember(tick) {
-                    (android.provider.Settings.Secure.getString(ctx.contentResolver, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
-                        .contains("com.onur.tvgonder.fare")
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingRow(
-                    "🖱️", "Telefonla fare kontrolü",
-                    when {
-                        !installed -> "Eklenti yok – TV Gönder ekranlarında fare yine çalışır. Her yerde imleç için telefonda ⋮ → \"Fare eklentisini TV'ye gönder\""
-                        enabled -> "TV Gönder Fare açık ✓ – imleç her uygulamada çalışır"
-                        else -> "Eklenti kurulu ama kapalı – açılan listede \"TV Gönder Fare\"yi seç ve aç. Anahtar kendiliğinden kapanıyorsa aşağıdan kaldırıp telefondan yeniden gönder"
-                    },
-                    if (installed && !enabled) "Aç" else if (installed) "Ayarlar" else "Nasıl?", null,
-                ) {
-                    if (installed) runCatching {
-                        ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                val ver = remember(tick) { com.onur.tvgonder.Apps.fareVersion(ctx) }
+                val installed = ver >= 0
+                val old = installed && ver < com.onur.tvgonder.Apps.FARE_LATEST
+                val enabled = remember(tick) { com.onur.tvgonder.Apps.fareEnabled(ctx) }
+                val scope = rememberCoroutineScope()
+                var busy by remember { mutableStateOf<String?>(null) }
+                fun download() {
+                    if (busy != null) return
+                    busy = "İndiriliyor…"
+                    scope.launch {
+                        val r = withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.onur.tvgonder.Apps.downloadAndInstallFare(ctx) } }
+                        busy = if (r.isSuccess) null else "Olmadı: ${r.exceptionOrNull()?.message}. İnternet var mı? Telefondan da gönderebilirsin."
                     }
                 }
-                if (installed && !enabled) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     SettingRow(
+                        "🖱️", "Telefonla fare kontrolü",
+                        busy ?: when {
+                            !installed -> "Eklenti yok – TV Gönder ekranlarında fare yine çalışır. Her uygulamada imleç için \"Kur\"a bas (TV internetten indirir)"
+                            old -> "Eklenti eski sürüm – \"Güncelle\"ye bas"
+                            enabled -> "TV Gönder Fare açık ✓ – imleç her uygulamada çalışır"
+                            else -> "Eklenti kurulu ama kapalı – açılan listede \"TV Gönder Fare\"yi seç ve aç"
+                        },
+                        when { !installed -> "Kur"; old -> "Güncelle"; !enabled -> "Aç"; else -> "Ayarlar" }, null,
+                    ) {
+                        if (!installed || old) download()
+                        else runCatching {
+                            ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    }
+                    if (installed) SettingRow(
                         "♻️", "Fare eklentisini kaldır",
-                        "Anahtar kapanıyorsa: kaldır, sonra telefonda ⋮ → \"Fare eklentisini TV'ye gönder\" → TV'de Yükle. Yeni kurulumda engel kalkar",
+                        "Anahtar kendiliğinden kapanıyorsa: önce kaldır, sonra yukarıdan \"Kur\". Yeni kurulumda engel kalkar",
                         "Kaldır", null,
                     ) {
                         runCatching {
@@ -561,7 +574,6 @@ private fun TvSettings(
                             )
                         }
                     }
-                }
                 }
             }
             item {

@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: cihazdaki uygulamalar: liste, simge, aç, kaldır (TV/tablet ekranı ve telefondan uzaktan)
+// v0.24 – 2026-10-19: uygulamalar (liste, simge, aç, kaldır) + Fare eklentisi sürümü ve TV'nin eklentiyi kendisinin indirmesi
 package com.onur.tvgonder
 
 import android.content.Context
@@ -66,6 +66,31 @@ object Apps {
     fun info(c: Context, pkg: String): Boolean = runCatching {
         c.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }.isSuccess
+
+    const val FARE = "com.onur.tvgonder.fare"
+    /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
+    const val FARE_LATEST = 3
+
+    /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
+    fun fareVersion(c: Context): Long = runCatching {
+        val pi = c.packageManager.getPackageInfo(FARE, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
+    }.getOrDefault(-1L)
+
+    fun fareEnabled(c: Context): Boolean =
+        (Settings.Secure.getString(c.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains(FARE)
+
+    /** TV/tablet eklentiyi GitHub'dan kendisi indirir ve kurulum penceresini açar (telefon gerekmez). */
+    fun downloadAndInstallFare(c: Context) {
+        val f = File(c.cacheDir, "update/TvGonderFare.apk").apply { parentFile?.mkdirs() }
+        val req = okhttp3.Request.Builder().url("https://github.com/MHMD2907/TvGonder/releases/latest/download/TvGonderFare.apk").build()
+        okhttp3.OkHttpClient.Builder().followRedirects(true).build().newCall(req).execute().use { r ->
+            if (!r.isSuccessful) error("İndirilemedi (${r.code})")
+            r.body?.byteStream()?.use { i -> f.outputStream().use { o -> i.copyTo(o) } } ?: error("Boş dosya")
+        }
+        if (f.length() < 10_000) error("İndirilemedi")
+        Installer.install(c, f)
+    }
 
     fun sizeText(b: Long): String = when {
         b <= 0 -> ""

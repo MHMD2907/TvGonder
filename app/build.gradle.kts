@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: sürüm 0.23 (uygulamalar, ekran yansıtma iki yön, Bluetooth oyun kolu)
+// v0.24 – 2026-10-19: sürüm 0.24 (cihaza özel klasör, fare eklentisini TV kurar, son linkler silinir, TV ekranı penceresi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 25
-        versionName = "0.23"
+        versionCode = 26
+        versionName = "0.24"
     }
     signingConfigs {
         getByName("debug") {

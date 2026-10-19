@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: yeni kartlar: ekranı TV'de göster, TV ekranını gör, TV'deki uygulamalar, Bluetooth oyun kolu; kılavuz, fare, indirme, geçmiş
+// v0.24 – 2026-10-19: Son linkler silinebilir (tek tek / tümü; geçmişi temizle de siler); kayıt klasörü cihaza özel; yansıtma, uygulamalar, oyun kolu
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -850,6 +850,10 @@ private fun SendUi(
         // Son linkler
         if (recent.isNotEmpty()) {
             Section("Son linkler") {
+                Text(
+                    "Tümünü temizle", Modifier.clip(RoundedCornerShape(8.dp)).clickable { store.clearRecentLinks(); recent = emptyList() }.padding(4.dp),
+                    style = MaterialTheme.typography.labelLarge, color = Danger,
+                )
                 recent.forEach { u ->
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -863,6 +867,11 @@ private fun SendUi(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text("Tekrar aç", style = MaterialTheme.typography.labelLarge, color = Accent)
+                        Text(
+                            "✕", Modifier.clip(RoundedCornerShape(8.dp)).clickable { store.removeRecentLink(u); recent = store.recentLinks() }
+                                .padding(horizontal = 10.dp, vertical = 2.dp),
+                            color = TextMuted,
+                        )
                     }
                 }
             }
@@ -981,7 +990,7 @@ private fun SendUi(
             },
             confirmButton = { Button(onClick = { showHistory = false }) { Text("Kapat") } },
             dismissButton = {
-                if (items.isNotEmpty()) TextButton(onClick = { store.clearHistory(); items = emptyList() }) { Text("Geçmişi temizle", color = Danger) }
+                if (items.isNotEmpty() || recent.isNotEmpty()) TextButton(onClick = { store.clearHistory(); items = emptyList(); recent = emptyList() }) { Text("Geçmişi temizle", color = Danger) }
             },
         )
     }

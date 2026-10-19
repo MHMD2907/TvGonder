@@ -1,4 +1,4 @@
-// v0.18 – 2026-10-15: resim tam ekran tercihi ve resim başına döndürme; kimlik, geçmiş, video konumları, çoklu alıcı
+// v0.24 – 2026-10-19: kayıt klasörü her cihaz için ayrı; çoklu hedef, geçmiş, video konumu, döndürme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -75,9 +75,10 @@ class Store(ctx: Context) {
     var tvName: String
         get() = p.getString("tvName", "TV") ?: "TV"
         set(v) { p.edit().putString("tvName", v).apply() }
+    /** Kayıt klasörü her cihaz (TV/tablet) için ayrı hatırlanır. */
     var lastFolder: String
-        get() = p.getString("lastFolder", "") ?: ""
-        set(v) { p.edit().putString("lastFolder", v).apply() }
+        get() = p.getString("lastFolder_$tvId", null) ?: p.getString("lastFolder", "") ?: ""
+        set(v) { p.edit().putString("lastFolder_$tvId", v).apply() }
 
     /** Panodan en son önerilen/gönderilen link; aynı link tekrar tekrar önerilmesin diye. */
     var lastClip: String
@@ -153,7 +154,14 @@ class Store(ctx: Context) {
         p.edit().putString("history", a.toString()).apply()
     }
 
-    fun clearHistory() { p.edit().remove("history").apply() }
+    /** Gönderim geçmişini ve "Son linkler" listesini birlikte siler. */
+    fun clearHistory() { p.edit().remove("history").remove("recentLinks").apply() }
+
+    fun clearRecentLinks() { p.edit().remove("recentLinks").apply() }
+
+    fun removeRecentLink(url: String) {
+        p.edit().putString("recentLinks", JSONArray(recentLinks().filter { it != url }).toString()).apply()
+    }
 
     /** Resimler ekranı doldursun mu (oran korunur, kenar kırpılır). */
     var imageFill: Boolean
