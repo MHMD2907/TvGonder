@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: TV Gönder Fare 1.2: konumla dokunma/kaydırma (tablette TV ekranı); çökmeye karşı korumalı; imleç, tıklama
+// v0.29 – 2026-10-20: TV Gönder Fare 1.3: TV Gönder adına uygulama/ekran açma (YouTube öndeyken link); dokunma, imleç, kaydırma
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -135,6 +135,16 @@ class MouseService : AccessibilityService() {
             lineTo((x2 * w).coerceIn(1f, w - 2f), (y2 * h).coerceIn(1f, h - 2f))
         }
         gesture(p, ms.coerceIn(80, 2000))
+    }
+
+    /** TV Gönder'in istediği ekranı açar (erişilebilirlik hizmeti arka plan açma engeline takılmaz). */
+    fun launch(uri: String) = main.post {
+        runCatching {
+            val i = android.content.Intent.parseUri(uri, android.content.Intent.URI_INTENT_SCHEME)
+            i.selector = null
+            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(i)
+        }
     }
 
     fun back() = main.post { runCatching { performGlobalAction(GLOBAL_ACTION_BACK) } }

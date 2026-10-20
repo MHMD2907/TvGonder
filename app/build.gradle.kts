@@ -1,4 +1,4 @@
-// v0.28 – 2026-10-19: sürüm 0.28 (kızılötesi kumanda: 800+ cihaz arşivi, kod deneme)
+// v0.29 – 2026-10-20: sürüm 0.29 (Bluetooth eşleşme, YouTube linki, video sığdır, yansıtmada ses, kızılötesi tanı)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 30
-        versionName = "0.28"
+        versionCode = 31
+        versionName = "0.29"
     }
     signingConfigs {
         getByName("debug") {

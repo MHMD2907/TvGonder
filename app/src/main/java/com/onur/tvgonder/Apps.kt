@@ -1,4 +1,4 @@
-// v0.24 – 2026-10-19: uygulamalar (liste, simge, aç, kaldır) + Fare eklentisi sürümü ve TV'nin eklentiyi kendisinin indirmesi
+// v0.29 – 2026-10-20: uygulamalar (aç/kaldır arka plandan da çalışır); Fare eklentisi 1.3 sürüm kontrolü, TV'nin eklentiyi indirmesi
 package com.onur.tvgonder
 
 import android.content.Context
@@ -54,13 +54,12 @@ object Apps {
             ?: pm.getLaunchIntentForPackage(pkg)
             ?: pm.getLeanbackLaunchIntentForPackage(pkg)
             ?: return false
-        return runCatching { c.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)) }.isSuccess
+        return Launcher.start(c, i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
     }
 
     /** Android'in "kaldırılsın mı?" penceresini açar (onay cihazın ekranında verilir). */
-    fun remove(c: Context, pkg: String): Boolean = runCatching {
-        c.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    }.isSuccess
+    fun remove(c: Context, pkg: String): Boolean =
+        Launcher.start(c, Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")))
 
     /** Uygulama bilgisi (sistem uygulamaları burada "Devre dışı bırak" ile kapatılır). */
     fun info(c: Context, pkg: String): Boolean = runCatching {
@@ -69,7 +68,7 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 3
+    const val FARE_LATEST = 4
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {

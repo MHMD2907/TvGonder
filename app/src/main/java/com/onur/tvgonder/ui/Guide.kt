@@ -1,4 +1,4 @@
-// v0.28 – 2026-10-19: kılavuz: kızılötesi kumanda; Bluetooth kumanda, uygulamalar, yansıtma, resim/PDF, tarayıcı, fare
+// v0.29 – 2026-10-20: kılavuz: Bluetooth eşleşme (telefon arar), video Sığdır/Doldur, yansıtmada ses, YouTube linki; kızılötesi
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -92,6 +92,7 @@ object GuideText {
             "• Telefonu yan çevirince TV'deki görüntü de yatay olur.",
             "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
             "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
+            "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner.",
             "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
         ),
         "8. Uygulamalar" to listOf(
@@ -100,9 +101,9 @@ object GuideText {
         ),
         "9. Bluetooth oyun kolu ve fare" to listOf(
             "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",
-            "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle.",
-            "2. Telefon: \"Oyun kolu\" → Bağlantı → \"Telefonu görünür yap\" → TV listesinden telefonu seç, eşle. (Olmazsa telefonun Bluetooth ayarlarından TV'yi eşle.)",
-            "3. Bağlantı sekmesinde TV'ye dokun → \"Bağlı\". Sonraki seferlerde sadece bu adım.",
+            "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle; bu ekranda kalsın.",
+            "2. Telefon: Bluetooth kumanda → Bağlantı → \"🔍 Yakındaki cihazları ara\" → listede TV'ye dokun. Kod çıkarsa iki tarafta da onayla.",
+            "3. \"Bağlı\" yazınca Kumanda sekmesine geç. Sonraki seferlerde: Bağlantı → eşleşmiş TV'ye dokun.",
             "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
             "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
             "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
@@ -126,6 +127,7 @@ object GuideText {
             "• Resim tam ekran ve her zaman TAMAMI görünür açılır. ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK büyüt (büyükken oklar kaydırır, Geri küçültür).",
             "• PDF: sayfa ekrana sığar. ◀ ▶ sayfa, OK genişliğe büyüt, ▲ ▼ kaydır (sayfa sonunda sonrakine geçer).",
             "• Ekrandaki yazı ve düğmeler 3-4 saniyede kaybolur; bir tuşa basınca ya da dokununca geri gelir.",
+            "• Video: videonun tamamı görünür (Sığdır). Sağ üstteki ⛶ ya da kumandada ▲ / Menü ile Doldur'a geçer. Dikey videolar hep tam sığar.",
             "• Video: kaldığı yerden devam eder. Müzik: klasördeki şarkılar sırayla çalar (karıştır, tekrar).",
             "• Slayt gösterisi: TV 5 dk boşta kalınca başlar; herhangi bir tuş ya da dokunuş çıkarır.",
             "• Video tam ekran açılır; oran bozulmaz, kenar kırpılabilir. Ayarlar → Video görüntüsü → Sığdır.",
@@ -151,7 +153,7 @@ object GuideText {
             "• TV'de Yükle çalışmıyor: açılan ekranda TV Gönder'e bilinmeyen kaynak izni ver.",
             "• Fare ekranında kırmızı uyarı: bölüm 6'daki ilk kullanım adımları.",
             "• Resim ters: ▲ veya ▼ ile döndür.",
-            "• YouTube açıkken link açılmıyor: TV Gönder Ayarlar → \"Linkleri her an açabilme izni\" → izin ver.",
+            "• YouTube açıkken link açılmıyor: TV'de Fare eklentisi açık olsun (en az 1.3; Ayarlar'da \"Güncelle\" çıkarsa güncelle). Eklenti, TV Gönder adına yeni linki açar.",
             "• Tarayıcıda video oynamıyor: \"🎬 Videoyu tam ekran aç\" düğmesini dene; bazı siteler videoyu korur.",
             "• Yazıcı yok: ⋮ → Ayarlar → Telefonun yazıcı ayarlarını aç, hizmeti aç.",
         ),

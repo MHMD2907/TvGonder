@@ -1,4 +1,4 @@
-// v0.25 – 2026-10-19: ekranı (ve sesi) yansıtır; telefon dönünce görüntü yataya geçer (ekran dinleyicisi + güvenli kodlayıcı değişimi)
+// v0.29 – 2026-10-20: ekranı yansıtır; ses yalnız TV'den (telefon kendiliğinden kısılır, gerekirse TV sesi yükseltilir); dönünce yataya geçer
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -264,14 +264,70 @@ class MirrorService : Service() {
         audio = rec
         Thread {
             val b = ByteArray(3840)   // 20 ms
+            val music = android.media.AudioManager.STREAM_MUSIC
+            // Ses yalnız TV'den gelsin: ses ilk duyulunca telefon kısılır. Bazı telefonlarda kısınca yakalanan ses de
+            // susar; o zaman telefon çok kısık bırakılır ve TV'ye giden ses aynı oranda yükseltilir.
+            var phase = 0
+            var mutedAt = 0L
             runCatching {
                 rec.startRecording()
                 while (running) {
                     val n = rec.read(b, 0, b.size)
-                    if (n > 0) writer?.send(Proto.AUDIO, 0, b, n)
+                    if (n <= 0) continue
+                    val pk = peak(b, n)
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    when (phase) {
+                        0 -> if (pk > 800) runCatching {
+                            savedVol = am.getStreamVolume(music)
+                            am.setStreamVolume(music, 0, 0)
+                            mutedAt = now; phase = 1
+                        }.onFailure { phase = 2 }
+                        1 -> if (pk > 150) phase = 2
+                        else if (now - mutedAt > 1500) {
+                            runCatching {
+                                val max = am.getStreamMaxVolume(music)
+                                val idx = maxOf(1, Math.round(max * 0.2f)).coerceAtMost(maxOf(1, savedVol))
+                                am.setStreamVolume(music, idx, 0)
+                                gain = if (Build.VERSION.SDK_INT >= 28) {
+                                    val db = am.getStreamVolumeDb(music, idx, android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
+                                    if (db.isFinite() && db < 0) Math.pow(10.0, -db / 20.0).toFloat() else 4f
+                                } else (max.toFloat() / idx).coerceAtMost(8f)
+                                gain = gain.coerceIn(1f, 40f)
+                            }
+                            phase = 2
+                        }
+                    }
+                    if (gain > 1.01f) amplify(b, n, gain)
+                    writer?.send(Proto.AUDIO, 0, b, n)
                 }
             }
         }.apply { isDaemon = true; start() }
+    }
+
+    private val am by lazy { getSystemService(AUDIO_SERVICE) as android.media.AudioManager }
+    @Volatile private var savedVol = -1
+    @Volatile private var gain = 1f
+
+    private fun peak(b: ByteArray, n: Int): Int {
+        var m = 0
+        var i = 0
+        while (i + 1 < n) {
+            val v = (b[i].toInt() and 0xFF) or (b[i + 1].toInt() shl 8)
+            val a = kotlin.math.abs(v.toShort().toInt())
+            if (a > m) m = a
+            i += 8   // örnekleme yeterli
+        }
+        return m
+    }
+
+    private fun amplify(b: ByteArray, n: Int, g: Float) {
+        var i = 0
+        while (i + 1 < n) {
+            val v = ((b[i].toInt() and 0xFF) or (b[i + 1].toInt() shl 8)).toShort().toInt()
+            val o = (v * g).toInt().coerceIn(-32768, 32767)
+            b[i] = (o and 0xFF).toByte(); b[i + 1] = ((o shr 8) and 0xFF).toByte()
+            i += 2
+        }
     }
 
     private fun notification(): Notification {
@@ -294,6 +350,7 @@ class MirrorService : Service() {
     }
 
     override fun onDestroy() {
+        if (savedVol >= 0) runCatching { am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, savedVol, 0) }
         runCatching { getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener) }
         running = false
         gen++

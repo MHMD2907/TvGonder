@@ -1,4 +1,4 @@
-// v0.27 – 2026-10-19: Bluetooth Kumanda sekmesi (yön, OK, Geri, Ana ekran, ses — TV'nin kendi kumandası gibi anında); oyun kolu, fare
+// v0.29 – 2026-10-20: Bluetooth: telefon TV'yi arar/eşleşir/bağlanır; Kumanda, oyun kolu, fare, medya tuşları
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -65,7 +65,8 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
     var devices by remember { mutableStateOf(BtPad.bonded()) }
 
     val perms = remember {
-        if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE) else emptyArray()
+        if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN)
+        else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     }
     fun granted() = perms.all { ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -100,7 +101,8 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
                     0 -> PadControls()
                     1 -> PadMouse()
                     else -> PadConnect(ready, devices,
-                        onConnect = { BtPad.connect(it) },
+                        onConnect = { BtPad.pairAndConnect(it) },
+                        onScan = { if (granted()) BtPad.scan(ctx) else ask.launch(perms) },
                         onPair = { runCatching { ctx.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } },
                         onVisible = {
                             runCatching {
@@ -147,12 +149,31 @@ private fun PadTab(label: String, on: Boolean, onClick: () -> Unit) {
 @Composable
 private fun PadConnect(
     ready: Boolean, devices: List<android.bluetooth.BluetoothDevice>,
-    onConnect: (android.bluetooth.BluetoothDevice) -> Unit, onPair: () -> Unit, onVisible: () -> Unit, onRetry: () -> Unit,
+    onConnect: (android.bluetooth.BluetoothDevice) -> Unit, onScan: () -> Unit, onPair: () -> Unit, onVisible: () -> Unit, onRetry: () -> Unit,
 ) {
+    val found by BtPad.found.collectAsState()
+    val scanning by BtPad.scanning.collectAsState()
     Row(Modifier.fillMaxSize().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Bluetooth ile eşleşmiş cihazlar – TV'ne dokun:", color = TextMain)
             if (!ready) TextButton(onClick = onRetry) { Text("↻ Yeniden başlat") }
+            androidx.compose.material3.Button(onClick = onScan, enabled = !scanning) {
+                Text(if (scanning) "Aranıyor…" else "🔍 Yakındaki cihazları ara (TV'yi bul)")
+            }
+            val fresh = found.filter { f -> devices.none { it.address == f.address } }
+            if (fresh.isNotEmpty()) {
+                Text("Bulunanlar – TV'ne dokun (eşleşip bağlanır):", color = TextMain)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(fresh, key = { "f" + it.address }) { d ->
+                        Column(
+                            Modifier.width(150.dp).clip(RoundedCornerShape(14.dp)).background(Accent.copy(alpha = 0.3f)).clickable { onConnect(d) }.padding(12.dp),
+                        ) {
+                            Text("🆕", fontSize = 22.sp)
+                            Text(runCatching { d.name }.getOrNull() ?: d.address, color = TextMain, maxLines = 2)
+                        }
+                    }
+                }
+            }
+            Text("Eşleşmiş cihazlar – TV'ne dokun:", color = TextMain)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(devices, key = { it.address }) { d ->
                     Column(
@@ -163,7 +184,7 @@ private fun PadConnect(
                     }
                 }
             }
-            if (devices.isEmpty()) Text("Henüz eşleşmiş cihaz yok. Sağdaki adımları uygula.", color = TextMuted)
+            if (devices.isEmpty()) Text("Henüz eşleşmiş cihaz yok. Yukarıdan ara.", color = TextMuted)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onPair) { Text("📶 Bluetooth ayarları") }
                 TextButton(onClick = onVisible) { Text("👁 Telefonu görünür yap") }
@@ -172,10 +193,11 @@ private fun PadConnect(
         Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Panel).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("İlk kez (bir kere):", color = TextMain, style = MaterialTheme.typography.titleSmall)
             listOf(
-                "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle (TV aramaya başlar).",
-                "2. Telefon: \"Telefonu görünür yap\" → İzin ver. TV listesinde telefonu seç, iki tarafta da Eşle de.",
-                "   Olmazsa: telefonda \"Bluetooth ayarları\" → TV'yi bul → Eşle.",
-                "3. Buraya dön, soldaki listede TV'ye dokun → \"Bağlı\" yazar.",
+                "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle. Bu ekranda kalsın (TV görünür olur).",
+                "2. Telefon: \"🔍 Yakındaki cihazları ara\" → çıkan listede TV'nin adına dokun.",
+                "3. TV'de ve telefonda eşleşme kodu çıkarsa ikisinde de Eşle / Tamam de.",
+                "4. Üstte \"Bağlı\" yazınca Kumanda sekmesine geç.",
+                "TV listede çıkmazsa: TV'de Ayarlar → Bluetooth (ya da Kumandalar ve aksesuarlar) ekranını açık tut, tekrar ara.",
                 "Sonra her seferinde sadece 3. adım. TV gerçek oyun kolu + fare görür; fare eklentisi gerekmez.",
             ).forEach { Text(it, color = TextMuted, style = MaterialTheme.typography.bodySmall) }
         }

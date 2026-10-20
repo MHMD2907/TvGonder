@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: fare komutları + konumla dokunma/kaydırma (t, lp, sw: tablette TV ekranı); anahtarı ana uygulamaya doğrulatır
+// v0.29 – 2026-10-20: fare + dokunma komutları + "launch" (TV Gönder başka uygulama öndeyken ekran/uygulama açtırır); anahtar doğrulama
 package com.onur.tvgonder.fare
 
 import android.os.SystemClock
@@ -34,7 +34,7 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
     override fun run() {
         val s = runCatching { DatagramSocket(PORT) }.getOrNull() ?: return
         socket = s
-        val buf = ByteArray(256)
+        val buf = ByteArray(8192)
         while (!s.isClosed) {
             val pkt = DatagramPacket(buf, buf.size)
             if (runCatching { s.receive(pkt) }.isFailure) break
@@ -54,6 +54,8 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
                 "s" -> svc.scroll(a)
                 "back" -> svc.back()
                 "home" -> svc.home()
+                // Yalnız aynı cihazdaki TV Gönder'den: Android'in arka plandan açma engeline takılmadan ekran açar
+                "launch" -> if (pkt.address.isLoopbackAddress) svc.launch(parts.drop(2).joinToString(" "))
                 "t" -> svc.tapAt(g(0), g(1), 60)
                 "lp" -> svc.tapAt(g(0), g(1), 800)
                 "sw" -> svc.swipe(g(0), g(1), g(2), g(3), g(4, 250f).toLong())

@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: /apps (uygulama listesi, simge, aç, kaldır), /mirror/request (TV ekranını tablete yansıtma); /auth, indirme, kayıt yeri
+// v0.29 – 2026-10-20: arka plandan açmalar Launcher ile (Fare eklentisi); /apps, /mirror/request, /auth, indirme, kayıt yeri
 package com.onur.tvgonder
 
 import android.content.Context
@@ -87,10 +87,8 @@ class ReceiverServer(
     /** Arka plandan açılış engellenmesin diye önce TV Gönder öne getirilir (izinliyse). */
     private fun bringFront() {
         if (Hub.foreground) return
-        runCatching {
-            ctx.startActivity(android.content.Intent(ctx, MainActivity::class.java)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
-        }
+        Launcher.start(ctx, android.content.Intent(ctx, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
     }
 
     /** Tablet "TV ekranını göster" dedi: TV'de izin penceresi açılır, izin verilince TV ekranı tablete akar. */
@@ -100,14 +98,12 @@ class ReceiverServer(
         val key = b.optString("key")
         if (port <= 0 || key.isBlank()) return json(400, JSONObject().put("error", "Eksik bilgi"))
         val host = s.remoteIpAddress
-        runCatching {
-            ctx.startActivity(
-                android.content.Intent(ctx, com.onur.tvgonder.mirror.MirrorConsentActivity::class.java)
-                    .putExtra("host", host).putExtra("port", port).putExtra("key", key)
-                    .putExtra("name", b.optString("name", "Tablet"))
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        }
+        Launcher.start(
+            ctx,
+            android.content.Intent(ctx, com.onur.tvgonder.mirror.MirrorConsentActivity::class.java)
+                .putExtra("host", host).putExtra("port", port).putExtra("key", key)
+                .putExtra("name", b.optString("name", "Tablet")),
+        )
         return json(200, JSONObject().put("ok", true))
     }
 

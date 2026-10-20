@@ -1,4 +1,4 @@
-// v0.26 – 2026-10-19: oynatıcı medya oturumu (telefondan oynat/durdur/ileri/geri/başa al); resim/PDF büyütme, tarayıcıda video
+// v0.29 – 2026-10-20: video varsayılan Sığdır (tamamı görünür), ⛶ / ▲ ile Doldur, dikey video hep sığar; medya oturumu; tarayıcı tam ekran video düzeltmesi
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -534,15 +534,42 @@ fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean, referer: String? 
             player.release()
         }
     }
+    // Görüntü: varsayılan "Sığdır" (videonun tamamı). "Doldur" ekranı doldurur, kenarları kırpar. Dikey videolar hep sığar.
+    var fill by remember { mutableStateOf(store.videoFill) }
+    var portrait by remember { mutableStateOf(false) }
+    var ctrl by remember { mutableStateOf(true) }
+    DisposableEffect(player) {
+        val l = object : androidx.media3.common.Player.Listener {
+            override fun onVideoSizeChanged(v: androidx.media3.common.VideoSize) {
+                if (v.width > 0 && v.height > 0) portrait = v.height * v.pixelWidthHeightRatio > v.width * 1.0f
+            }
+        }
+        player.addListener(l)
+        onDispose { player.removeListener(l) }
+    }
+    fun toggleFill() {
+        fill = !fill; store.videoFill = fill
+        hint = if (portrait) "Dikey video: hep tamamı gösterilir" else if (fill) "Doldur: ekranı kaplar (kenarlar kırpılır)" else "Sığdır: videonun tamamı"
+    }
+    LaunchedEffect(hint) { if (hint != null) { delay(3000); hint = null } }
+    val mode = if (fill && !portrait) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
+            update = { v -> if (!audio && v.resizeMode != mode) v.resizeMode = mode },
             factory = { c ->
                 PlayerView(c).apply {
                     this.player = player
                     useController = true
                     keepScreenOn = true
-                    if (!audio) resizeMode = if (store.videoFill) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    if (!audio) resizeMode = mode
+                    setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { vis -> ctrl = vis == android.view.View.VISIBLE })
+                    // Kumanda: denetim çubuğu kapalıyken ▲ ya da Menü tuşu → Sığdır/Doldur
+                    if (!audio) setOnKeyListener { _, code, e ->
+                        if (e.action == android.view.KeyEvent.ACTION_DOWN && !isControllerFullyVisible &&
+                            (code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_MENU)
+                        ) { toggleFill(); true } else false
+                    }
                     setShowNextButton(audio && list.size > 1)
                     setShowPreviousButton(audio && list.size > 1)
                     if (audio) {
@@ -575,6 +602,15 @@ fun TvVideoPlayer(list: List<Uri>, start: Int, audio: Boolean, referer: String? 
             Hint("🎵  $title", Modifier.align(Alignment.TopCenter).padding(24.dp))
         }
         hint?.let { Hint(it, Modifier.align(Alignment.TopCenter).padding(24.dp)) }
+        if (!audio && ctrl) {
+            Text(
+                if (fill && !portrait) "⛶ Sığdır" else "⛶ Doldur",
+                Modifier.align(Alignment.TopEnd).padding(20.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xAA000000))
+                    .clickable { toggleFill() }.padding(horizontal = 18.dp, vertical = 10.dp),
+                color = Color.White, style = MaterialTheme.typography.titleMedium,
+            )
+            if (com.onur.tvgonder.isTv(LocalContext.current)) Hint("▲ / Menü: Sığdır ↔ Doldur", Modifier.align(Alignment.TopStart).padding(20.dp))
+        }
     }
 }
 
@@ -718,7 +754,7 @@ fun TvBrowser(url: String, onClose: () -> Unit, onVideo: (String, String, String
                     android.widget.FrameLayout(c).apply {
                         setBackgroundColor(AColor.BLACK)
                         (v.parent as? ViewGroup)?.removeView(v)
-                        addView(v, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                        addView(v, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, android.view.Gravity.CENTER))
                         isFocusable = true
                         post { v.requestFocus() }
                     }

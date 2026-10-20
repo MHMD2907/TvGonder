@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: TV/tablet (alıcı): telefondan gelen ekran yansıtmasını 8768'de bekler, ekranı öne getirir
+// v0.29 – 2026-10-20: gelen ekran yansıtması (8768); başka uygulama öndeyken de ekranı öne getirir (Fare eklentisi üzerinden)
 package com.onur.tvgonder.mirror
 
 import android.content.Context
@@ -23,12 +23,11 @@ class MirrorServer(private val ctx: Context, private val store: Store) : Thread(
                 val s = MirrorSession.accept(sock) { store.devices().containsKey(it) } ?: return@Thread
                 Hub.mirrorIn.value?.close()
                 Hub.mirrorIn.value = s
-                if (!Hub.foreground) runCatching {
-                    ctx.startActivity(
-                        Intent(ctx, MainActivity::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                    )
-                }
+                if (!Hub.foreground) com.onur.tvgonder.Launcher.start(
+                    ctx,
+                    Intent(ctx, MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+                )
             }.apply { isDaemon = true }.start()
         }
     }

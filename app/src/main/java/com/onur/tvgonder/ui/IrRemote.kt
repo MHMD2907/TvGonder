@@ -1,4 +1,4 @@
-// v0.28 – 2026-10-19: kızılötesi kumanda ekranı: kayıtlı cihazlar, kumanda düzeni (açma, ses, kanal, yön, rakam, renk), cihaz ekleme ve kod deneme
+// v0.29 – 2026-10-20: kızılötesi: gönderme hatası ekranda yazar, desteklenmeyen frekans en yakına uyarlanır; kumanda, cihaz ekleme, kod deneme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -47,10 +47,33 @@ object Ir {
         (c.getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager)?.hasIrEmitter() == true
     }.getOrDefault(false)
 
+    @Volatile var lastError: String? = null
+    @Volatile var sent = 0
+
     fun send(c: Context, s: IrSignal) {
         val m = c.getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager ?: return
-        exec.execute { runCatching { m.transmit(s.freq, s.pattern) } }
+        exec.execute {
+            // Verici bu frekansı desteklemiyorsa en yakın desteklenen frekansla gönder
+            val f = runCatching {
+                val r = m.carrierFrequencies
+                if (r.isNullOrEmpty() || r.any { s.freq in it.minFrequency..it.maxFrequency }) s.freq
+                else r.minByOrNull { minOf(kotlin.math.abs(it.minFrequency - s.freq), kotlin.math.abs(it.maxFrequency - s.freq)) }!!
+                    .let { if (s.freq < it.minFrequency) it.minFrequency else it.maxFrequency }
+            }.getOrDefault(s.freq)
+            runCatching { m.transmit(f, s.pattern); sent++; lastError = null }.onFailure { e ->
+                lastError = e.message ?: e.javaClass.simpleName
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(c, "Kızılötesi gönderilemedi: $lastError", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
+
+    /** Vericinin desteklediği frekanslar (sorun bildirirken yardımcı olur). */
+    fun info(c: Context): String = runCatching {
+        val m = c.getSystemService(Context.CONSUMER_IR_SERVICE) as ConsumerIrManager
+        m.carrierFrequencies?.joinToString { "${it.minFrequency / 1000}-${it.maxFrequency / 1000} kHz" } ?: "bilinmiyor"
+    }.getOrDefault("okunamadı")
 
     private fun norm(s: String) = s.trim().lowercase().replace(' ', '_')
 
@@ -217,7 +240,8 @@ private fun IrTest(n: IrNav.Test, onSave: (String, String) -> Unit) {
     Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Kod ${i + 1} / ${n.list.size}", color = TextMuted)
         Text("${m.brand} · ${m.model}", color = TextMain, style = MaterialTheme.typography.titleMedium)
-        Text("Telefonun üst kenarını cihaza doğrult, aşağıdaki tuşlara bas. Cihaz tepki verirse kaydet.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+        Text("Telefonun üst kenarını cihaza doğrult (1-3 metre), aşağıdaki tuşlara bas. Cihaz tepki verirse kaydet.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+        Text("Verici: ${remember { Ir.info(ctx) }}", color = TextMuted, style = MaterialTheme.typography.bodySmall)
         err?.let { Text(it, color = Danger) }
         val s = sigs
         if (s == null && err == null) Text("Kodlar indiriliyor…", color = TextMuted)

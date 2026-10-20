@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: telefon/tablet Bluetooth ile TV'ye gerçek oyun kolu + fare + medya tuşları olur (izin/eklenti gerektirmez)
+// v0.29 – 2026-10-20: Bluetooth kumanda: telefon TV'yi kendisi arar, eşleşir ve bağlanır (TV telefonu aksesuar olarak bulamıyordu)
 package com.onur.tvgonder
 
 import android.annotation.SuppressLint
@@ -124,6 +124,58 @@ object BtPad {
     }
 
     /** Daha önce Bluetooth ile eşleşmiş cihazlar (TV burada görünmeli). */
+    /** Telefonun aramada bulduğu cihazlar (TV "Aksesuar ekle" ekranındayken görünür olur). */
+    val found = MutableStateFlow<List<BluetoothDevice>>(emptyList())
+    val scanning = MutableStateFlow(false)
+    private var receiver: android.content.BroadcastReceiver? = null
+
+    fun scan(c: Context) {
+        val a = adapter ?: c.getSystemService(BluetoothManager::class.java)?.adapter ?: return
+        adapter = a
+        if (receiver == null) {
+            val r = object : android.content.BroadcastReceiver() {
+                override fun onReceive(ctx: Context, i: android.content.Intent) {
+                    @Suppress("DEPRECATION")
+                    val d: BluetoothDevice? = if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    else i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    when (i.action) {
+                        BluetoothDevice.ACTION_FOUND -> if (d != null && found.value.none { it.address == d.address }) found.value = found.value + d
+                        BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> scanning.value = false
+                        BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                            val st = i.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
+                            if (d != null && d.address == wanted?.address) when (st) {
+                                BluetoothDevice.BOND_BONDING -> status.value = "Eşleşiyor… TV'de ve telefonda çıkan kodu onayla"
+                                BluetoothDevice.BOND_BONDED -> { status.value = "Eşleşti, bağlanıyor…"; connect(d) }
+                                BluetoothDevice.BOND_NONE -> status.value = "Eşleşme olmadı – TV \"Aksesuar ekle\" ekranındayken tekrar dene"
+                            }
+                        }
+                    }
+                }
+            }
+            val f = android.content.IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_FOUND)
+                addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+                addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+            }
+            androidx.core.content.ContextCompat.registerReceiver(c.applicationContext, r, f, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+            receiver = r
+        }
+        found.value = emptyList()
+        runCatching { a.cancelDiscovery() }
+        scanning.value = runCatching { a.startDiscovery() }.getOrDefault(false)
+        if (!scanning.value) status.value = "Arama başlatılamadı (Bluetooth/konum izni?)"
+    }
+
+    /** Eşleşmemişse eşleşir, eşleşince kendiliğinden bağlanır. */
+    fun pairAndConnect(d: BluetoothDevice) {
+        wanted = d
+        runCatching { adapter?.cancelDiscovery() }
+        scanning.value = false
+        if (d.bondState == BluetoothDevice.BOND_BONDED) { connect(d); return }
+        status.value = "Eşleşme isteniyor…"
+        if (runCatching { d.createBond() }.getOrDefault(false) != true) status.value = "Eşleşme başlatılamadı"
+    }
+
     fun bonded(): List<BluetoothDevice> = runCatching { adapter?.bondedDevices?.toList() ?: emptyList() }.getOrDefault(emptyList())
 
     fun connect(d: BluetoothDevice) {
