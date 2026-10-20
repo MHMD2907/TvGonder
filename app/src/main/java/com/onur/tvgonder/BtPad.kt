@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: Bluetooth kumanda: telefon TV'yi kendisi arar, eşleşir ve bağlanır (TV telefonu aksesuar olarak bulamıyordu)
+// v0.30 – 2026-10-20: Bluetooth kumanda: kanal +/−, arama, rakamlar (klavye raporu); telefon TV'yi arar/eşleşir/bağlanır; oyun kolu, fare
 package com.onur.tvgonder
 
 import android.annotation.SuppressLint
@@ -42,6 +42,7 @@ object BtPad {
     // Tüketici (medya) tuşları
     const val C_HOME = 0x223; const val C_BACK = 0x224; const val C_PLAY = 0xCD
     const val C_VOL_UP = 0xE9; const val C_VOL_DOWN = 0xEA; const val C_MUTE = 0xE2; const val C_MENU = 0x40
+    const val C_CH_UP = 0x9C; const val C_CH_DOWN = 0x9D; const val C_SEARCH = 0x221
 
     val supported: Boolean get() = Build.VERSION.SDK_INT >= 28
 
@@ -62,6 +63,12 @@ object BtPad {
         // Tüketici tuşları (Ana ekran, Geri, oynat, ses)
         0x05, 0x0C, 0x09, 0x01, 0xA1.toByte(), 0x01, 0x85.toByte(), 0x03,
         0x15, 0x00, 0x26, 0xFF.toByte(), 0x03, 0x19, 0x00, 0x2A, 0xFF.toByte(), 0x03, 0x75, 0x10, 0x95.toByte(), 0x01, 0x81.toByte(), 0x00,
+        0xC0.toByte(),
+        // Klavye (rakamlar, Enter): rapor 4
+        0x05, 0x01, 0x09, 0x06, 0xA1.toByte(), 0x01, 0x85.toByte(), 0x04,
+        0x05, 0x07, 0x19, 0xE0.toByte(), 0x29, 0xE7.toByte(), 0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95.toByte(), 0x08, 0x81.toByte(), 0x02,
+        0x95.toByte(), 0x01, 0x75, 0x08, 0x81.toByte(), 0x01,
+        0x95.toByte(), 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x65, 0x05, 0x07, 0x19, 0x00, 0x29, 0x65, 0x81.toByte(), 0x00,
         0xC0.toByte(),
     )
 
@@ -225,6 +232,13 @@ object BtPad {
     }
 
     fun click() { mouseButton(0, true); mouseButton(0, false) }
+
+    /** Klavyeden rakam: '0'..'9' (TV'de kanal/numara girişi). */
+    fun digit(d: Int) {
+        val code = if (d == 0) 0x27 else 0x1D + d   // 1 → 0x1E … 9 → 0x26, 0 → 0x27
+        report(4, byteArrayOf(0, 0, code.toByte(), 0, 0, 0, 0, 0))
+        report(4, ByteArray(8))
+    }
 
     fun key(usage: Int) {
         report(3, byteArrayOf((usage and 0xFF).toByte(), ((usage shr 8) and 0xFF).toByte()))

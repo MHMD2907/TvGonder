@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: Bluetooth: telefon TV'yi arar/eşleşir/bağlanır; Kumanda, oyun kolu, fare, medya tuşları
+// v0.30 – 2026-10-20: Bluetooth Kumanda sekmesi: kanal +/−, arama, rakamlar; telefon TV'yi arar/eşleşir; oyun kolu, fare, medya tuşları
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -254,11 +255,22 @@ private fun PadRemote() {
             Arrow("▼", 4, b)
         }
         // Diğer tuşlar
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val k = Modifier.weight(1f).height(60.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("⟵ Geri", BtPad.C_BACK, k); Key("⌂ Ana ekran", BtPad.C_HOME, k) }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("☰ Menü", BtPad.C_MENU, k); Key("⏯", BtPad.C_PLAY, k) }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Key("🔉", BtPad.C_VOL_DOWN, k); Key("🔇", BtPad.C_MUTE, k); Key("🔊", BtPad.C_VOL_UP, k) }
+        Column(Modifier.weight(1.2f).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val k = Modifier.weight(1f).height(50.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("⟵ Geri", BtPad.C_BACK, k); Key("⌂ Ana ekran", BtPad.C_HOME, k); Key("☰ Menü", BtPad.C_MENU, k) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("🔉", BtPad.C_VOL_DOWN, k); Key("🔇", BtPad.C_MUTE, k); Key("🔊", BtPad.C_VOL_UP, k); Key("⏯", BtPad.C_PLAY, k) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("P −", BtPad.C_CH_DOWN, k); Key("P +", BtPad.C_CH_UP, k); Key("🔍 Ara", BtPad.C_SEARCH, k) }
+            // Rakamlar
+            listOf(listOf(1, 2, 3, 4, 5), listOf(6, 7, 8, 9, 0)).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { d ->
+                        Box(
+                            Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(12.dp)).background(Panel).clickable { BtPad.digit(d) },
+                            contentAlignment = Alignment.Center,
+                        ) { Text("$d", color = TextMain, fontSize = 18.sp) }
+                    }
+                }
+            }
         }
     }
 }

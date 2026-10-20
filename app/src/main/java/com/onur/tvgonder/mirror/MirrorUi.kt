@@ -1,4 +1,4 @@
-// v0.25 – 2026-10-19: TV ekranını gör tam ekran sayfada; yansıtma ekranları, telefondan başlatma, gelen görüntü
+// v0.30 – 2026-10-20: yansıtma: TV'de OK ile Doldur/Sığdır; TV ekranını gör + dokunarak kontrol; telefondan başlat
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -28,6 +28,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,13 +76,36 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
     DisposableEffect(player) { onDispose { player?.stop() } }
     BackHandler { player?.stop(); onEnd() }
 
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+    // TV'de: OK (ya da dokunuş) → Doldur (ekranı kaplar, kenarlar kırpılır) ↔ Sığdır (tamamı)
+    var fill by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(note) { if (note != null) { delay(2500); note = null } }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    fun toggle() { fill = !fill; note = if (fill) "Doldur: ekranı kaplar (kenarlar kırpılır) · OK: geri al" else "Sığdır: görüntünün tamamı"; uiTick++ }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        Modifier.fillMaxSize().background(Color.Black).clipToBounds()
+            .focusRequester(focus).focusable()
+            .onKeyEvent {
+                if (touch == null && it.type == KeyEventType.KeyDown &&
+                    (it.key == Key.DirectionCenter || it.key == Key.Enter || it.key == Key.NumPadEnter)
+                ) { toggle(); true } else { if (it.type == KeyEventType.KeyDown) uiTick++; false }
+            }
+            .then(if (touch == null) Modifier.pointerInput(Unit) { detectTapGestures { toggle() } } else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
         if (session == null) {
             Text("Yansıtma bekleniyor…", color = Color.White)
-            return@Box
+            return@BoxWithConstraints
         }
         val ratio = size?.let { (w, h) -> w.toFloat() / h } ?: (16f / 9f)
-        Box(Modifier.aspectRatio(ratio)) {
+        val boxMod = if (fill && touch == null) {
+            // Ekranı kaplayacak kadar büyüt (taşan kısım kırpılır)
+            val sw = maxWidth; val sh = maxHeight
+            if (sw / sh > ratio) Modifier.requiredSize(sw, sw / ratio) else Modifier.requiredSize(sh * ratio, sh)
+        } else Modifier.aspectRatio(ratio)
+        Box(boxMod) {
             AndroidView(
                 factory = { c ->
                     SurfaceView(c).apply {
@@ -90,10 +122,17 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
             if (touch != null) TouchLayer(touch) { uiTick++ }
         }
         if (size == null) Text("Görüntü geliyor…", color = Color.White)
+        note?.let {
+            Text(
+                it, Modifier.align(Alignment.BottomCenter).padding(24.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xAA000000))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                color = Color.White,
+            )
+        }
 
         AnimatedVisibility(ui, Modifier.align(Alignment.TopCenter).padding(12.dp), enter = fadeIn(), exit = fadeOut()) {
             Text(
-                "📲  ${session.name}" + if (touch == null) "   ·   Geri: kapat" else "   ·   Dokun: tıkla, kaydır, basılı tut",
+                "📲  ${session.name}" + if (touch == null) "   ·   OK: Doldur/Sığdır   ·   Geri: kapat" else "   ·   Dokun: tıkla, kaydır, basılı tut",
                 Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xAA000000)).padding(horizontal = 16.dp, vertical = 8.dp),
                 color = Color.White, style = MaterialTheme.typography.bodyMedium,
             )

@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: sürüm 0.29 (Bluetooth eşleşme, YouTube linki, video sığdır, yansıtmada ses, kızılötesi tanı)
+// v0.30 – 2026-10-20: sürüm 0.30 (yansıtmada Doldur, Bluetooth kanal/rakam/arama, Başka TV'ye yansıt)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 31
-        versionName = "0.29"
+        versionCode = 32
+        versionName = "0.30"
     }
     signingConfigs {
         getByName("debug") {

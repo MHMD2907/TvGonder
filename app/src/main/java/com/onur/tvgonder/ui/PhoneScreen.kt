@@ -1,4 +1,4 @@
-// v0.28 – 2026-10-19: Kızılötesi kumanda kartı; Bluetooth kumanda, yansıtma, uygulamalar, son linkler, cihaza özel klasör
+// v0.30 – 2026-10-20: Başka TV'ye yansıt (telefonun kendi Cast/Miracast ekranı); kızılötesi, Bluetooth kumanda, yansıtma, uygulamalar
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -738,6 +738,12 @@ private fun SendUi(
                     if (mirroring) com.onur.tvgonder.mirror.MirrorService.stop(ctx) else mirrorStart()
                 }
                 Tile("📺", "TV ekranını gör", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "tv") }
+            }
+            // TV Gönder kurulu olmayan TV'ler (Chromecast/Miracast): telefonun kendi yansıtma ekranı
+            Tile("📡", "Başka TV'ye yansıt (Chromecast / Miracast)", Modifier.fillMaxWidth()) {
+                val ok = listOf("android.settings.CAST_SETTINGS", "android.settings.WIFI_DISPLAY_SETTINGS")
+                    .any { a -> runCatching { ctx.startActivity(android.content.Intent(a).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess }
+                if (!ok) msg = Msg("Bu telefonda yansıtma ekranı bulunamadı. Bildirim panelinde \"Yayınla / Ekran yansıtma\" düğmesini kullan.", true)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }

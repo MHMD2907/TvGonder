@@ -89,7 +89,8 @@ object GuideText {
         ),
         "7. Ekran yansıtma" to listOf(
             "• Telefon/tablet → TV: \"Ekranı TV'de göster\" → ses izni → \"Şimdi başlat\". Telefonda ne açarsan TV'de görünür (sesiyle). Durdurmak: aynı kart ya da bildirimdeki Durdur; TV'de Geri.",
-            "• Telefonu yan çevirince TV'deki görüntü de yatay olur.",
+            "• Telefonu yan çevirince TV'deki görüntü de yatay olur. TV'de OK (tablette dokun): Doldur ↔ Sığdır.",
+            "• TV Gönder kurulu olmayan TV'ler için \"Başka TV'ye yansıt\": telefonun kendi Chromecast/Miracast ekranını açar.",
             "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
             "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
             "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner.",
@@ -104,7 +105,7 @@ object GuideText {
             "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle; bu ekranda kalsın.",
             "2. Telefon: Bluetooth kumanda → Bağlantı → \"🔍 Yakındaki cihazları ara\" → listede TV'ye dokun. Kod çıkarsa iki tarafta da onayla.",
             "3. \"Bağlı\" yazınca Kumanda sekmesine geç. Sonraki seferlerde: Bağlantı → eşleşmiş TV'ye dokun.",
-            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
+            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses, kanal +/−, Ara, rakamlar — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
             "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
             "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
         ),
