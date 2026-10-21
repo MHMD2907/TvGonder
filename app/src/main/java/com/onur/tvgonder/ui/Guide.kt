@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: kılavuz: Bluetooth eşleşme (telefon arar), video Sığdır/Doldur, yansıtmada ses, YouTube linki; kızılötesi
+// v0.31 – 2026-10-21: kılavuz: TV kumandası (Wi‑Fi), Dosyalarım taşı/kopyala/yeni klasör, çift Geri ile çıkış; Bluetooth, kızılötesi, yansıtma
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -100,6 +100,13 @@ object GuideText {
             "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
             "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",
         ),
+        "9a. TV kumandası (hızlı, Wi‑Fi)" to listOf(
+            "• Google TV / Android TV'nin kendi kumanda hizmetini kullanır (Google TV uygulamasındaki kumandayla aynı); TV'nin kendi kumandası kadar hızlıdır. TV Gönder'in TV'de açık olması gerekmez.",
+            "1. Telefonda \"TV kumandası (hızlı)\" → üstte TV'yi seç (ya da \"IP yaz\").",
+            "2. İlk seferde \"Eşleşmeyi başlat\" → TV ekranında 6 haneli kod çıkar → kodu yaz → Eşleştir. Bir kez yapılır.",
+            "• Tuşlar: güç, kaynak, ayarlar, sessiz, yön + OK, Geri, Ana ekran, menü, ses, kanal, oynat/sar, rakamlar, renkli tuşlar. Ses/kanal/yön basılı tutunca tekrarlar.",
+            "• Eşleştikten sonra telefondan gönderilen YouTube linkleri bu yolla açılır: TV'de YouTube açıkken bile yeni video açılır.",
+        ),
         "9. Bluetooth oyun kolu ve fare" to listOf(
             "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",
             "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle; bu ekranda kalsın.",
@@ -113,7 +120,7 @@ object GuideText {
             "• Kızılötesi vericisi olan telefonlarda (Xiaomi/Poco vb.) \"Kızılötesi kumanda\" kartı çıkar. TV Gönder kurulu olmayan cihazlarla da çalışır: Panasonic TV, uydu alıcısı, ses sistemi, projeksiyon.",
             "1. + Cihaz ekle → tür (Televizyon, Uydu alıcısı…) → marka → model. Modelini bilmiyorsan ilkinden başla.",
             "2. Telefonun üst kenarını cihaza doğrult, ⏻ / Ses + / OK ile dene. Tepki verirse \"Çalıştı, kaydet\", vermezse \"Sonraki\".",
-            "3. Marka listede yoksa (ör. Nextstar, Dijitsu): \"Tümünü sırayla dene\" ile o türdeki bütün kodlar tek tek denenir.",
+            "3. Marka listede yoksa (ör. Nextstar): \"Tümünü sırayla dene\" ile o türdeki bütün kodlar tek tek denenir. Dijitsu gibi Google TV'ler için \"TV kumandası (hızlı)\" daha iyidir.",
             "• Kodlar ilk seferde internetten indirilir, sonra internetsiz çalışır. Ses/kanal/yön tuşları basılı tutunca tekrarlar; cihazı silmek için adına uzun bas.",
         ),
         "10. TV'deki dosyaları telefona indirme" to listOf(
@@ -124,7 +131,8 @@ object GuideText {
         "11. TV / tablet ekranı" to listOf(
             "• Kumanda: oklar gezinir, OK seçer, Geri bir önceki ekrana döner.",
             "• Ana ekran: Dosyalarım, Uygulamalar, Slayt gösterisi, Telefon ekle, Ayarlar, resimli Son gelenler. Yeni dosya gelince \"Aç\" kartı çıkar.",
-            "• Dosyalarım: küçük resimler, filtre (Video / Müzik / Resim / PDF), Ara, ☑ Seç / Sil.",
+            "• Dosyalarım: küçük resimler, filtre (Video / Müzik / Resim / PDF), Ara. ➕ Yeni klasör. ☑ Seç → 📂 Taşı / 📋 Kopyala (hedef klasörü seç, orada yeni klasör de açabilirsin) / 🗑 Sil.",
+            "• Ana ekranda Geri'ye iki kez basınca uygulamadan çıkılır.",
             "• Resim tam ekran ve her zaman TAMAMI görünür açılır. ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK büyüt (büyükken oklar kaydırır, Geri küçültür).",
             "• PDF: sayfa ekrana sığar. ◀ ▶ sayfa, OK genişliğe büyüt, ▲ ▼ kaydır (sayfa sonunda sonrakine geçer).",
             "• Ekrandaki yazı ve düğmeler 3-4 saniyede kaybolur; bir tuşa basınca ya da dokununca geri gelir.",

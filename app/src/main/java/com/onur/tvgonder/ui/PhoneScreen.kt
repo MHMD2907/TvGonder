@@ -1,4 +1,4 @@
-// v0.30 – 2026-10-20: Başka TV'ye yansıt (telefonun kendi Cast/Miracast ekranı); kızılötesi, Bluetooth kumanda, yansıtma, uygulamalar
+// v0.31 – 2026-10-21: TV kumandası (Google TV Wi‑Fi kumandası) kartı; YouTube linki TV'nin kumanda hizmetiyle açılır; oyun kolu, kızılötesi, yansıtma
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -430,7 +430,15 @@ private fun SendUi(
         if (url == null) { msg = Msg("Bu bir link değil.", true); return }
         linkBusy = true
         scope.launch {
-            val r = withContext(Dispatchers.IO) { runCatching { client.link(url) } }
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    // YouTube: TV'nin kendi kumanda hizmetiyle aç (YouTube açıkken bile yeni video açılır)
+                    val h = Uri.parse(url).host?.lowercase() ?: ""
+                    val yt = h == "youtu.be" || h == "youtube.com" || h.endsWith(".youtube.com")
+                    val tvHost = store.tvHost
+                    if (!(yt && tvHost != null && com.onur.tvgonder.AtvRemote.launchBlocking(ctx, tvHost, url))) client.link(url)
+                }
+            }
             linkBusy = false
             if (r.isSuccess) {
                 online = true
@@ -747,7 +755,12 @@ private fun SendUi(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
-                Tile("🎮", "Bluetooth kumanda / oyun kolu", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
+                Tile("📺", "TV kumandası (hızlı)", Modifier.weight(1f)) {
+                    ctx.startActivity(android.content.Intent(ctx, com.onur.tvgonder.AtvActivity::class.java))
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
         }
         // Kızılötesi: TV Gönder'den bağımsız (Panasonic TV, uydu alıcısı vb.), yalnız vericisi olan telefonlarda

@@ -1,4 +1,4 @@
-// v0.28 – 2026-10-19: tam ekran yatay sayfa (oyun kolu, TV ekranını gör) + kızılötesi kumanda sayfası
+// v0.31 – 2026-10-21: tam ekran yatay sayfa (oyun kolu, TV ekranını gör), kızılötesi ve TV kumandası sayfaları
 package com.onur.tvgonder
 
 import android.content.Context
@@ -54,5 +54,13 @@ class IrActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppTheme { com.onur.tvgonder.ui.IrRemoteScreen { finish() } } }
+    }
+}
+
+/** TV kumandası sayfası (dikey). */
+class AtvActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { AppTheme { com.onur.tvgonder.ui.AtvRemoteScreen { finish() } } }
     }
 }

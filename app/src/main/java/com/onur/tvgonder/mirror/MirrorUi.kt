@@ -77,12 +77,14 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
     BackHandler { player?.stop(); onEnd() }
 
     // TV'de: OK (ya da dokunuş) → Doldur (ekranı kaplar, kenarlar kırpılır) ↔ Sığdır (tamamı)
-    var fill by remember { mutableStateOf(false) }
+    // Yatay görüntü varsayılan olarak ekranı doldurur, dikey olan sığar; OK ile değişir
+    var fillUser by remember { mutableStateOf<Boolean?>(null) }
+    val fill = fillUser ?: (size?.let { (w, h) -> w > h } ?: true)
     var note by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(note) { if (note != null) { delay(2500); note = null } }
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    fun toggle() { fill = !fill; note = if (fill) "Doldur: ekranı kaplar (kenarlar kırpılır) · OK: geri al" else "Sığdır: görüntünün tamamı"; uiTick++ }
+    fun toggle() { val nf = !fill; fillUser = nf; note = if (nf) "Doldur: ekranı kaplar (kenarlar kırpılır) · OK: geri al" else "Sığdır: görüntünün tamamı"; uiTick++ }
 
     androidx.compose.foundation.layout.BoxWithConstraints(
         Modifier.fillMaxSize().background(Color.Black).clipToBounds()

@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: ekranı yansıtır; ses yalnız TV'den (telefon kendiliğinden kısılır, gerekirse TV sesi yükseltilir); dönünce yataya geçer
+// v0.31 – 2026-10-21: ekranı yansıtır; dönüşte görüntü daha hızlı yataya/dikeye geçer; ses yalnız TV'den
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -220,7 +220,13 @@ class MirrorService : Service() {
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(id: Int) {}
         override fun onDisplayRemoved(id: Int) {}
-        override fun onDisplayChanged(id: Int) { if (id == android.view.Display.DEFAULT_DISPLAY) checkRotation() }
+        override fun onDisplayChanged(id: Int) {
+            if (id != android.view.Display.DEFAULT_DISPLAY) return
+            checkRotation()
+            // Bazı telefonlar yeni boyutu biraz geç bildirir: kısa aralarla tekrar bak
+            main.postDelayed({ checkRotation() }, 250)
+            main.postDelayed({ checkRotation() }, 800)
+        }
     }
 
     private fun checkRotation() {
@@ -233,7 +239,7 @@ class MirrorService : Service() {
                 val old = codec
                 gen++
                 display?.surface = null
-                drain?.join(500)
+                drain?.join(150)
                 runCatching { old?.stop() }; runCatching { old?.release() }
                 codec = null
                 display?.resize(w, h, dpi)

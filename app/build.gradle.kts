@@ -1,4 +1,4 @@
-// v0.30 – 2026-10-20: sürüm 0.30 (yansıtmada Doldur, Bluetooth kanal/rakam/arama, Başka TV'ye yansıt)
+// v0.31 – 2026-10-21: sürüm 0.31 (TV kumandası Wi‑Fi, YouTube linki, Dosyalarım taşı/kopyala, yansıtma doldur/dönüş, çift Geri)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 32
-        versionName = "0.30"
+        versionCode = 33
+        versionName = "0.31"
     }
     signingConfigs {
         getByName("debug") {

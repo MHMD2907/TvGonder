@@ -1,4 +1,4 @@
-// v0.17 – 2026-10-15: Dosyalarım: tür filtresi (Video/Müzik/Resim/PDF) ve isimle arama; küçük resimler, seçip silme
+// v0.31 – 2026-10-21: Dosyalarım: yeni klasör, seçilenleri klasöre taşı/kopyala (USB ve TV hafızası); küçük resimler, filtre, arama, silme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -130,6 +131,57 @@ object Usb {
     private fun sort(out: List<Entry>): List<Entry> {
         return out.sortedWith(compareBy<Entry> { it.kind != Kind.Folder }.thenByDescending { if (it.kind == Kind.Folder) 0 else it.modified }.thenBy { it.name.lowercase() })
     }
+
+    /** Klasör oluşturur; oluşan klasörün adresini döner. */
+    fun mkdir(ctx: Context, dir: Uri, name: String): Uri? { return runCatching {
+        val n = name.trim().replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { return null }
+        if (dir.scheme == "file") File(dir.path!!, n).apply { mkdirs() }.let { Uri.fromFile(it) }
+        else DocumentsContract.createDocument(ctx.contentResolver, dir, DocumentsContract.Document.MIME_TYPE_DIR, n)
+    }.getOrNull() }
+
+    private fun uniqueFile(dir: File, name: String): File {
+        var f = File(dir, name)
+        if (!f.exists()) return f
+        val base = name.substringBeforeLast('.', name); val ext = name.substringAfterLast('.', "").let { if (it.isEmpty() || it == name) "" else ".$it" }
+        var i = 2
+        while (f.exists()) { f = File(dir, "$base ($i)$ext"); i++ }
+        return f
+    }
+
+    /** Dosya/klasörü başka klasöre taşır ya da kopyalar. from: şu an bulunduğu klasör. */
+    fun transfer(ctx: Context, tree: Uri, e: Entry, from: Uri, dest: Uri, move: Boolean): Boolean { return runCatching {
+        if (e.uri == dest) return false
+        if (e.uri.scheme == "file" && dest.scheme == "file") {
+            val src = File(e.uri.path!!); val dDir = File(dest.path!!)
+            if (dDir.absolutePath.startsWith(src.absolutePath + "/")) return false   // klasörü kendi içine taşıma
+            if (move && src.parentFile?.absolutePath == dDir.absolutePath) return true
+            val target = uniqueFile(dDir, src.name)
+            if (move && src.renameTo(target)) return true
+            if (src.isDirectory) src.copyRecursively(target) else src.copyTo(target)
+            if (move) src.deleteRecursively()
+            return true
+        }
+        val cr = ctx.contentResolver
+        if (move && android.os.Build.VERSION.SDK_INT >= 24 && e.uri.scheme != "file" && dest.scheme != "file") {
+            val r = runCatching { DocumentsContract.moveDocument(cr, e.uri, from, dest) }.getOrNull()
+            if (r != null) return true
+        }
+        fun copy(src: Entry, to: Uri) {
+            if (src.kind == Kind.Folder) {
+                val nd = mkdir(ctx, to, src.name) ?: error("klasör")
+                for (c in list(ctx, tree, src.uri)) copy(c, nd)
+            } else {
+                val nu = if (to.scheme == "file") Uri.fromFile(uniqueFile(File(to.path!!), src.name))
+                else DocumentsContract.createDocument(cr, to, src.mime.ifBlank { "application/octet-stream" }, src.name) ?: error("dosya")
+                (cr.openInputStream(src.uri) ?: error("okuma")).use { i ->
+                    (if (nu.scheme == "file") File(nu.path!!).outputStream() else cr.openOutputStream(nu) ?: error("yazma")).use { o -> i.copyTo(o, 1 shl 16) }
+                }
+            }
+        }
+        copy(e, dest)
+        if (move) deleteEntry(ctx, e)
+        true
+    }.getOrDefault(false) }
 
     /** Slayt gösterisi için tüm resimler (alt klasörler dahil, sınırlı). */
     fun allImages(ctx: Context, tree: Uri, limit: Int = 1500): List<Entry> {
@@ -274,6 +326,9 @@ fun TvFilesScreen(
     var filter by remember { mutableStateOf<Kind?>(null) }
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
+    var newFolder by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<Boolean?>(null) }   // true: taşı, false: kopyala
+    var busy by remember { mutableStateOf<String?>(null) }
     val first = remember(dir) { FocusRequester() }
 
     LaunchedEffect(dir, reload) {
@@ -296,14 +351,26 @@ fun TvFilesScreen(
             }
             val bar = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
             if (!selecting) {
+                TvCard(padding = bar, onClick = { newFolder = true }) {
+                    Text("➕  Yeni klasör", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                }
+                Spacer(Modifier.width(12.dp))
                 TvCard(padding = bar, onClick = { selecting = true; selected.clear() }) {
-                    Text("☑  Seç / Sil", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                    Text("☑  Seç (taşı / kopyala / sil)", style = MaterialTheme.typography.titleMedium, color = TextMain)
                 }
             } else {
                 TvCard(padding = bar, onClick = {
                     val all = entries.orEmpty().map { it.uri }
                     if (selected.size == all.size) selected.clear() else { selected.clear(); selected.addAll(all) }
                 }) { Text("Tümü", style = MaterialTheme.typography.titleMedium, color = TextMain) }
+                Spacer(Modifier.width(12.dp))
+                TvCard(padding = bar, onClick = { if (selected.isNotEmpty()) picker = true }) {
+                    Text("📂 Taşı", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                }
+                Spacer(Modifier.width(12.dp))
+                TvCard(padding = bar, onClick = { if (selected.isNotEmpty()) picker = false }) {
+                    Text("📋 Kopyala", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                }
                 Spacer(Modifier.width(12.dp))
                 TvCard(padding = bar, onClick = { if (selected.isNotEmpty()) confirm = true }) {
                     Text("🗑  Sil (${selected.size})", style = MaterialTheme.typography.titleMedium, color = Danger)
@@ -406,6 +473,37 @@ fun TvFilesScreen(
         }
     }
 
+    busy?.let {
+        Box(Modifier.fillMaxSize().background(Color(0x88000000)), contentAlignment = Alignment.Center) {
+            Text(it, Modifier.clip(RoundedCornerShape(16.dp)).background(PanelHi).padding(24.dp), style = MaterialTheme.typography.titleMedium, color = TextMain)
+        }
+    }
+
+    if (newFolder) NameDialog("Yeni klasör adı", onDismiss = { newFolder = false }) { name ->
+        newFolder = false
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { Usb.mkdir(ctx, dir, name) }
+            info = if (r != null) "\"$name\" klasörü oluşturuldu" else "Klasör oluşturulamadı"
+            reload++
+        }
+    }
+
+    picker?.let { move ->
+        FolderPicker(ctx, tree, if (move) "Nereye taşınsın?" else "Nereye kopyalansın?", if (move) "Buraya taşı" else "Buraya kopyala",
+            onDismiss = { picker = null },
+        ) { dest ->
+            picker = null
+            val items = entries.orEmpty().filter { it.uri in selected }
+            scope.launch {
+                busy = if (move) "Taşınıyor…" else "Kopyalanıyor…"
+                val ok = withContext(Dispatchers.IO) { items.count { Usb.transfer(ctx, tree, it, dir, dest, move) } }
+                busy = null
+                info = "$ok / ${items.size} öğe " + if (move) "taşındı" else "kopyalandı"
+                selecting = false; selected.clear(); reload++
+            }
+        }
+    }
+
     if (confirm) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirm = false },
@@ -440,5 +538,84 @@ fun TvChip(text: String, color: Color = TextMuted) {
         Box(Modifier.size(10.dp).clip(RoundedCornerShape(50)).background(color))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, color = TextMain)
+    }
+}
+
+
+/** Ad sorma penceresi (TV klavyesi açılır). */
+@Composable
+fun NameDialog(title: String, onDismiss: () -> Unit, onOk: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PanelHi,
+        title = { Text(title) },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                name, { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(fr),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (name.isNotBlank()) onOk(name.trim()) }),
+            )
+        },
+        confirmButton = { androidx.compose.material3.Button(onClick = { if (name.isNotBlank()) onOk(name.trim()) }) { Text("Oluştur") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Vazgeç") } },
+    )
+}
+
+/** Hedef klasör seçici: klasörlerde gezinir, yeni klasör açar, "Buraya …" ile seçer. Kumanda ve dokunmatikle kullanılır. */
+@Composable
+fun FolderPicker(ctx: Context, tree: Uri, title: String, action: String, onDismiss: () -> Unit, onPick: (Uri) -> Unit) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val path = remember { androidx.compose.runtime.mutableStateListOf(Usb.rootUri(tree) to "USB bellek") }
+    var folders by remember { mutableStateOf<List<Entry>>(emptyList()) }
+    var reload by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var naming by remember { mutableStateOf(false) }
+    val cur = path.last()
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(cur, reload) {
+        folders = withContext(Dispatchers.IO) { runCatching { Usb.list(ctx, tree, cur.first).filter { it.kind == Kind.Folder } }.getOrDefault(emptyList()) }
+        runCatching { fr.requestFocus() }
+    }
+    androidx.activity.compose.BackHandler { if (path.size > 1) path.removeAt(path.lastIndex) else onDismiss() }
+    Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.fillMaxWidth(0.6f).fillMaxHeight(0.85f).clip(RoundedCornerShape(24.dp)).background(Ink).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = TextMain)
+            Text("📁 " + path.joinToString(" / ") { it.second }, style = MaterialTheme.typography.bodyMedium, color = Accent, maxLines = 2)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TvCard(focusRequester = fr, padding = PaddingValues(horizontal = 18.dp, vertical = 10.dp), onClick = { onPick(cur.first) }) {
+                    Text("✓ $action", style = MaterialTheme.typography.titleMedium, color = Accent)
+                }
+                TvCard(padding = PaddingValues(horizontal = 18.dp, vertical = 10.dp), onClick = { naming = true }) {
+                    Text("➕ Yeni klasör", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                }
+                if (path.size > 1) TvCard(padding = PaddingValues(horizontal = 18.dp, vertical = 10.dp), onClick = { path.removeAt(path.lastIndex) }) {
+                    Text("↑ Üst klasör", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                }
+                TvCard(padding = PaddingValues(horizontal = 18.dp, vertical = 10.dp), onClick = onDismiss) {
+                    Text("Vazgeç", style = MaterialTheme.typography.titleMedium, color = TextMuted)
+                }
+            }
+            androidx.compose.foundation.lazy.LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (folders.isEmpty()) item { Text("Bu klasörde alt klasör yok.", color = TextMuted) }
+                items(folders.size) { i ->
+                    val f = folders[i]
+                    TvCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 18.dp, vertical = 12.dp), onClick = { path.add(f.uri to f.name) }) {
+                        Text("📁  ${f.name}", style = MaterialTheme.typography.titleMedium, color = TextMain)
+                    }
+                }
+            }
+        }
+    }
+    if (naming) NameDialog("Yeni klasör adı", onDismiss = { naming = false }) { name ->
+        naming = false
+        scope.launch {
+            val u = withContext(Dispatchers.IO) { Usb.mkdir(ctx, cur.first, name) }
+            if (u != null) path.add(u to name) else reload++
+        }
     }
 }

@@ -1,4 +1,4 @@
-// v0.24 – 2026-10-19: Ayarlar: Fare eklentisini TV kendisi kurar/günceller, kaldır her zaman görünür; Uygulamalar, gelen yansıtma, link izni
+// v0.31 – 2026-10-21: ana ekranda Geri iki kez → çıkış; Uygulamalar, gelen yansıtma; Ayarlar: fare eklentisi, link izni
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -195,6 +195,15 @@ fun TvScreen(
     LaunchedEffect(note) { if (note != null) { delay(6000); note = null } }
 
     BackHandler(enabled = stack.size > 1) { pop() }
+    // Ana ekranda Geri: yanlışlıkla çıkılmasın, iki kez basınca çıkar
+    var lastBack by remember { mutableLongStateOf(0L) }
+    BackHandler(enabled = stack.size == 1) {
+        val now = System.currentTimeMillis()
+        if (now - lastBack < 2500) {
+            var x: android.content.Context? = ctx
+            while (x is android.content.ContextWrapper) { if (x is android.app.Activity) { x.moveTaskToBack(true); break }; x = x.baseContext }
+        } else { lastBack = now; note = "Çıkmak için Geri'ye tekrar bas" }
+    }
 
     Box(Modifier.fillMaxSize().background(Ink).onPreviewKeyEvent { lastKey = System.currentTimeMillis(); false }) {
         key(stack.size, top) {
