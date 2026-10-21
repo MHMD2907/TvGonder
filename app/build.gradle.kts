@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: sürüm 0.31 (TV kumandası Wi‑Fi, YouTube linki, Dosyalarım taşı/kopyala, yansıtma doldur/dönüş, çift Geri)
+// v0.32 – 2026-10-21: sürüm 0.32 (TV kumandası kartı her zaman görünür, güncel TV adresi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 33
-        versionName = "0.31"
+        versionCode = 34
+        versionName = "0.32"
     }
     signingConfigs {
         getByName("debug") {

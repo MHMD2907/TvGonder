@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: TV kumandası ekranı (Google TV'nin kendi Wi‑Fi kumandası): eşleşme, yön/OK, ses, kanal, rakamlar, güç, medya
+// v0.32 – 2026-10-21: TV kumandası ekranı: güncel TV adresi önce; eşleşme, yön/OK, ses, kanal, rakamlar, güç, medya
 package com.onur.tvgonder.ui
 
 import android.view.KeyEvent
@@ -41,7 +41,8 @@ fun AtvRemoteScreen(onClose: () -> Unit) {
     // TV seçimi: eşleşmiş TV Gönder cihazları + elle IP
     val targets = remember { store.targets().filter { it.host.isNotBlank() } }
     var host by remember {
-        mutableStateOf(ctx.getSharedPreferences("atv", 0).getString("host", null) ?: store.tvHost ?: targets.firstOrNull()?.host ?: "")
+        // TV'nin adresi değişirse (modem yeni IP verirse) TV Gönder'in bulduğu güncel adres önce gelir
+        mutableStateOf(store.tvHost ?: ctx.getSharedPreferences("atv", 0).getString("host", null) ?: targets.firstOrNull()?.host ?: "")
     }
     var code by remember { mutableStateOf("") }
     var manual by remember { mutableStateOf(false) }

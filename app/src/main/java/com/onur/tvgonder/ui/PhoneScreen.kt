@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: TV kumandası (Google TV Wi‑Fi kumandası) kartı; YouTube linki TV'nin kumanda hizmetiyle açılır; oyun kolu, kızılötesi, yansıtma
+// v0.32 – 2026-10-21: TV kumandası kartı her zaman görünür (TV Gönder eşleşmesi gerekmez); YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -755,13 +755,12 @@ private fun SendUi(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
-                Tile("📺", "TV kumandası (hızlı)", Modifier.weight(1f)) {
-                    ctx.startActivity(android.content.Intent(ctx, com.onur.tvgonder.AtvActivity::class.java))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
+        }
+        // TV kumandası: Google TV'nin kendi hizmeti; TV Gönder eşleşmesi gerekmez
+        Tile("📺", "TV kumandası (hızlı, Google TV)", Modifier.fillMaxWidth()) {
+            ctx.startActivity(android.content.Intent(ctx, com.onur.tvgonder.AtvActivity::class.java))
         }
         // Kızılötesi: TV Gönder'den bağımsız (Panasonic TV, uydu alıcısı vb.), yalnız vericisi olan telefonlarda
         if (remember { Ir.has(ctx) }) {
