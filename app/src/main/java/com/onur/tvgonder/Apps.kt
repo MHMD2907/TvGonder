@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: uygulamalar (aç/kaldır arka plandan da çalışır); Fare eklentisi 1.3 sürüm kontrolü, TV'nin eklentiyi indirmesi
+// v0.33 – 2026-10-21: Fare eklentisi uygulamanın içinde gömülü (GitHub'dan indirilmez); uygulamalar listesi, aç/kaldır
 package com.onur.tvgonder
 
 import android.content.Context
@@ -79,16 +79,17 @@ object Apps {
     fun fareEnabled(c: Context): Boolean =
         (Settings.Secure.getString(c.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains(FARE)
 
-    /** TV/tablet eklentiyi GitHub'dan kendisi indirir ve kurulum penceresini açar (telefon gerekmez). */
-    fun downloadAndInstallFare(c: Context) {
+    /** Uygulamanın içine gömülü Fare eklentisini geçici dosyaya çıkarır (internet gerekmez). */
+    fun fareApk(c: Context): File {
         val f = File(c.cacheDir, "update/TvGonderFare.apk").apply { parentFile?.mkdirs() }
-        val req = okhttp3.Request.Builder().url("https://github.com/MHMD2907/TvGonder/releases/latest/download/TvGonderFare.apk").build()
-        okhttp3.OkHttpClient.Builder().followRedirects(true).build().newCall(req).execute().use { r ->
-            if (!r.isSuccessful) error("İndirilemedi (${r.code})")
-            r.body?.byteStream()?.use { i -> f.outputStream().use { o -> i.copyTo(o) } } ?: error("Boş dosya")
-        }
-        if (f.length() < 10_000) error("İndirilemedi")
-        Installer.install(c, f)
+        c.assets.open("TvGonderFare.apk").use { i -> f.outputStream().use { o -> i.copyTo(o) } }
+        if (f.length() < 10_000) error("Eklenti dosyası bozuk")
+        return f
+    }
+
+    /** TV/tablet: gömülü eklentiyi kurar (Kur / Güncelle). */
+    fun downloadAndInstallFare(c: Context) {
+        Installer.install(c, fareApk(c))
     }
 
     fun sizeText(b: Long): String = when {

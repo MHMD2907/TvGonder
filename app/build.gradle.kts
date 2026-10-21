@@ -1,4 +1,4 @@
-// v0.32 – 2026-10-21: sürüm 0.32 (TV kumandası kartı her zaman görünür, güncel TV adresi)
+// v0.33 – 2026-10-21: sürüm 0.33 (Fare eklentisi uygulamanın içinde; proje gizlenebilir)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 34
-        versionName = "0.32"
+        versionCode = 35
+        versionName = "0.33"
     }
     signingConfigs {
         getByName("debug") {

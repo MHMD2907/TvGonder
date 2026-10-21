@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: uzaktan uygulama listesi/aç/kaldır, TV ekranını isteme; fare komutları eklentiye ya da TV Gönder'e; indirme, eşleşme
+// v0.33 – 2026-10-21: Fare eklentisi uygulamanın içinden gönderilir; uzaktan uygulamalar, TV ekranını isteme, fare komutları, indirme, eşleşme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -154,16 +154,8 @@ class TvClient(private val store: Store) {
 
     /** Telefonda kurulu APK'yı TV'ye gönderir (telefon ve TV aynı APK'yı kullanır). */
     /** Fare eklentisinin en son sürümünü GitHub'dan indirir (telefonun internete ihtiyacı var). */
-    fun fetchFareApk(ctx: Context): java.io.File {
-        val f = java.io.File(ctx.cacheDir, "TvGonderFare.apk")
-        val req = Request.Builder().url("https://github.com/MHMD2907/TvGonder/releases/latest/download/TvGonderFare.apk").build()
-        http.newBuilder().followRedirects(true).build().newCall(req).execute().use { r ->
-            if (!r.isSuccessful) error("Fare eklentisi indirilemedi (${r.code}). İnternet bağlantısını kontrol et.")
-            r.body?.byteStream()?.use { i -> f.outputStream().use { o -> i.copyTo(o) } } ?: error("Boş dosya")
-        }
-        if (f.length() < 10_000) error("Fare eklentisi indirilemedi.")
-        return f
-    }
+    /** Fare eklentisi: uygulamanın içinden (internet gerekmez). */
+    fun fetchFareApk(ctx: Context): java.io.File = Apps.fareApk(ctx)
 
     /** Telefondaki APK'yı (varsayılan: bu uygulamanın kendisi) TV'ye kurulum için gönderir. */
     fun sendUpdate(ctx: Context, file: java.io.File? = null, onProgress: (Long, Long) -> Unit) {

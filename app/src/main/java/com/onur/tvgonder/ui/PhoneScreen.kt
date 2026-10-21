@@ -584,7 +584,7 @@ private fun SendUi(
         if (!paired) { msg = notPaired; return }
         if (updating != null) return
         updating = 0f
-        if (fare) msg = Msg("Fare eklentisi indiriliyor…", false)
+        if (fare) msg = Msg("Fare eklentisi hazırlanıyor…", false)
         scope.launch {
             val r = withContext(Dispatchers.IO) {
                 runCatching {

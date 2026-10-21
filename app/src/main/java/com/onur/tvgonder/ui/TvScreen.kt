@@ -549,17 +549,17 @@ private fun TvSettings(
                 var busy by remember { mutableStateOf<String?>(null) }
                 fun download() {
                     if (busy != null) return
-                    busy = "İndiriliyor…"
+                    busy = "Hazırlanıyor…"
                     scope.launch {
                         val r = withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.onur.tvgonder.Apps.downloadAndInstallFare(ctx) } }
-                        busy = if (r.isSuccess) null else "Olmadı: ${r.exceptionOrNull()?.message}. İnternet var mı? Telefondan da gönderebilirsin."
+                        busy = if (r.isSuccess) null else "Olmadı: ${r.exceptionOrNull()?.message}"
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     SettingRow(
                         "🖱️", "Telefonla fare kontrolü",
                         busy ?: when {
-                            !installed -> "Eklenti yok – TV Gönder ekranlarında fare yine çalışır. Her uygulamada imleç için \"Kur\"a bas (TV internetten indirir)"
+                            !installed -> "Eklenti yok – TV Gönder ekranlarında fare yine çalışır. Her uygulamada imleç için \"Kur\"a bas"
                             old -> "Eklenti eski sürüm – \"Güncelle\"ye bas"
                             enabled -> "TV Gönder Fare açık ✓ – imleç her uygulamada çalışır"
                             else -> "Eklenti kurulu ama kapalı – açılan listede \"TV Gönder Fare\"yi seç ve aç"

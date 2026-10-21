@@ -81,7 +81,7 @@ object GuideText {
             "• Geri, Ana ekran, ⏮ ⏪ ⏯ ⏩ ⏭, ses −/sessiz/+.",
             "• Eklenti olmadan da fare TV Gönder açıkken çalışır (tarayıcı, dosyalar, oynatıcı).",
             "Her uygulamada imleç için (bir kez):",
-            "1. TV'de TV Gönder → Ayarlar → Telefonla fare kontrolü → \"Kur\" (TV internetten indirir) → Yükle. Ya da telefonda ⋮ → Fare eklentisini gönder.",
+            "1. TV'de TV Gönder → Ayarlar → Telefonla fare kontrolü → \"Kur\" → Yükle (eklenti uygulamanın içinde gelir, internet gerekmez). Ya da telefonda ⋮ → Fare eklentisini gönder.",
             "2. Aynı satırda → Aç. Eklenti eskiyse satırda \"Güncelle\" çıkar.",
             "3. Erişilebilirlik ekranında \"TV Gönder Fare\" → anahtarı Açık yap → İzin ver.",
             "• Anahtar kendiliğinden kapanıyorsa: TV Gönder Ayarlar → \"Fare eklentisini kaldır\" → sonra \"Kur\" → Yükle → tekrar aç. Yeni kurulum yöntemiyle engel kalkar.",

@@ -6,3 +6,5 @@ local.properties
 .idea/
 *.iml
 desktop.ini
+# derlemede Fare eklentisinden üretilir
+app/src/main/assets/TvGonderFare.apk
