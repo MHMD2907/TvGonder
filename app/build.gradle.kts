@@ -1,4 +1,4 @@
-// v0.33 – 2026-10-21: sürüm 0.33 (Fare eklentisi uygulamanın içinde; proje gizlenebilir)
+// v0.34 – 2026-10-22: sürüm 0.34 (TV kumandası anahtar düzeltmesi, Bluetooth kod kutusu ve dikey kumanda, Fare eklentisi ilk açılış önerisi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 35
-        versionName = "0.33"
+        versionCode = 36
+        versionName = "0.34"
     }
     signingConfigs {
         getByName("debug") {

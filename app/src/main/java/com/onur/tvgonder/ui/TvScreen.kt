@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: ana ekranda Geri iki kez → çıkış; Uygulamalar, gelen yansıtma; Ayarlar: fare eklentisi, link izni
+// v0.34 – 2026-10-22: ilk açılışta Fare eklentisini kurmayı önerir; çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -193,6 +193,32 @@ fun TvScreen(
         }
     }
     LaunchedEffect(note) { if (note != null) { delay(6000); note = null } }
+
+    // İlk açılışta (TV): Fare eklentisi yoksa ya da eskiyse kurmayı öner
+    var farePrompt by remember {
+        mutableStateOf(
+            isTv(ctx) && com.onur.tvgonder.Apps.fareVersion(ctx) < com.onur.tvgonder.Apps.FARE_LATEST &&
+                !ctx.getSharedPreferences("tvgonder", 0).getBoolean("fareAsked_${com.onur.tvgonder.Apps.FARE_LATEST}", false)
+        )
+    }
+    if (farePrompt) {
+        val fScope = rememberCoroutineScope()
+        val installed = remember { com.onur.tvgonder.Apps.fareVersion(ctx) >= 0 }
+        fun done() { farePrompt = false; ctx.getSharedPreferences("tvgonder", 0).edit().putBoolean("fareAsked_${com.onur.tvgonder.Apps.FARE_LATEST}", true).apply() }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { farePrompt = false },
+            containerColor = PanelHi,
+            title = { Text(if (installed) "Fare eklentisi güncellensin mi?" else "Fare eklentisi de kurulsun mu?") },
+            text = { Text("Telefonu her uygulamada fare gibi kullanmak için gerekir. Kurulunca açılan listede \"TV Gönder Fare\"yi seçip aç.", style = MaterialTheme.typography.bodyLarge) },
+            confirmButton = {
+                androidx.compose.material3.Button(onClick = {
+                    done()
+                    fScope.launch { withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.onur.tvgonder.Apps.downloadAndInstallFare(ctx) } } }
+                }) { Text(if (installed) "Güncelle" else "Kur") }
+            },
+            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { done() }) { Text("Şimdi değil") } },
+        )
+    }
 
     BackHandler(enabled = stack.size > 1) { pop() }
     // Ana ekranda Geri: yanlışlıkla çıkılmasın, iki kez basınca çıkar

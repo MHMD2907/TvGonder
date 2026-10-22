@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: oturumlu kurulumun sonucu: onay ekranını açar, hata olursa bildirir
+// v0.34 – 2026-10-22: kurulum sonucu: onay ekranı, hata; Fare eklentisi kurulunca açma ekranına götürür
 package com.onur.tvgonder
 
 import android.content.BroadcastReceiver
@@ -16,7 +16,14 @@ class InstallReceiver : BroadcastReceiver() {
                 else @Suppress("DEPRECATION") i.getParcelableExtra(Intent.EXTRA_INTENT)
                 confirm?.let { runCatching { c.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
             }
-            PackageInstaller.STATUS_SUCCESS -> Toast.makeText(c, "Kurulum tamamlandı ✓", Toast.LENGTH_LONG).show()
+            PackageInstaller.STATUS_SUCCESS -> {
+                Toast.makeText(c, "Kurulum tamamlandı ✓", Toast.LENGTH_LONG).show()
+                // Fare eklentisi kurulduysa: açma ekranına götür
+                if (i.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) == Apps.FARE && !Apps.fareEnabled(c)) {
+                    Toast.makeText(c, "Şimdi listede \"TV Gönder Fare\"yi seç ve aç", Toast.LENGTH_LONG).show()
+                    runCatching { c.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                }
+            }
             PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
             else -> {
                 val msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""

@@ -148,7 +148,6 @@
         <activity
             android:name=".FullActivity"
             android:exported="false"
-            android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 

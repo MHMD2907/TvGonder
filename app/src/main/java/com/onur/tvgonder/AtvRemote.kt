@@ -1,10 +1,8 @@
-// v0.31 – 2026-10-21: Google TV / Android TV'nin kendi Wi‑Fi kumanda hizmeti (Google TV uygulamasıyla aynı yol): eşleşme kodu, tuşlar, link açma
+// v0.34 – 2026-10-22: Google TV kumanda hizmeti: anahtar uygulama içinde üretilir (anahtar kasası RSA hatası giderildi); eşleşme, tuşlar, link açma
 package com.onur.tvgonder
 
 import android.content.Context
 import android.os.Build
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -13,20 +11,17 @@ import java.math.BigInteger
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.KeyPairGenerator
-import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Principal
 import java.security.PrivateKey
 import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.RSAKeyGenParameterSpec
-import java.util.Calendar
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.X509ExtendedKeyManager
 import javax.net.ssl.X509TrustManager
-import javax.security.auth.x500.X500Principal
 
 /**
  * TV'nin içindeki "Android TV Remote Service" ile konuşur (6466: kumanda, 6467: eşleşme).
@@ -95,35 +90,77 @@ object AtvRemote {
 
     // ---------------------------------------------------------------- istemci sertifikası (telefonun kimliği)
 
-    private fun keyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+    // Not: Telefonun güvenli anahtar kasası (AndroidKeyStore) bazı telefonlarda TLS imzasında
+    // "RSA internal error" veriyor. Bu yüzden anahtar uygulamanın kendi içinde (yazılımla) üretilip saklanır.
+    @Volatile private var filesDir: java.io.File? = null
+    @Volatile private var identity: Pair<PrivateKey, X509Certificate>? = null
 
-    private fun ensureKey() {
-        val ks = keyStore()
-        if (ks.containsAlias(ALIAS)) return
-        val start = Calendar.getInstance(); val end = Calendar.getInstance().apply { add(Calendar.YEAR, 20) }
-        val spec = KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
-            .setAlgorithmParameterSpec(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
-            .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA1, KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
-            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1, KeyProperties.SIGNATURE_PADDING_RSA_PSS)
-            .setCertificateSubject(X500Principal("CN=atvremote"))
-            .setCertificateSerialNumber(BigInteger.valueOf(1000))
-            .setCertificateNotBefore(start.time).setCertificateNotAfter(end.time)
-            .build()
-        KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore").apply { initialize(spec); generateKeyPair() }
+    private fun der(tag: Int, body: ByteArray): ByteArray {
+        val o = ByteArrayOutputStream(); o.write(tag)
+        val n = body.size
+        when {
+            n < 0x80 -> o.write(n)
+            n < 0x100 -> { o.write(0x81); o.write(n) }
+            n < 0x10000 -> { o.write(0x82); o.write(n shr 8); o.write(n and 0xFF) }
+            else -> { o.write(0x83); o.write(n shr 16); o.write((n shr 8) and 0xFF); o.write(n and 0xFF) }
+        }
+        o.write(body); return o.toByteArray()
+    }
+    private fun seq(vararg p: ByteArray) = der(0x30, p.fold(ByteArray(0)) { a, b -> a + b })
+    private fun oid(vararg parts: Int): ByteArray {
+        val o = ByteArrayOutputStream(); o.write(parts[0] * 40 + parts[1])
+        for (v in parts.drop(2)) {
+            val stack = ArrayList<Int>(); var x = v; stack.add(x and 0x7F); x = x ushr 7
+            while (x > 0) { stack.add((x and 0x7F) or 0x80); x = x ushr 7 }
+            stack.reversed().forEach { o.write(it) }
+        }
+        return der(0x06, o.toByteArray())
     }
 
-    private fun clientCert(): X509Certificate = keyStore().getCertificate(ALIAS) as X509Certificate
+    /** Kendinden imzalı X.509 (v3) sertifika: CN=atvremote, SHA256withRSA. */
+    private fun selfSigned(kp: java.security.KeyPair): X509Certificate {
+        val sha256rsa = seq(oid(1, 2, 840, 113549, 1, 1, 11), byteArrayOf(0x05, 0x00))
+        val name = seq(der(0x31, seq(oid(2, 5, 4, 3), der(0x0C, "atvremote".toByteArray()))))
+        val fmt = java.text.SimpleDateFormat("yyMMddHHmmss'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+        val now = System.currentTimeMillis()
+        val validity = seq(der(0x17, fmt.format(java.util.Date(now - 86_400_000L)).toByteArray()), der(0x17, "491231235959Z".toByteArray()))
+        val tbs = seq(
+            der(0xA0, der(0x02, byteArrayOf(2))),          // sürüm v3
+            der(0x02, BigInteger.valueOf(now).toByteArray()),
+            sha256rsa, name, validity, name,
+            kp.public.encoded,                               // SubjectPublicKeyInfo
+        )
+        val sig = java.security.Signature.getInstance("SHA256withRSA").apply { initSign(kp.private); update(tbs) }.sign()
+        val cert = seq(tbs, sha256rsa, der(0x03, byteArrayOf(0) + sig))
+        return java.security.cert.CertificateFactory.getInstance("X.509").generateCertificate(cert.inputStream()) as X509Certificate
+    }
+
+    private fun ensureKey(): Pair<PrivateKey, X509Certificate> {
+        identity?.let { return it }
+        val dir = java.io.File(filesDir ?: error("hazır değil"), "atv").apply { mkdirs() }
+        val kf = java.io.File(dir, "key.pk8"); val cf = java.io.File(dir, "cert.der")
+        if (kf.exists() && cf.exists()) runCatching {
+            val key = java.security.KeyFactory.getInstance("RSA").generatePrivate(java.security.spec.PKCS8EncodedKeySpec(kf.readBytes()))
+            val cert = java.security.cert.CertificateFactory.getInstance("X.509").generateCertificate(cf.inputStream()) as X509Certificate
+            return (key to cert).also { identity = it }
+        }
+        val kp = KeyPairGenerator.getInstance("RSA").apply { initialize(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4)) }.generateKeyPair()
+        val cert = selfSigned(kp)
+        kf.writeBytes(kp.private.encoded); cf.writeBytes(cert.encoded)
+        return (kp.private to cert).also { identity = it }
+    }
+
+    private fun clientCert(): X509Certificate = ensureKey().second
 
     private fun ssl(): SSLContext {
-        ensureKey()
-        val ks = keyStore()
+        val (key, cert) = ensureKey()
         val km = object : X509ExtendedKeyManager() {
             override fun getClientAliases(t: String?, i: Array<out Principal>?) = arrayOf(ALIAS)
             override fun chooseClientAlias(t: Array<out String>?, i: Array<out Principal>?, s: Socket?) = ALIAS
             override fun getServerAliases(t: String?, i: Array<out Principal>?): Array<String>? = null
             override fun chooseServerAlias(t: String?, i: Array<out Principal>?, s: Socket?): String? = null
-            override fun getCertificateChain(a: String?) = arrayOf(ks.getCertificate(ALIAS) as X509Certificate)
-            override fun getPrivateKey(a: String?) = ks.getKey(ALIAS, null) as PrivateKey
+            override fun getCertificateChain(a: String?) = arrayOf(cert)
+            override fun getPrivateKey(a: String?) = key
         }
         val trustAll = object : X509TrustManager {
             override fun checkClientTrusted(c: Array<out X509Certificate>?, a: String?) {}
@@ -131,6 +168,14 @@ object AtvRemote {
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
         return SSLContext.getInstance("TLS").apply { init(arrayOf(km), arrayOf(trustAll), null) }
+    }
+
+    /** Teknik hata metinlerini anlaşılır hale getirir. */
+    private fun friendly(e: Exception): String = when {
+        e is java.net.ConnectException || e is java.net.NoRouteToHostException -> "TV'ye ulaşılamadı. TV açık ve telefonla aynı Wi‑Fi'da mı?"
+        e is java.net.SocketTimeoutException -> "TV cevap vermedi. TV açık mı?"
+        e is javax.net.ssl.SSLException -> "TV ile güvenli bağlantı kurulamadı. TV'yi yeniden başlatıp tekrar dene."
+        else -> e.message ?: e.javaClass.simpleName
     }
 
     private fun open(h: String, port: Int): SSLSocket {
@@ -147,6 +192,7 @@ object AtvRemote {
 
     /** TV'de 6 haneli kodu gösterir. */
     fun startPairing(c: Context, h: String) {
+        filesDir = c.filesDir
         host = h
         state.value = State.Pairing
         message.value = "TV'ye bağlanılıyor…"
@@ -167,7 +213,7 @@ object AtvRemote {
                 }
             } catch (e: Exception) {
                 state.value = State.Error
-                message.value = "Eşleşme başlatılamadı: ${e.message}. TV açık ve aynı Wi‑Fi'da mı?"
+                message.value = "Eşleşme başlatılamadı: ${friendly(e)}"
             }
         }
     }
@@ -208,7 +254,7 @@ object AtvRemote {
                 connect(c, host!!)
             } catch (e: Exception) {
                 state.value = State.Error
-                message.value = "Eşleşme olmadı: ${e.message}"
+                message.value = "Eşleşme olmadı: ${friendly(e)}"
             }
         }
     }
@@ -218,6 +264,7 @@ object AtvRemote {
     // ---------------------------------------------------------------- kumanda bağlantısı
 
     fun connect(c: Context, h: String) {
+        filesDir = c.filesDir
         if (state.value == State.Connected && host == h && sock?.isClosed == false) return
         host = h
         state.value = State.Connecting
@@ -228,7 +275,7 @@ object AtvRemote {
                 // Eşleşmemiş telefonu TV bağlantı sırasında reddeder
                 val pairedBefore = isPaired(c, h)
                 state.value = if (e is javax.net.ssl.SSLException || !pairedBefore) State.NeedPairing else State.Error
-                message.value = if (state.value == State.NeedPairing) "Bu telefon TV ile bir kez eşleşmeli" else "TV'ye ulaşılamadı: ${e.message}"
+                message.value = if (state.value == State.NeedPairing) "Bu telefon TV ile bir kez eşleşmeli" else friendly(e)
                 if (state.value == State.NeedPairing) c.getSharedPreferences("atv", Context.MODE_PRIVATE).edit().remove("paired_$h").apply()
                 return@execute
             }

@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: tam ekran yatay sayfa (oyun kolu, TV ekranını gör), kızılötesi ve TV kumandası sayfaları
+// v0.34 – 2026-10-22: tam ekran sayfa (TV ekranını gör yatay; Bluetooth sekmeye göre döner), kızılötesi ve TV kumandası sayfaları
 package com.onur.tvgonder
 
 import android.content.Context
@@ -35,6 +35,7 @@ class FullActivity : ComponentActivity() {
         }
         val store = Store(this)
         val mode = intent.getStringExtra("mode") ?: "pad"
+        if (mode == "tv") requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         setContent {
             AppTheme {
                 when (mode) {

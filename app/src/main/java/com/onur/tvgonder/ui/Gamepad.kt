@@ -1,4 +1,4 @@
-// v0.30 – 2026-10-20: Bluetooth Kumanda sekmesi: kanal +/−, arama, rakamlar; telefon TV'yi arar/eşleşir; oyun kolu, fare, medya tuşları
+// v0.34 – 2026-10-22: Bluetooth: Kumanda sekmesi dikey (oyun kolu yatay), eşleşme kodu kutusu, klavye tanımı kaldırıldı; oyun kolu, fare
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -81,6 +81,14 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
         a?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         onDispose { if (old != null) a?.requestedOrientation = old }
     }
+    // Kumanda dikey, oyun kolu yatay; diğerleri telefonun tutuşuna göre
+    if (full) LaunchedEffect(tab) {
+        ctx.act()?.requestedOrientation = when (tab) {
+            0 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            3 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
     LaunchedEffect(Unit) { if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) }
     LaunchedEffect(ready) { if (ready) devices = BtPad.bonded() }
 
@@ -89,13 +97,19 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             // Üst çubuk
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("🎮", fontSize = 22.sp)
-                Text(status, Modifier.weight(1f), color = if (connected != null) Accent else TextMuted, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                Text(status, Modifier.weight(1f), color = if (connected != null) Accent else TextMuted, maxLines = 2, style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = { BtPad.stop(); onClose() }) { Text("Kapat") }
+            }
+            Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PadTab("Kumanda", tab == 3) { tab = 3 }
                 PadTab("Kol", tab == 0) { tab = 0 }
                 PadTab("Fare", tab == 1) { tab = 1 }
                 PadTab("Bağlantı", tab == 2) { tab = 2 }
-                TextButton(onClick = { BtPad.stop(); onClose() }) { Text("Kapat") }
             }
+            // TV eşleşme kodu isterse (telefonda kutu çıkmıyordu)
+            val pin by BtPad.pinRequest.collectAsState()
+            pin?.let { req -> PinCard(req) }
+            Spacer(Modifier.height(6.dp))
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
                     3 -> PadRemote()
@@ -145,6 +159,36 @@ private fun PadTab(label: String, on: Boolean, onClick: () -> Unit) {
     )
 }
 
+// ---------------------------------------------------------------- eşleşme kodu
+
+/** TV Bluetooth eşleşmesinde kod isterse: kodu buraya yaz ya da gösterilen kodu onayla. */
+@Composable
+private fun PinCard(req: BtPad.PinRequest) {
+    val ctx = LocalContext.current
+    var pin by remember(req) { mutableStateOf("") }
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (req.enter) {
+            Text("TV ekranında çıkan kodu yaz:", color = TextMain)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    pin, { pin = it.filter { c -> c.isDigit() }.take(8) }, Modifier.weight(1f), singleLine = true,
+                    label = { Text("Kod") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                )
+                androidx.compose.material3.Button(onClick = { BtPad.submitPin(pin) }, enabled = pin.length >= 4) { Text("Gönder") }
+            }
+        } else {
+            Text("Eşleşme kodu: ${req.key}", color = TextMain, style = MaterialTheme.typography.titleMedium)
+            Text("TV'deki kodla aynıysa TV'de Eşle'ye bas; telefonda çıkan pencere ya da bildirimde de Eşle / Tamam de.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { runCatching { ctx.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } }) { Text("Bluetooth ayarlarını aç") }
+        }
+        TextButton(onClick = { BtPad.pinRequest.value = null }) { Text("Kapat") }
+    }
+}
+
 // ---------------------------------------------------------------- bağlantı
 
 @Composable
@@ -154,8 +198,8 @@ private fun PadConnect(
 ) {
     val found by BtPad.found.collectAsState()
     val scanning by BtPad.scanning.collectAsState()
-    Row(Modifier.fillMaxSize().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!ready) TextButton(onClick = onRetry) { Text("↻ Yeniden başlat") }
             androidx.compose.material3.Button(onClick = onScan, enabled = !scanning) {
                 Text(if (scanning) "Aranıyor…" else "🔍 Yakındaki cihazları ara (TV'yi bul)")
@@ -191,7 +235,7 @@ private fun PadConnect(
                 TextButton(onClick = onVisible) { Text("👁 Telefonu görünür yap") }
             }
         }
-        Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Panel).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("İlk kez (bir kere):", color = TextMain, style = MaterialTheme.typography.titleSmall)
             listOf(
                 "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle. Bu ekranda kalsın (TV görünür olur).",
@@ -231,9 +275,44 @@ private fun PadRemote() {
             contentAlignment = Alignment.Center,
         ) { Text(label, color = TextMain, maxLines = 1, fontSize = 18.sp) }
     }
-    Row(Modifier.fillMaxSize().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val portrait = maxHeight > maxWidth
+    val body: @Composable (Modifier, Modifier) -> Unit = { dm, km -> RemoteBody(dm, km) }
+    if (portrait) Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        body(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
+    } else Row(Modifier.fillMaxSize().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+        body(Modifier.weight(1.1f), Modifier.weight(1.2f))
+    }
+    }
+}
+
+@Composable
+private fun RemoteBody(dm: Modifier, km: Modifier) {
+    @Composable
+    fun Arrow(label: String, h: Int, m: Modifier) {
+        var down by remember { mutableStateOf(false) }
+        Box(
+            m.clip(RoundedCornerShape(18.dp)).background(if (down) Accent else PanelHi)
+                .pointerInput(h) {
+                    detectTapGestures(onPress = {
+                        down = true; BtPad.pressHat(h)
+                        tryAwaitRelease()
+                        down = false; if (BtPad.hat == h) BtPad.pressHat(8)
+                    })
+                },
+            contentAlignment = Alignment.Center,
+        ) { Text(label, fontSize = 30.sp, color = if (down) Ink else TextMain) }
+    }
+    @Composable
+    fun Key(label: String, usage: Int, m: Modifier) {
+        Box(
+            m.clip(RoundedCornerShape(16.dp)).background(PanelHi).clickable { BtPad.key(usage) },
+            contentAlignment = Alignment.Center,
+        ) { Text(label, color = TextMain, maxLines = 1, fontSize = 18.sp) }
+    }
+    run {
         // Yön tuşları + OK
-        Column(Modifier.weight(1.1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(dm, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val b = Modifier.size(84.dp)
             Arrow("▲", 0, b)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -255,22 +334,11 @@ private fun PadRemote() {
             Arrow("▼", 4, b)
         }
         // Diğer tuşlar
-        Column(Modifier.weight(1.2f).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(km, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val k = Modifier.weight(1f).height(50.dp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("⟵ Geri", BtPad.C_BACK, k); Key("⌂ Ana ekran", BtPad.C_HOME, k); Key("☰ Menü", BtPad.C_MENU, k) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("🔉", BtPad.C_VOL_DOWN, k); Key("🔇", BtPad.C_MUTE, k); Key("🔊", BtPad.C_VOL_UP, k); Key("⏯", BtPad.C_PLAY, k) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Key("P −", BtPad.C_CH_DOWN, k); Key("P +", BtPad.C_CH_UP, k); Key("🔍 Ara", BtPad.C_SEARCH, k) }
-            // Rakamlar
-            listOf(listOf(1, 2, 3, 4, 5), listOf(6, 7, 8, 9, 0)).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    row.forEach { d ->
-                        Box(
-                            Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(12.dp)).background(Panel).clickable { BtPad.digit(d) },
-                            contentAlignment = Alignment.Center,
-                        ) { Text("$d", color = TextMain, fontSize = 18.sp) }
-                    }
-                }
-            }
         }
     }
 }

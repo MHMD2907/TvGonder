@@ -1,4 +1,4 @@
-// v0.30 – 2026-10-20: Bluetooth kumanda: kanal +/−, arama, rakamlar (klavye raporu); telefon TV'yi arar/eşleşir/bağlanır; oyun kolu, fare
+// v0.34 – 2026-10-22: Bluetooth kumanda: klavye tanımı kaldırıldı (TV kod yazdırmasın), eşleşme kodu telefonda girilir; arama/eşleşme/bağlanma, oyun kolu, fare
 package com.onur.tvgonder
 
 import android.annotation.SuppressLint
@@ -64,12 +64,6 @@ object BtPad {
         0x05, 0x0C, 0x09, 0x01, 0xA1.toByte(), 0x01, 0x85.toByte(), 0x03,
         0x15, 0x00, 0x26, 0xFF.toByte(), 0x03, 0x19, 0x00, 0x2A, 0xFF.toByte(), 0x03, 0x75, 0x10, 0x95.toByte(), 0x01, 0x81.toByte(), 0x00,
         0xC0.toByte(),
-        // Klavye (rakamlar, Enter): rapor 4
-        0x05, 0x01, 0x09, 0x06, 0xA1.toByte(), 0x01, 0x85.toByte(), 0x04,
-        0x05, 0x07, 0x19, 0xE0.toByte(), 0x29, 0xE7.toByte(), 0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95.toByte(), 0x08, 0x81.toByte(), 0x02,
-        0x95.toByte(), 0x01, 0x75, 0x08, 0x81.toByte(), 0x01,
-        0x95.toByte(), 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x65, 0x05, 0x07, 0x19, 0x00, 0x29, 0x65, 0x81.toByte(), 0x00,
-        0xC0.toByte(),
     )
 
     @RequiresApi(28)
@@ -131,6 +125,17 @@ object BtPad {
     }
 
     /** Daha önce Bluetooth ile eşleşmiş cihazlar (TV burada görünmeli). */
+    /** TV eşleşmede kod isterse (enter=true: kodu telefona yaz) ya da kod gösterirse. */
+    data class PinRequest(val device: BluetoothDevice, val enter: Boolean, val key: Int)
+    val pinRequest = MutableStateFlow<PinRequest?>(null)
+
+    fun submitPin(pin: String) {
+        val r = pinRequest.value ?: return
+        val ok = runCatching { r.device.setPin(pin.toByteArray()) }.getOrDefault(false)
+        status.value = if (ok) "Kod gönderildi, eşleşiyor…" else "Kod gönderilemedi – telefonun Bluetooth ayarlarından TV'ye dokunup kodu orada gir"
+        pinRequest.value = null
+    }
+
     /** Telefonun aramada bulduğu cihazlar (TV "Aksesuar ekle" ekranındayken görünür olur). */
     val found = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val scanning = MutableStateFlow(false)
@@ -146,13 +151,19 @@ object BtPad {
                     val d: BluetoothDevice? = if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
                     else i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     when (i.action) {
+                        BluetoothDevice.ACTION_PAIRING_REQUEST -> if (d != null) {
+                            val v = i.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1)
+                            val key = i.getIntExtra(BluetoothDevice.EXTRA_PAIRING_KEY, -1)
+                            // 0: PIN yaz · 1: TV'nin gösterdiği sayıyı yaz · 2: aynı sayı mı onayla
+                            pinRequest.value = PinRequest(d, enter = v == BluetoothDevice.PAIRING_VARIANT_PIN || v == 1, key = key)
+                        }
                         BluetoothDevice.ACTION_FOUND -> if (d != null && found.value.none { it.address == d.address }) found.value = found.value + d
                         BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> scanning.value = false
                         BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                             val st = i.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
                             if (d != null && d.address == wanted?.address) when (st) {
                                 BluetoothDevice.BOND_BONDING -> status.value = "Eşleşiyor… TV'de ve telefonda çıkan kodu onayla"
-                                BluetoothDevice.BOND_BONDED -> { status.value = "Eşleşti, bağlanıyor…"; connect(d) }
+                                BluetoothDevice.BOND_BONDED -> { pinRequest.value = null; status.value = "Eşleşti, bağlanıyor…"; connect(d) }
                                 BluetoothDevice.BOND_NONE -> status.value = "Eşleşme olmadı – TV \"Aksesuar ekle\" ekranındayken tekrar dene"
                             }
                         }
@@ -163,6 +174,8 @@ object BtPad {
                 addAction(BluetoothDevice.ACTION_FOUND)
                 addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
                 addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+                priority = 1000
             }
             androidx.core.content.ContextCompat.registerReceiver(c.applicationContext, r, f, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
             receiver = r
@@ -232,13 +245,6 @@ object BtPad {
     }
 
     fun click() { mouseButton(0, true); mouseButton(0, false) }
-
-    /** Klavyeden rakam: '0'..'9' (TV'de kanal/numara girişi). */
-    fun digit(d: Int) {
-        val code = if (d == 0) 0x27 else 0x1D + d   // 1 → 0x1E … 9 → 0x26, 0 → 0x27
-        report(4, byteArrayOf(0, 0, code.toByte(), 0, 0, 0, 0, 0))
-        report(4, ByteArray(8))
-    }
 
     fun key(usage: Int) {
         report(3, byteArrayOf((usage and 0xFF).toByte(), ((usage shr 8) and 0xFF).toByte()))

@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: kılavuz: TV kumandası (Wi‑Fi), Dosyalarım taşı/kopyala/yeni klasör, çift Geri ile çıkış; Bluetooth, kızılötesi, yansıtma
+// v0.34 – 2026-10-22: kılavuz: Bluetooth eşleşme kodu, kumanda dikey; TV kumandası, Dosyalarım taşı/kopyala, kızılötesi, yansıtma
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -111,8 +111,9 @@ object GuideText {
             "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",
             "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle; bu ekranda kalsın.",
             "2. Telefon: Bluetooth kumanda → Bağlantı → \"🔍 Yakındaki cihazları ara\" → listede TV'ye dokun. Kod çıkarsa iki tarafta da onayla.",
-            "3. \"Bağlı\" yazınca Kumanda sekmesine geç. Sonraki seferlerde: Bağlantı → eşleşmiş TV'ye dokun.",
-            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses, kanal +/−, Ara, rakamlar — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
+            "3. TV kod isterse telefonda kod kutusu çıkar: TV'deki kodu yaz → Gönder. Kod gösterilirse iki tarafta da Eşle de.",
+            "4. \"Bağlı\" yazınca Kumanda sekmesine geç (dikey açılır; Kol sekmesi yatay). Sonraki seferlerde: Bağlantı → eşleşmiş TV'ye dokun.",
+            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses, kanal +/−, Ara (rakamlar için \"TV kumandası (hızlı)\") — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
             "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
             "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
         ),
