@@ -1,4 +1,4 @@
-// v0.32 – 2026-10-21: TV kumandası ekranı: güncel TV adresi önce; eşleşme, yön/OK, ses, kanal, rakamlar, güç, medya
+// v0.35 – 2026-10-23: TV kumandası: "TV Gönder'i aç" düğmesi (uygulamanın ana ekranı), ⌂ TV'nin ana ekranı; eşleşme, tuşlar
 package com.onur.tvgonder.ui
 
 import android.view.KeyEvent
@@ -137,7 +137,16 @@ fun AtvRemoteScreen(onClose: () -> Unit) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val m = Modifier.weight(1f).height(54.dp)
-            K("⟵ Geri", KeyEvent.KEYCODE_BACK, m); K("⌂ Ana ekran", KeyEvent.KEYCODE_HOME, m); K("☰", KeyEvent.KEYCODE_MENU, m)
+            K("⟵ Geri", KeyEvent.KEYCODE_BACK, m); K("⌂ TV ana ekranı", KeyEvent.KEYCODE_HOME, m); K("☰", KeyEvent.KEYCODE_MENU, m)
+        }
+        // TV Gönder'i TV'de açar (kendi ana ekranıyla); ⌂ ise TV'nin kendi ana ekranına gider
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(
+                Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp))
+                    .background(if (on) Color(0xFF2E6F8E) else Color(0xFF2E6F8E).copy(alpha = 0.35f))
+                    .clickable(enabled = on) { AtvRemote.launch("tvgonder://home") },
+                contentAlignment = Alignment.Center,
+            ) { Text("📺 TV Gönder'i aç", color = Color.White, fontSize = 18.sp) }
         }
         // Ses / kanal
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

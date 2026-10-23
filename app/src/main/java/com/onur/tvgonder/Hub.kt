@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: ekran yansıtma durumu (gelen/giden); gelen dosya bildirimi, link açma, ön planda mı
+// v0.35 – 2026-10-23: ana ekrana dönüş isteği; ekran yansıtma durumu, gelen dosya, link açma, ön planda mı
 package com.onur.tvgonder
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +26,8 @@ object Hub {
     @Volatile var foreground = false
     /** Bu cihaza gelen ekran yansıtması (TV/tablette gösterilir). */
     val mirrorIn = MutableStateFlow<com.onur.tvgonder.mirror.MirrorSession?>(null)
+    /** TV kumandasındaki "TV Gönder" düğmesi: TV Gönder'in ana ekranına dön (değer her basışta değişir). */
+    val goHome = MutableStateFlow(0L)
     /** Bu cihaz şu an ekranını yansıtıyor mu. */
     val mirrorOut = MutableStateFlow(false)
 }

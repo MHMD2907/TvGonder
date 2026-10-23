@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: Bluetooth kumanda: klavye tanımı kaldırıldı (TV kod yazdırmasın), eşleşme kodu telefonda girilir; arama/eşleşme/bağlanma, oyun kolu, fare
+// v0.35 – 2026-10-23: oyun kolu/kumanda tuşları TV kumandası bağlıysa Wi‑Fi'dan gider (Bluetooth eşleşmesi gerekmez); Bluetooth yedek yol
 package com.onur.tvgonder
 
 import android.annotation.SuppressLint
@@ -215,13 +215,59 @@ object BtPad {
 
     private fun b(v: Int) = v.coerceIn(-127, 127).toByte()
 
-    fun sendPad() = report(1, byteArrayOf(
-        (buttons and 0xFF).toByte(), ((buttons shr 8) and 0xFF).toByte(), (hat and 0x0F).toByte(),
-        b(lx), b(ly), b(rx), b(ry),
-    ))
+    // ---------------------------------------------------------------- Wi‑Fi yolu (TV kumandası bağlıysa)
+    // Bluetooth eşleşmesi gerekmez: tuşlar TV'nin kendi kumanda hizmetine gider (basılı tutma dahil).
+
+    /** TV kumandası (hızlı) bağlıysa oyun kolu ve kumanda tuşları Wi‑Fi'dan gider. */
+    val wifi: Boolean get() = AtvRemote.state.value == AtvRemote.State.Connected
+
+    private val btnKey = mapOf(
+        A to android.view.KeyEvent.KEYCODE_BUTTON_A, B to android.view.KeyEvent.KEYCODE_BUTTON_B,
+        X to android.view.KeyEvent.KEYCODE_BUTTON_X, Y to android.view.KeyEvent.KEYCODE_BUTTON_Y,
+        L1 to android.view.KeyEvent.KEYCODE_BUTTON_L1, R1 to android.view.KeyEvent.KEYCODE_BUTTON_R1,
+        L2 to android.view.KeyEvent.KEYCODE_BUTTON_L2, R2 to android.view.KeyEvent.KEYCODE_BUTTON_R2,
+        SELECT to android.view.KeyEvent.KEYCODE_BUTTON_SELECT, START to android.view.KeyEvent.KEYCODE_BUTTON_START,
+        MODE to android.view.KeyEvent.KEYCODE_BUTTON_MODE, L3 to android.view.KeyEvent.KEYCODE_BUTTON_THUMBL,
+        R3 to android.view.KeyEvent.KEYCODE_BUTTON_THUMBR,
+    )
+    private val consumerKey = mapOf(
+        C_BACK to android.view.KeyEvent.KEYCODE_BACK, C_HOME to android.view.KeyEvent.KEYCODE_HOME,
+        C_MENU to android.view.KeyEvent.KEYCODE_MENU, C_PLAY to android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+        C_VOL_UP to android.view.KeyEvent.KEYCODE_VOLUME_UP, C_VOL_DOWN to android.view.KeyEvent.KEYCODE_VOLUME_DOWN,
+        C_MUTE to android.view.KeyEvent.KEYCODE_VOLUME_MUTE, C_CH_UP to android.view.KeyEvent.KEYCODE_CHANNEL_UP,
+        C_CH_DOWN to android.view.KeyEvent.KEYCODE_CHANNEL_DOWN, C_SEARCH to android.view.KeyEvent.KEYCODE_SEARCH,
+    )
+    private val held = HashSet<Int>()   // Wi‑Fi'da basılı tutulan yön tuşları
+
+    private fun dirKeys(): Set<Int> {
+        val k = HashSet<Int>()
+        val up = android.view.KeyEvent.KEYCODE_DPAD_UP; val dn = android.view.KeyEvent.KEYCODE_DPAD_DOWN
+        val lf = android.view.KeyEvent.KEYCODE_DPAD_LEFT; val rt = android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+        when (hat) { 0 -> k += up; 1 -> { k += up; k += rt }; 2 -> k += rt; 3 -> { k += dn; k += rt }
+            4 -> k += dn; 5 -> { k += dn; k += lf }; 6 -> k += lf; 7 -> { k += up; k += lf } }
+        // Sol çubuk da yön tuşu gibi davranır
+        if (ly < -60) k += up; if (ly > 60) k += dn; if (lx < -60) k += lf; if (lx > 60) k += rt
+        return k
+    }
+
+    @Synchronized private fun syncDirs() {
+        val now = dirKeys()
+        for (k in held - now) AtvRemote.key(k, 2)     // bırak
+        for (k in now - held) AtvRemote.key(k, 1)     // bas (basılı tut)
+        held.clear(); held.addAll(now)
+    }
+
+    fun sendPad() {
+        if (wifi) { syncDirs(); return }
+        report(1, byteArrayOf(
+            (buttons and 0xFF).toByte(), ((buttons shr 8) and 0xFF).toByte(), (hat and 0x0F).toByte(),
+            b(lx), b(ly), b(rx), b(ry),
+        ))
+    }
 
     fun press(btn: Int, down: Boolean) {
         buttons = if (down) buttons or (1 shl btn) else buttons and (1 shl btn).inv()
+        if (wifi) { btnKey[btn]?.let { AtvRemote.key(it, if (down) 1 else 2) }; return }
         sendPad()
     }
 
@@ -247,6 +293,7 @@ object BtPad {
     fun click() { mouseButton(0, true); mouseButton(0, false) }
 
     fun key(usage: Int) {
+        if (wifi) { consumerKey[usage]?.let { AtvRemote.key(it) }; return }
         report(3, byteArrayOf((usage and 0xFF).toByte(), ((usage shr 8) and 0xFF).toByte()))
         report(3, byteArrayOf(0, 0))
     }

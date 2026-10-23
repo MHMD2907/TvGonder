@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: kılavuz: Bluetooth eşleşme kodu, kumanda dikey; TV kumandası, Dosyalarım taşı/kopyala, kızılötesi, yansıtma
+// v0.35 – 2026-10-23: kılavuz: TV Gönder'i aç düğmesi, oyun kolu Wi‑Fi; Bluetooth, TV kumandası, Dosyalarım, kızılötesi, yansıtma
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -106,6 +106,8 @@ object GuideText {
             "2. İlk seferde \"Eşleşmeyi başlat\" → TV ekranında 6 haneli kod çıkar → kodu yaz → Eşleştir. Bir kez yapılır.",
             "• Tuşlar: güç, kaynak, ayarlar, sessiz, yön + OK, Geri, Ana ekran, menü, ses, kanal, oynat/sar, rakamlar, renkli tuşlar. Ses/kanal/yön basılı tutunca tekrarlar.",
             "• Eşleştikten sonra telefondan gönderilen YouTube linkleri bu yolla açılır: TV'de YouTube açıkken bile yeni video açılır.",
+            "• \"📺 TV Gönder'i aç\": TV Gönder'i kendi ana ekranıyla açar. \"⌂ TV ana ekranı\" ise TV'nin kendi ana ekranına gider (uygulamadan çıkar).",
+            "• Eşleştikten sonra \"Oyun kolu\" da Bluetooth'suz, bu bağlantı üzerinden çalışır (yön tuşları, A B X Y, L/R, Start; sol çubuk yön tuşu gibi).",
         ),
         "9. Bluetooth oyun kolu ve fare" to listOf(
             "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",

@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: eklentisiz fare için ekrandaki aktiviteyi InAppMouse'a bağlar; alıcı modu, paylaşımlar
+// v0.35 – 2026-10-23: tvgonder://home ile ana ekrana dönüş; eklentisiz fare, alıcı modu, paylaşımlar
 package com.onur.tvgonder
 
 import android.content.Intent
@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.data?.scheme == "tvgonder") Hub.goHome.value = System.currentTimeMillis()
         if (!isTv(this)) readShare(intent)
         if (isTv(this) || store.receiverMode) intent.getStringExtra(LinkOpener.EXTRA_URL)?.let { Hub.openUrl.value = it }
     }
@@ -75,6 +76,8 @@ class MainActivity : ComponentActivity() {
 
     private fun readShare(i: Intent?) {
         if (i == null) return
+        // tvgonder://home → TV Gönder'in ana ekranı (TV kumandasındaki "TV Gönder" düğmesi)
+        if (i.data?.scheme == "tvgonder") return
         if (i.component?.className?.endsWith(".QrShare") == true) {
             IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java)?.let { shared = Shared(files = listOf(it), qr = true) }
             return

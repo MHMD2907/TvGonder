@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: Bluetooth: Kumanda sekmesi dikey (oyun kolu yatay), eşleşme kodu kutusu, klavye tanımı kaldırıldı; oyun kolu, fare
+// v0.35 – 2026-10-23: oyun kolu Wi‑Fi'dan (TV kumandası bağlıysa) ya da Bluetooth'tan; Kumanda dikey, Kol yatay, eşleşme kodu kutusu
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.onur.tvgonder.BtPad
+import com.onur.tvgonder.AtvRemote
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -63,6 +64,8 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
     val status by BtPad.status.collectAsState()
     val ready by BtPad.ready.collectAsState()
     val connected by BtPad.connected.collectAsState()
+    val atv by AtvRemote.state.collectAsState()
+    val wifi = atv == AtvRemote.State.Connected
     var tab by remember { mutableIntStateOf(3) }
     var devices by remember { mutableStateOf(BtPad.bonded()) }
 
@@ -90,6 +93,12 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
+    // Önce Wi‑Fi (TV kumandası) dene: eşleşmişse Bluetooth'a gerek kalmaz
+    LaunchedEffect(Unit) {
+        val st = com.onur.tvgonder.Store(ctx)
+        val h = st.tvHost ?: ctx.getSharedPreferences("atv", 0).getString("host", null)
+        if (h != null && AtvRemote.isPaired(ctx, h)) AtvRemote.connect(ctx, h)
+    }
     LaunchedEffect(Unit) { if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) }
     LaunchedEffect(ready) { if (ready) devices = BtPad.bonded() }
 
@@ -98,7 +107,10 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             // Üst çubuk
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("🎮", fontSize = 22.sp)
-                Text(status, Modifier.weight(1f), color = if (connected != null) Accent else TextMuted, maxLines = 2, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (wifi) "Wi‑Fi ile bağlı ✓ (TV kumandası üzerinden)" else status,
+                    Modifier.weight(1f), color = if (wifi || connected != null) Accent else TextMuted, maxLines = 2, style = MaterialTheme.typography.bodyMedium,
+                )
                 TextButton(onClick = { BtPad.stop(); onClose() }) { Text("Kapat") }
             }
             Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -128,9 +140,16 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
                         onRetry = { if (granted()) { BtPad.stop(); BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) },
                     )
                 }
-                if (connected == null && tab != 2) {
+                if (wifi && tab == 1) {
                     Text(
-                        "Henüz TV'ye bağlı değil → \"Bağlantı\" sekmesi",
+                        "Wi‑Fi'da fare yok. Fare için ana ekrandaki \"Fare / Kumanda\"yı kullan.",
+                        Modifier.align(Alignment.TopCenter).clip(RoundedCornerShape(10.dp)).background(PanelHi).padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = TextMuted, style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (!wifi && connected == null && tab != 2) {
+                    Text(
+                        "Bağlı değil → önce ana ekrandaki \"TV kumandası (hızlı)\" ile eşleş (Wi‑Fi), ya da \"Bağlantı\" sekmesi (Bluetooth)",
                         Modifier.align(Alignment.TopCenter).clip(RoundedCornerShape(10.dp)).background(PanelHi)
                             .clickable { tab = 2 }.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = Danger, style = MaterialTheme.typography.bodySmall,

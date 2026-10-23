@@ -1,4 +1,4 @@
-# v0.4 – 2026-10-21: önce Fare eklentisi derlenip TvGonder'in içine gömülür (internetten indirme gerekmez), sonra TvGonder derlenir; ikisi Releases'a konur
+# v0.5 – 2026-10-23: TvGonder yayın (release) derlemesi (hızlı); Fare eklentisi önce derlenip içine gömülür; ikisi Releases'a konur
 name: APK derle
 
 on:
@@ -31,14 +31,14 @@ jobs:
           # 1) Fare eklentisi → 2) TvGonder'in içine (assets) → 3) TvGonder
           { gradle :fare:assembleDebug --no-daemon && mkdir -p app/src/main/assets && \
             cp fare/build/outputs/apk/debug/fare-debug.apk app/src/main/assets/TvGonderFare.apk && \
-            gradle :app:assembleDebug --no-daemon; } 2>&1 | tee build.log || {
+            gradle :app:assembleRelease --no-daemon; } 2>&1 | tee build.log || {
             grep -E "^e: |error:|ERROR:|What went wrong" -A3 build.log | head -60 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1
           }
 
       - name: APK adını düzenle
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk TvGonder-${{ github.run_number }}.apk
+          cp app/build/outputs/apk/release/app-release.apk TvGonder-${{ github.run_number }}.apk
           cp fare/build/outputs/apk/debug/fare-debug.apk TvGonderFare.apk
 
       - name: Sürüm sayfasına koy

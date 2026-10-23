@@ -115,6 +115,7 @@ fun TvScreen(
     val openUrl by Hub.openUrl.collectAsState()
     val rec by Hub.received.collectAsState()
     val mirror by Hub.mirrorIn.collectAsState()
+    val goHome by Hub.goHome.collectAsState()
 
     var note by remember { mutableStateOf<String?>(null) }
 
@@ -172,6 +173,8 @@ fun TvScreen(
         if (top is TvNav.Web) stack[stack.lastIndex] = TvNav.Web(u) else push(TvNav.Web(u))
         Hub.openUrl.value = null
     }
+    // Telefondaki TV kumandasından "TV Gönder": doğrudan ana ekrana
+    LaunchedEffect(goHome) { if (goHome > 0) while (stack.size > 1) stack.removeAt(stack.lastIndex) }
     // Telefon/tablet ekranını yansıtmaya başladı: yansıtma ekranını aç; bitince kapanır
     LaunchedEffect(mirror) {
         if (mirror != null && top != TvNav.Mirror) push(TvNav.Mirror)

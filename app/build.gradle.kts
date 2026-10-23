@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: sürüm 0.34 (TV kumandası anahtar düzeltmesi, Bluetooth kod kutusu ve dikey kumanda, Fare eklentisi ilk açılış önerisi)
+// v0.35 – 2026-10-23: sürüm 0.35 (yayın derlemesi: hızlı açılış; oyun kolu Wi‑Fi, TV Gönder'i aç düğmesi)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 36
-        versionName = "0.34"
+        versionCode = 37
+        versionName = "0.35"
     }
     signingConfigs {
         getByName("debug") {
@@ -23,6 +23,15 @@ android {
             keyPassword = "android"
         }
     }
+    // Yayın derlemesi: hata ayıklama kapalı → uygulama TV'de çok daha hızlı açılır ve akıcı çalışır.
+    // Aynı anahtarla imzalanır, eski sürümün üzerine (ayarlar silinmeden) kurulur.
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    lint { checkReleaseBuilds = false; abortOnError = false }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
