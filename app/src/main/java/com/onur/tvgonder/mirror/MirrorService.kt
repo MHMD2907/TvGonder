@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: ekranı yansıtır; dönüşte görüntü daha hızlı yataya/dikeye geçer; ses yalnız TV'den
+// v0.36 – 2026-10-24: ekranı yansıtır; sesin durumu telefonda görünür (izin yok / ses gidiyor / uygulama izin vermiyor); dönüş, telefon sesi kısılır
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -251,8 +251,10 @@ class MirrorService : Service() {
     /** Telefonda çalan ses (Android 10+, izin verilmişse). Korumalı uygulamaların sesi gelmez. */
     @SuppressLint("MissingPermission")
     private fun startAudio() {
-        if (Build.VERSION.SDK_INT < 29) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+        if (Build.VERSION.SDK_INT < 29) { Hub.mirrorAudio.value = "🔇 Ses yok: Android 10 ve üstü gerekir"; return }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Hub.mirrorAudio.value = "🔇 Ses yok: ses izni verilmedi (Ayarlar → Uygulamalar → TV Gönder → İzinler → Mikrofon)"; return
+        }
         val p = projection ?: return
         val rec = runCatching {
             val cfg = AudioPlaybackCaptureConfiguration.Builder(p)
@@ -265,8 +267,9 @@ class MirrorService : Service() {
             val min = AudioRecord.getMinBufferSize(Proto.RATE, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT)
             AudioRecord.Builder().setAudioFormat(fmt).setBufferSizeInBytes(max(min, 3840) * 4)
                 .setAudioPlaybackCaptureConfig(cfg).build()
-        }.getOrNull() ?: return
-        if (rec.state != AudioRecord.STATE_INITIALIZED) { rec.release(); return }
+        }.getOrNull() ?: run { Hub.mirrorAudio.value = "🔇 Ses alınamıyor (telefon izin vermedi)"; return }
+        if (rec.state != AudioRecord.STATE_INITIALIZED) { rec.release(); Hub.mirrorAudio.value = "🔇 Ses alınamıyor (telefon izin vermedi)"; return }
+        Hub.mirrorAudio.value = "🔈 Ses bekleniyor… (telefonda bir şey çal)"
         audio = rec
         Thread {
             val b = ByteArray(3840)   // 20 ms
@@ -275,6 +278,8 @@ class MirrorService : Service() {
             // susar; o zaman telefon çok kısık bırakılır ve TV'ye giden ses aynı oranda yükseltilir.
             var phase = 0
             var mutedAt = 0L
+            var lastSound = 0L
+            var lastReport = 0L
             runCatching {
                 rec.startRecording()
                 while (running) {
@@ -282,6 +287,13 @@ class MirrorService : Service() {
                     if (n <= 0) continue
                     val pk = peak(b, n)
                     val now = android.os.SystemClock.elapsedRealtime()
+                    // Durum: son 4 sn'de ses geldi mi?
+                    if (pk > 60) lastSound = now
+                    if (now - lastReport > 1000) {
+                        lastReport = now
+                        Hub.mirrorAudio.value = if (now - lastSound < 4000) "🔊 Ses TV'ye gidiyor ✓"
+                        else "🔈 Ses gelmiyor. Bazı uygulamalar (ör. YouTube, Spotify) seslerinin alınmasına izin vermez; galeri/Chrome videoları çalışır."
+                    }
                     when (phase) {
                         0 -> if (pk > 800) runCatching {
                             savedVol = am.getStreamVolume(music)
@@ -361,6 +373,7 @@ class MirrorService : Service() {
         running = false
         gen++
         Hub.mirrorOut.value = false
+        Hub.mirrorAudio.value = ""
         runCatching { audio?.stop() }; runCatching { audio?.release() }
         runCatching { display?.release() }
         runCatching { codec?.stop() }; runCatching { codec?.release() }

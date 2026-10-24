@@ -85,7 +85,7 @@ object GuideText {
             "2. Aynı satırda → Aç. Eklenti eskiyse satırda \"Güncelle\" çıkar.",
             "3. Erişilebilirlik ekranında \"TV Gönder Fare\" → anahtarı Açık yap → İzin ver.",
             "• Anahtar kendiliğinden kapanıyorsa: TV Gönder Ayarlar → \"Fare eklentisini kaldır\" → sonra \"Kur\" → Yükle → tekrar aç. Yeni kurulum yöntemiyle engel kalkar.",
-            "• Bazı TV uygulamaları imleçle tıklamaya tepki vermez; onlarda medya ve Geri düğmelerini kullan.",
+            "• YouTube ve video oynatıcılar imleçle tıklamaya tepki vermeyebilir (TV uygulamaları yön tuşuyla çalışır). TV kumandası (hızlı) ile eşleştiysen Fare ekranında ◀ ▲ OK ▼ ▶ tuşları da çıkar; orada onları kullan.",
         ),
         "7. Ekran yansıtma" to listOf(
             "• Telefon/tablet → TV: \"Ekranı TV'de göster\" → ses izni → \"Şimdi başlat\". Telefonda ne açarsan TV'de görünür (sesiyle). Durdurmak: aynı kart ya da bildirimdeki Durdur; TV'de Geri.",
@@ -93,7 +93,8 @@ object GuideText {
             "• TV Gönder kurulu olmayan TV'ler için \"Başka TV'ye yansıt\": telefonun kendi Chromecast/Miracast ekranını açar.",
             "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
             "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
-            "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner.",
+            "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner. Sesin durumu telefonda kartın altında yazar.",
+            "• YouTube, Spotify gibi bazı uygulamalar seslerinin başka uygulamaya verilmesine izin vermez: görüntü gelir, ses gelmez. YouTube için linki göndermek daha iyidir.",
             "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
         ),
         "8. Uygulamalar" to listOf(

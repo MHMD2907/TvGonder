@@ -747,6 +747,13 @@ private fun SendUi(
                 }
                 Tile("📺", "TV ekranını gör", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "tv") }
             }
+            if (mirroring) {
+                val audio by com.onur.tvgonder.Hub.mirrorAudio.collectAsState()
+                if (audio.isNotBlank()) Text(
+                    audio, Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel).padding(10.dp),
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted,
+                )
+            }
             // TV Gönder kurulu olmayan TV'ler (Chromecast/Miracast): telefonun kendi yansıtma ekranı
             Tile("📡", "Başka TV'ye yansıt (Chromecast / Miracast)", Modifier.fillMaxWidth()) {
                 val ok = listOf("android.settings.CAST_SETTINGS", "android.settings.WIFI_DISPLAY_SETTINGS")

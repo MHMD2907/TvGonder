@@ -28,6 +28,8 @@ object Hub {
     val mirrorIn = MutableStateFlow<com.onur.tvgonder.mirror.MirrorSession?>(null)
     /** TV kumandasındaki "TV Gönder" düğmesi: TV Gönder'in ana ekranına dön (değer her basışta değişir). */
     val goHome = MutableStateFlow(0L)
+    /** Yansıtmada sesin durumu (telefonda gösterilir). */
+    val mirrorAudio = MutableStateFlow("")
     /** Bu cihaz şu an ekranını yansıtıyor mu. */
     val mirrorOut = MutableStateFlow(false)
 }

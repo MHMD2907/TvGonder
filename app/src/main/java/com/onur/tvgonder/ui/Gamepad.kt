@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: oyun kolu Wi‑Fi'dan (TV kumandası bağlıysa) ya da Bluetooth'tan; Kumanda dikey, Kol yatay, eşleşme kodu kutusu
+// v0.36 – 2026-10-24: oyun kolu Wi‑Fi'da TV kumandasının eşleştiği TV'ye bağlanır; bağlı değilse TV kumandasına götürür; Bluetooth yedek
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -95,9 +95,12 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
     }
     // Önce Wi‑Fi (TV kumandası) dene: eşleşmişse Bluetooth'a gerek kalmaz
     LaunchedEffect(Unit) {
-        val st = com.onur.tvgonder.Store(ctx)
-        val h = st.tvHost ?: ctx.getSharedPreferences("atv", 0).getString("host", null)
-        if (h != null && AtvRemote.isPaired(ctx, h)) AtvRemote.connect(ctx, h)
+        // TV kumandasıyla en son eşleşen TV (telefonda seçili cihaz tablet olabilir; ona bakma)
+        if (AtvRemote.state.value != AtvRemote.State.Connected) {
+            val h = ctx.getSharedPreferences("atv", 0).getString("host", null)
+                ?: com.onur.tvgonder.Store(ctx).tvHost?.takeIf { AtvRemote.isPaired(ctx, it) }
+            if (h != null) AtvRemote.connect(ctx, h)
+        }
     }
     LaunchedEffect(Unit) { if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) }
     LaunchedEffect(ready) { if (ready) devices = BtPad.bonded() }
@@ -148,10 +151,12 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
                     )
                 }
                 if (!wifi && connected == null && tab != 2) {
+                    val atvMsg by AtvRemote.message.collectAsState()
                     Text(
-                        "Bağlı değil → önce ana ekrandaki \"TV kumandası (hızlı)\" ile eşleş (Wi‑Fi), ya da \"Bağlantı\" sekmesi (Bluetooth)",
+                        "Bağlı değil. Dokun → TV kumandası açılır, orada TV'ye bağlan (bir kez eşleşme), sonra buraya dön." +
+                            if (atvMsg.isNotBlank() && atv != AtvRemote.State.Idle) "\n($atvMsg)" else "",
                         Modifier.align(Alignment.TopCenter).clip(RoundedCornerShape(10.dp)).background(PanelHi)
-                            .clickable { tab = 2 }.padding(horizontal = 12.dp, vertical = 6.dp),
+                            .clickable { ctx.startActivity(Intent(ctx, com.onur.tvgonder.AtvActivity::class.java)) }.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = Danger, style = MaterialTheme.typography.bodySmall,
                     )
                 }

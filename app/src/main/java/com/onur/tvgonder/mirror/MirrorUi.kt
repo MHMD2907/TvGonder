@@ -1,4 +1,4 @@
-// v0.30 – 2026-10-20: yansıtma: TV'de OK ile Doldur/Sığdır; TV ekranını gör + dokunarak kontrol; telefondan başlat
+// v0.36 – 2026-10-24: yansıtma görüntüsü TextureView ile: ortalı, Doldur'da düzgün kırpılır (sola kayma giderildi); TV ekranını gör + dokunma
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -7,8 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
-import android.view.SurfaceHolder
-import android.view.SurfaceView
+import android.view.TextureView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -102,26 +101,39 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
             return@BoxWithConstraints
         }
         val ratio = size?.let { (w, h) -> w.toFloat() / h } ?: (16f / 9f)
-        val boxMod = if (fill && touch == null) {
-            // Ekranı kaplayacak kadar büyüt (taşan kısım kırpılır)
-            val sw = maxWidth; val sh = maxHeight
-            if (sw / sh > ratio) Modifier.requiredSize(sw, sw / ratio) else Modifier.requiredSize(sh * ratio, sh)
-        } else Modifier.aspectRatio(ratio)
-        Box(boxMod) {
+        val doFill = fill && touch == null
+        // TextureView: görüntü ekranın ortasına yerleşir; Doldur'da taşan kısım düzgünce kırpılır
+        // (önceki SurfaceView taşan görüntüyü sola yaslıyordu).
+        fun fit(tv: TextureView) {
+            val (vw, vh) = size ?: return
+            val w = tv.width.toFloat(); val h = tv.height.toFloat()
+            if (w <= 0f || h <= 0f || vw <= 0 || vh <= 0) return
+            val sc = if (doFill) maxOf(w / vw, h / vh) else minOf(w / vw, h / vh)
+            tv.setTransform(android.graphics.Matrix().apply { setScale(vw * sc / w, vh * sc / h, w / 2f, h / 2f) })
+        }
+        Box(Modifier.fillMaxSize()) {
             AndroidView(
                 factory = { c ->
-                    SurfaceView(c).apply {
-                        holder.addCallback(object : SurfaceHolder.Callback {
-                            override fun surfaceCreated(h: SurfaceHolder) { player?.start(h.surface) }
-                            override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {}
-                            override fun surfaceDestroyed(h: SurfaceHolder) { player?.stop() }
-                        })
+                    TextureView(c).apply {
+                        surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                            var surf: android.view.Surface? = null
+                            override fun onSurfaceTextureAvailable(st: android.graphics.SurfaceTexture, w: Int, h: Int) {
+                                surf = android.view.Surface(st); player?.start(surf!!); fit(this@apply)
+                            }
+                            override fun onSurfaceTextureSizeChanged(st: android.graphics.SurfaceTexture, w: Int, h: Int) { fit(this@apply) }
+                            override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+                                player?.stop(); runCatching { surf?.release() }; return true
+                            }
+                            override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+                        }
                         keepScreenOn = true
                     }
                 },
+                update = { tv -> fit(tv) },
                 modifier = Modifier.fillMaxSize(),
             )
-            if (touch != null) TouchLayer(touch) { uiTick++ }
+            // Tablette dokunma alanı: görüntünün kapladığı kısım
+            if (touch != null) Box(Modifier.align(Alignment.Center).aspectRatio(ratio)) { TouchLayer(touch) { uiTick++ } }
         }
         if (size == null) Text("Görüntü geliyor…", color = Color.White)
         note?.let {

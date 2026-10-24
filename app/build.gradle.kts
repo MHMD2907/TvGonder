@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: sürüm 0.35 (yayın derlemesi: hızlı açılış; oyun kolu Wi‑Fi, TV Gönder'i aç düğmesi)
+// v0.36 – 2026-10-24: sürüm 0.36 (yansıtma ortalı/tam ekran, ses durumu, oyun kolu doğru TV, farede yön tuşları)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 37
-        versionName = "0.35"
+        versionCode = 38
+        versionName = "0.36"
     }
     signingConfigs {
         getByName("debug") {

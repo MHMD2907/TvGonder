@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: fare: eklenti kapalıyken TV Gönder'in kendi faresine geçer; TV'deki dosyalar: çoklu seçip toplu indirme
+// v0.36 – 2026-10-24: Fare/Kumanda: TV kumandası bağlıysa yön tuşları + OK, Geri/Ana ekran/ses/oynat oradan (YouTube ve oynatıcılar için); imleç, indirme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +87,14 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
             remote.mousePort = if (mode == 2) 8767 else com.onur.tvgonder.RemoteListener.PORT
         }
         DisposableEffect(Unit) { onDispose { remote.close() } }
+        // YouTube ve video oynatıcıları dokunmaya değil yön tuşlarına tepki verir: tuşlar TV kumandası (Wi‑Fi) ile gider
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        val atv by com.onur.tvgonder.AtvRemote.state.collectAsState()
+        val keysOn = atv == com.onur.tvgonder.AtvRemote.State.Connected
+        LaunchedEffect(Unit) {
+            if (!keysOn) ctx.getSharedPreferences("atv", 0).getString("host", null)?.let { com.onur.tvgonder.AtvRemote.connect(ctx, it) }
+        }
+        fun k(code: Int) = com.onur.tvgonder.AtvRemote.key(code)
         val speed = 1.8f
         var rx by remember { mutableStateOf(0f) }
         var ry by remember { mutableStateOf(0f) }
@@ -146,21 +155,38 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                     contentAlignment = Alignment.Center,
                 ) { Text("↕", fontSize = 26.sp, color = TextMuted) }
             }
+            // Yön tuşları + OK (YouTube, video oynatıcılar, menüler için)
+            if (keysOn) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Key("◀") { k(android.view.KeyEvent.KEYCODE_DPAD_LEFT) }
+                    Key("▲") { k(android.view.KeyEvent.KEYCODE_DPAD_UP) }
+                    Key("OK") { k(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }
+                    Key("▼") { k(android.view.KeyEvent.KEYCODE_DPAD_DOWN) }
+                    Key("▶") { k(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+                }
+            } else {
+                Text(
+                    "YouTube ve video oynatıcılar imleçle tıklamaya tepki vermeyebilir; orada yön tuşları gerekir. " +
+                        "Ana ekrandaki \"TV kumandası (hızlı)\" ile bir kez eşleşince yön tuşları burada da çıkar.",
+                    Modifier.clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(10.dp),
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Key("⟵ Geri") { remote.send("back") }
-                Key("⌂ Ana ekran") { remote.send("home") }
+                Key("⟵ Geri") { if (keysOn) k(android.view.KeyEvent.KEYCODE_BACK) else remote.send("back") }
+                Key("⌂ Ana ekran") { if (keysOn) k(android.view.KeyEvent.KEYCODE_HOME) else remote.send("home") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Key("⏮") { remote.send("prev") }
                 Key("⏪") { remote.send("rw") }
-                Key("⏯") { remote.send("play") }
+                Key("⏯") { if (keysOn) k(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) else remote.send("play") }
                 Key("⏩") { remote.send("ff") }
                 Key("⏭") { remote.send("next") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Key("🔉 Ses −") { remote.send("vd") }
-                Key("🔇") { remote.send("mute") }
-                Key("🔊 Ses +") { remote.send("vu") }
+                Key("🔉 Ses −") { if (keysOn) k(android.view.KeyEvent.KEYCODE_VOLUME_DOWN) else remote.send("vd") }
+                Key("🔇") { if (keysOn) k(android.view.KeyEvent.KEYCODE_VOLUME_MUTE) else remote.send("mute") }
+                Key("🔊 Ses +") { if (keysOn) k(android.view.KeyEvent.KEYCODE_VOLUME_UP) else remote.send("vu") }
             }
         }
     }
