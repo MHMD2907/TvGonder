@@ -1,4 +1,4 @@
-// v0.32 – 2026-10-21: TV kumandası kartı her zaman görünür (TV Gönder eşleşmesi gerekmez); YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
+// v0.39 – 2026-10-26: "Telefondaki uygulamayı TV'ye kur" (parçalı uygulamalar .apks); TV kumandası kartı her zaman görünür; YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -414,6 +414,7 @@ private fun SendUi(
     var showRemote by remember { mutableStateOf(false) }
     var showTvFiles by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
+    var showPhoneApps by remember { mutableStateOf(false) }
     var showPad by remember { mutableStateOf(false) }
     var showTvScreen by remember { mutableStateOf(false) }
     val mirroring by com.onur.tvgonder.Hub.mirrorOut.collectAsState()
@@ -488,6 +489,20 @@ private fun SendUi(
         val target = folder
         store.lastFolder = target
         uploadAll(uris.map { Transfer(displayName(ctx, it)) to (target to it) }, withDate = true)
+    }
+
+    /** Telefondaki yüklü bir uygulamayı kurulum dosyası olarak TV'ye gönderir (parçalıysa .apks). */
+    fun sendPhoneApp(a: ApkPack.PhoneApp) {
+        showPhoneApps = false
+        if (!paired) { msg = notPaired; return }
+        msg = Msg("${a.label} hazırlanıyor…", false)
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { ApkPack.build(ctx, a.pkg) } }
+            r.onSuccess { f ->
+                msg = Msg("${a.label} TV'ye gidiyor. Bitince TV'de dosyayı aç → Yükle.", false)
+                uploadAll(listOf(Transfer(f.name) to (folder to Uri.fromFile(f))), withDate = false)
+            }.onFailure { msg = Msg("${a.label} hazırlanamadı: ${it.message}", true) }
+        }
     }
 
     /** Telefondaki bir klasörü alt klasörleriyle birlikte TV'ye gönderir (adlar korunur). */
@@ -764,6 +779,7 @@ private fun SendUi(
                 Tile("🧩", "TV'deki uygulamalar", Modifier.weight(1f)) { showApps = true }
                 Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
+            Tile("📦", "Telefondaki uygulamayı TV'ye kur", Modifier.fillMaxWidth()) { showPhoneApps = true }
         }
         // TV kumandası: Google TV'nin kendi hizmeti; TV Gönder eşleşmesi gerekmez
         Tile("📺", "TV kumandası (hızlı, Google TV)", Modifier.fillMaxWidth()) {
@@ -976,6 +992,7 @@ private fun SendUi(
     if (showGuide) GuideDialog { showGuide = false }
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
     if (showApps) RemoteAppsDialog(client, store.tvName) { showApps = false }
+    if (showPhoneApps) PhoneAppPicker(onPick = { sendPhoneApp(it) }, onClose = { showPhoneApps = false })
     if (showPad) GamepadDialog { showPad = false }
     if (showTvScreen) com.onur.tvgonder.mirror.TvScreenViewer(client, store) { showTvScreen = false }
 
