@@ -1,4 +1,4 @@
-// v0.36 – 2026-10-24: Fare/Kumanda: TV kumandası bağlıysa yön tuşları + OK, Geri/Ana ekran/ses/oynat oradan (YouTube ve oynatıcılar için); imleç, indirme
+// v0.37 – 2026-10-26: Fare/Kumanda: TV kumandası bağlıysa telefondan TV'ye yazı (⌨) + yön tuşları + OK; imleç, indirme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -101,7 +102,7 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
         var sAcc by remember { mutableStateOf(0f) }
 
         Column(
-            Modifier.fillMaxSize().background(Ink).padding(16.dp),
+            Modifier.fillMaxSize().background(Ink).imePadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -164,6 +165,8 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                     Key("▼") { k(android.view.KeyEvent.KEYCODE_DPAD_DOWN) }
                     Key("▶") { k(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
                 }
+                // Telefondan TV'ye yazı (YouTube arama, tarayıcı, giriş ekranları)
+                AtvKeyboard()
             } else {
                 Text(
                     "YouTube ve video oynatıcılar imleçle tıklamaya tepki vermeyebilir; orada yön tuşları gerekir. " +

@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: kılavuz: TV Gönder'i aç düğmesi, oyun kolu Wi‑Fi; Bluetooth, TV kumandası, Dosyalarım, kızılötesi, yansıtma
+// v0.37 – 2026-10-26: kılavuz: telefondan TV'ye yazı (⌨), yansıtmada ekran açık kalır; TV kumandası, oyun kolu Wi‑Fi, Dosyalarım, kızılötesi
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -93,6 +93,7 @@ object GuideText {
             "• TV Gönder kurulu olmayan TV'ler için \"Başka TV'ye yansıt\": telefonun kendi Chromecast/Miracast ekranını açar.",
             "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
             "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
+            "• Yansıtma sürerken telefonun ekranı kapanmaz/kararmaz (kapanırsa TV'de de siyah olurdu). Bitince normale döner. Elle kilitlersen (güç tuşu) TV'de de kilit ekranı görünür.",
             "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner. Sesin durumu telefonda kartın altında yazar.",
             "• YouTube, Spotify gibi bazı uygulamalar seslerinin başka uygulamaya verilmesine izin vermez: görüntü gelir, ses gelmez. YouTube için linki göndermek daha iyidir.",
             "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
@@ -108,6 +109,7 @@ object GuideText {
             "• Tuşlar: güç, kaynak, ayarlar, sessiz, yön + OK, Geri, Ana ekran, menü, ses, kanal, oynat/sar, rakamlar, renkli tuşlar. Ses/kanal/yön basılı tutunca tekrarlar.",
             "• Eşleştikten sonra telefondan gönderilen YouTube linkleri bu yolla açılır: TV'de YouTube açıkken bile yeni video açılır.",
             "• \"📺 TV Gönder'i aç\": TV Gönder'i kendi ana ekranıyla açar. \"⌂ TV ana ekranı\" ise TV'nin kendi ana ekranına gider (uygulamadan çıkar).",
+            "• ⌨ TV'ye yaz: önce TV'de yazı kutusunu seç (YouTube'da 🔍, tarayıcıda adres çubuğu, giriş ekranı…), telefonda yaz → Gönder. ⌫ Sil, ␣ Boşluk, ↵ Ara/Git. Bu alan Fare/Kumanda ekranında ve Oyun kolu → Kumanda sekmesinde de var.",
             "• Eşleştikten sonra \"Oyun kolu\" da Bluetooth'suz, bu bağlantı üzerinden çalışır (yön tuşları, A B X Y, L/R, Start; sol çubuk yön tuşu gibi).",
         ),
         "9. Bluetooth oyun kolu ve fare" to listOf(

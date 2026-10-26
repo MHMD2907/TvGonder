@@ -1,4 +1,4 @@
-// v0.36 – 2026-10-24: ekranı yansıtır; sesin durumu telefonda görünür (izin yok / ses gidiyor / uygulama izin vermiyor); dönüş, telefon sesi kısılır
+// v0.37 – 2026-10-26: yansıtma sürerken telefon ekranı kapanmaz/kararmaz; ses durumu telefonda görünür; dönüş, telefon sesi kısılır
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -100,8 +100,21 @@ class MirrorService : Service() {
         }, main)
         running = true
         Hub.mirrorOut.value = true
+        keepAwake()
         worker.execute { connectAndRun(host, port, key, name) }
         return START_NOT_STICKY
+    }
+
+    /** Yansıtma sürerken telefon ekranı kapanmasın/kararmasın (kilitlenirse TV'de de siyah olurdu). */
+    private var wake: android.os.PowerManager.WakeLock? = null
+    @Suppress("DEPRECATION")
+    private fun keepAwake() {
+        if (wake?.isHeld == true) return
+        wake = runCatching {
+            getSystemService(android.os.PowerManager::class.java)
+                .newWakeLock(android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "tvgonder:mirror")
+                .apply { setReferenceCounted(false); acquire(6 * 60 * 60 * 1000L) }
+        }.getOrNull()
     }
 
     private fun fail(msg: String) {
@@ -368,6 +381,7 @@ class MirrorService : Service() {
     }
 
     override fun onDestroy() {
+        runCatching { wake?.let { if (it.isHeld) it.release() } }; wake = null
         if (savedVol >= 0) runCatching { am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, savedVol, 0) }
         runCatching { getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener) }
         running = false

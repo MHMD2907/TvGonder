@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: TV kumandası: "TV Gönder'i aç" düğmesi (uygulamanın ana ekranı), ⌂ TV'nin ana ekranı; eşleşme, tuşlar
+// v0.37 – 2026-10-26: TV kumandası: telefondan TV'ye yazı yazma (⌨), "TV Gönder'i aç", ⌂ TV'nin ana ekranı; eşleşme, tuşlar
 package com.onur.tvgonder.ui
 
 import android.view.KeyEvent
@@ -124,6 +124,8 @@ fun AtvRemoteScreen(onClose: () -> Unit) {
             K("⚙", KeyEvent.KEYCODE_SETTINGS, Modifier.weight(1f).height(54.dp))
             K("🔇", KeyEvent.KEYCODE_VOLUME_MUTE, Modifier.weight(1f).height(54.dp))
         }
+        // Telefondan yazı
+        AtvKeyboard()
         // Yön + OK
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val b = Modifier.size(78.dp)

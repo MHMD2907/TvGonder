@@ -1,4 +1,4 @@
-// v0.36 – 2026-10-24: sürüm 0.36 (yansıtma ortalı/tam ekran, ses durumu, oyun kolu doğru TV, farede yön tuşları)
+// v0.37 – 2026-10-26: sürüm 0.37 (telefondan TV'ye yazı, yansıtmada telefon ekranı açık kalır)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 38
-        versionName = "0.36"
+        versionCode = 39
+        versionName = "0.37"
     }
     signingConfigs {
         getByName("debug") {

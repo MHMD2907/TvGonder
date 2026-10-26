@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: Google TV kumanda hizmeti: anahtar uygulama içinde üretilir (anahtar kasası RSA hatası giderildi); eşleşme, tuşlar, link açma
+// v0.37 – 2026-10-26: Google TV kumanda hizmeti: telefondan yazı yazma (TV'nin yazı alanına canlı), eşleşme, tuşlar, link açma
 package com.onur.tvgonder
 
 import android.content.Context
@@ -34,7 +34,14 @@ object AtvRemote {
     val message = MutableStateFlow("")
 
     private const val ALIAS = "tvgonder_atv"
-    private const val FEATURES = 1 or 2 or 32 or 64 or 512   // ping, tuş, güç, ses, link
+    private const val FEATURES = 1 or 2 or 4 or 32 or 64 or 512   // ping, tuş, yazı (IME), güç, ses, link
+
+    /** TV'de bir yazı alanı açıldığında true (telefonda klavye kendiliğinden açılır). */
+    val imeActive = MutableStateFlow(false)
+    /** TV'deki yazı alanının içeriği (TV bildirdikçe). */
+    val imeText = MutableStateFlow("")
+    @Volatile private var imeCounter = 0L
+    @Volatile private var fieldCounter = 0L
     private val io = Executors.newSingleThreadExecutor()
     private val sendQ = Executors.newSingleThreadExecutor()
 
@@ -298,6 +305,27 @@ object AtvRemote {
                         val p = parse(m[8]!!.first() as ByteArray)
                         write(o, PB().msg(9, PB().int(1, (p[1]?.firstOrNull() as? Long) ?: 0L)).out())
                     }
+                    // TV'de yazı alanı odaklandı / içeriği değişti
+                    m.containsKey(21) -> runCatching {
+                        val be = parse(m[21]!!.first() as ByteArray)
+                        imeCounter = (be[1]?.firstOrNull() as? Long) ?: imeCounter
+                        fieldCounter = (be[2]?.firstOrNull() as? Long) ?: fieldCounter
+                        (be[3]?.firstOrNull() as? ByteArray)?.let { ei ->
+                            (parse(ei)[2]?.firstOrNull() as? ByteArray)?.let { obj ->
+                                (parse(obj)[3]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
+                            }
+                        }
+                        imeActive.value = true
+                    }
+                    m.containsKey(22) -> runCatching {
+                        val req = parse(m[22]!!.first() as ByteArray)
+                        (req[2]?.firstOrNull() as? ByteArray)?.let { st ->
+                            val f = parse(st)
+                            (f[1]?.firstOrNull() as? Long)?.let { fieldCounter = it }
+                            (f[2]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
+                        }
+                        imeActive.value = true
+                    }
                     m.containsKey(40) -> {
                         c.getSharedPreferences("atv", Context.MODE_PRIVATE).edit().putBoolean("paired_${host}", true).putString("host", host).apply()
                         state.value = State.Connected; message.value = "Bağlı ✓"
@@ -319,6 +347,17 @@ object AtvRemote {
 
     /** Android tuş kodu (KeyEvent.KEYCODE_*). dir: 3 kısa, 1 basılı tutma başı, 2 basılı tutma sonu. */
     fun key(code: Int, dir: Int = 3) = send(PB().msg(10, PB().int(1, code.toLong()).int(2, dir.toLong())).out())
+
+    /**
+     * TV'deki odaklı yazı alanının içeriğini [t] yapar (YouTube araması, tarayıcı adres çubuğu, giriş ekranları…).
+     * Telefonda yazdıkça TV'de canlı görünür.
+     */
+    fun text(t: String) {
+        if (t.isEmpty()) return
+        val n = (t.length - 1).toLong()
+        send(PB().msg(21, PB().int(1, imeCounter).int(2, fieldCounter)
+            .msg(3, PB().int(1, 1).msg(2, PB().int(1, n).int(2, n).str(3, t)))).out())
+    }
 
     /** TV'de link açar (YouTube linki YouTube uygulamasında, açıkken bile). */
     fun launch(url: String) = send(PB().msg(90, PB().str(1, url)).out())

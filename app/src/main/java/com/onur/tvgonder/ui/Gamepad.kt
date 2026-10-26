@@ -1,4 +1,4 @@
-// v0.36 – 2026-10-24: oyun kolu Wi‑Fi'da TV kumandasının eşleştiği TV'ye bağlanır; bağlı değilse TV kumandasına götürür; Bluetooth yedek
+// v0.37 – 2026-10-26: Kumanda sekmesinde telefondan TV'ye yazı (⌨, Wi‑Fi bağlıyken); oyun kolu Wi‑Fi'da TV kumandasının TV'sine bağlanır; Bluetooth yedek
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -305,6 +305,7 @@ private fun PadRemote() {
     val body: @Composable (Modifier, Modifier) -> Unit = { dm, km -> RemoteBody(dm, km) }
     if (portrait) Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         body(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
+        AtvKeyboard(Modifier.padding(horizontal = 8.dp))
     } else Row(Modifier.fillMaxSize().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
         body(Modifier.weight(1.1f), Modifier.weight(1.2f))
     }
