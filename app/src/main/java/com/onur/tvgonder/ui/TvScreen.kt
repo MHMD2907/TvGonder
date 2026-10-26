@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: ilk açılışta Fare eklentisini kurmayı önerir; çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
+// v0.38 – 2026-10-26: USB'deki APK/XAPK/APKS dosyaları TV Gönder'den kurulur; Fare önerisi, çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -118,6 +118,7 @@ fun TvScreen(
     val goHome by Hub.goHome.collectAsState()
 
     var note by remember { mutableStateOf<String?>(null) }
+    val apkScope = rememberCoroutineScope()
 
     // İlk açılış: takılı USB varsa kayıt yeri olarak kendiliğinden seç
     LaunchedEffect(tree) {
@@ -142,6 +143,17 @@ fun TvScreen(
                 push(TvNav.Images(imgs, imgs.indexOf(e).coerceAtLeast(0)))
             }
             Kind.Pdf -> push(TvNav.Pdf(e.uri, e.name))
+            // USB'deki APK / XAPK / APKS: TV Gönder kendisi kurar (TV'nin dosya açıcısı APK tanımaz)
+            Kind.Apk -> if (!Installer.canInstall(ctx)) {
+                note = if (Installer.openPermission(ctx)) "Açılan ekranda TV Gönder'e izin ver, geri dön ve dosyayı tekrar aç."
+                else "Ayarlar > Cihaz Tercihleri > Güvenlik ve kısıtlamalar > Bilinmeyen kaynaklar: TV Gönder'e izin ver, sonra dosyayı tekrar aç."
+            } else {
+                note = "Kurulum hazırlanıyor: ${e.name}…"
+                apkScope.launch {
+                    val r = withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Installer.installUri(ctx, e.uri, e.name) } }
+                    note = r.exceptionOrNull()?.let { "Kurulamadı: ${it.message ?: it.javaClass.simpleName}" }
+                }
+            }
             Kind.Video -> push(TvNav.Video(listOf(e.uri), 0, audio = false))
             Kind.Audio -> {
                 val songs = siblings.filter { it.kind == Kind.Audio }.ifEmpty { listOf(e) }

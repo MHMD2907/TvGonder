@@ -1,4 +1,4 @@
-// v0.34 – 2026-10-22: kurulum sonucu: onay ekranı, hata; Fare eklentisi kurulunca açma ekranına götürür
+// v0.38 – 2026-10-26: kurulum sonucu: başarısızlıkta nedenine göre Türkçe ipucu (işlemci, Android sürümü, parçalı paket, yer); onay ekranı; Fare açma ekranı
 package com.onur.tvgonder
 
 import android.content.BroadcastReceiver
@@ -27,8 +27,16 @@ class InstallReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
             else -> {
                 val msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
-                val hint = if ("CONFLICT" in msg.uppercase() || "SIGNATURE" in msg.uppercase())
-                    " Eski sürümü kaldırıp yeniden gönder." else ""
+                val u = msg.uppercase()
+                val hint = when {
+                    "CONFLICT" in u || "SIGNATURE" in u -> " Eski sürümü kaldırıp yeniden gönder."
+                    "NO_MATCHING_ABIS" in u -> " Bu APK telefon işlemcisine göre yapılmış, TV'nin işlemcisi farklı. Uygulamanın \"armeabi-v7a\" ya da \"universal\" sürümünü indir."
+                    "OLDER_SDK" in u -> " Uygulama TV'nin Android sürümünden daha yenisini istiyor; daha eski bir sürümünü indir."
+                    "SPLIT" in u -> " Uygulama parçalı (XAPK/APKS); tek APK yerine paketin tamamını indir."
+                    "INSUFFICIENT_STORAGE" in u -> " TV'de yer yok; birkaç uygulamayı kaldır."
+                    "INVALID_APK" in u || "PARSE" in u -> " Dosya bozuk ya da eksik inmiş; yeniden indir."
+                    else -> ""
+                }
                 Toast.makeText(c, "Kurulamadı: $msg$hint", Toast.LENGTH_LONG).show()
             }
         }

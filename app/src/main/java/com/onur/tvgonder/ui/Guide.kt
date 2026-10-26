@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: kılavuz: telefondan TV'ye yazı (⌨), yansıtmada ekran açık kalır; TV kumandası, oyun kolu Wi‑Fi, Dosyalarım, kızılötesi
+// v0.38 – 2026-10-26: kılavuz: USB'den uygulama kurma (APK/XAPK); telefondan TV'ye yazı, yansıtmada ekran açık; TV kumandası, oyun kolu, kızılötesi
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -99,6 +99,9 @@ object GuideText {
             "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
         ),
         "8. Uygulamalar" to listOf(
+            "• Uygulama kurmak (USB'den): APK'yı flaşa at → TV'de Dosyalarım → dosyayı aç → Yükle. .xapk / .apks paketleri de kurulur. İlk seferde \"bilinmeyen kaynaklar\" izni istenir.",
+            "• Telefon uygulamaları TV'nin ana ekranında görünmeyebilir (TV için yapılmadıkları için); TV Gönder'deki Uygulamalar listesinden açılır. Dokunmatik isteyen uygulamalarda Fare eklentisini kullan.",
+            "• \"Kurulamadı\" çıkarsa nedeni yazar: çoğunlukla APK telefonun işlemcisine göredir; sitesinden \"armeabi-v7a\" ya da \"universal\" sürümünü indir.",
             "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
             "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",
         ),

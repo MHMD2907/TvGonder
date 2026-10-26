@@ -1,4 +1,4 @@
-// v0.22 – 2026-10-19: oturumlu APK kurulumu (kısıtlanmış ayar engeli olmaz); çıkış, depolama birimleri, sürüm yardımcıları
+// v0.38 – 2026-10-26: USB'deki APK ve XAPK/APKS/APKM (parçalı) kurulumu; oturumlu APK kurulumu, çıkış, depolama birimleri, sürüm yardımcıları
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -67,6 +67,47 @@ object Installer {
     fun install(c: Context, apk: File) {
         if (Build.VERSION.SDK_INT >= 23 && runCatching { sessionInstall(c, apk) }.isSuccess) return
         viewInstall(c, apk)
+    }
+
+    /**
+     * USB / paylaşılan bir adresteki kurulum dosyasını kurar (arka planda çağrılmalı).
+     * .apk → normal kurulum. .xapk / .apks / .apkm → içindeki parça APK'lar tek oturumda kurulur.
+     */
+    fun installUri(c: Context, uri: Uri, name: String) {
+        val dir = File(c.cacheDir, "inst").apply { deleteRecursively(); mkdirs() }
+        val f = File(dir, name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+        (c.contentResolver.openInputStream(uri) ?: error("Dosya okunamadı")).use { i -> f.outputStream().use { o -> i.copyTo(o) } }
+        val isZipBundle = !name.endsWith(".apk", true) || runCatching {
+            java.util.zip.ZipFile(f).use { z -> z.getEntry("AndroidManifest.xml") == null && z.entries().asSequence().any { it.name.endsWith(".apk", true) } }
+        }.getOrDefault(false)
+        if (!isZipBundle) { install(c, f); return }
+        java.util.zip.ZipFile(f).use { z ->
+            val parts = z.entries().asSequence().filter { !it.isDirectory && it.name.endsWith(".apk", true) }.toList()
+            if (parts.isEmpty()) error("Paketin içinde APK yok (şifreli olabilir)")
+            val pi = c.packageManager.packageInstaller
+            val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+            val id = pi.createSession(params)
+            try {
+                pi.openSession(id).use { s ->
+                    parts.forEachIndexed { n, en ->
+                        val size = if (en.size >= 0) en.size else -1L
+                        z.getInputStream(en).use { inp ->
+                            s.openWrite("p$n.apk", 0, size).use { out -> inp.copyTo(out); s.fsync(out) }
+                        }
+                    }
+                    val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                        (if (Build.VERSION.SDK_INT >= 31) android.app.PendingIntent.FLAG_MUTABLE else 0)
+                    val p = android.app.PendingIntent.getBroadcast(
+                        c, id, Intent(c, InstallReceiver::class.java).setPackage(c.packageName), flags,
+                    )
+                    s.commit(p.intentSender)
+                }
+            } catch (e: Exception) {
+                runCatching { pi.abandonSession(id) }
+                throw e
+            }
+        }
     }
 
     private fun sessionInstall(c: Context, apk: File) {

@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: sürüm 0.37 (telefondan TV'ye yazı, yansıtmada telefon ekranı açık kalır)
+// v0.38 – 2026-10-26: sürüm 0.38 (USB'den APK/XAPK kurulumu; telefondan TV'ye yazı, yansıtmada ekran açık)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 39
-        versionName = "0.37"
+        versionCode = 40
+        versionName = "0.38"
     }
     signingConfigs {
         getByName("debug") {

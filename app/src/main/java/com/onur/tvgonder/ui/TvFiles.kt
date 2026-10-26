@@ -1,4 +1,4 @@
-// v0.31 – 2026-10-21: Dosyalarım: yeni klasör, seçilenleri klasöre taşı/kopyala (USB ve TV hafızası); küçük resimler, filtre, arama, silme
+// v0.38 – 2026-10-26: Dosyalarım: XAPK/APKS/APKM de kurulum dosyası sayılır; yeni klasör, taşı/kopyala, küçük resimler, filtre, arama, silme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -75,7 +75,8 @@ data class Entry(
             mime.startsWith("audio/") -> Kind.Audio
             mime.startsWith("image/") -> Kind.Image
             mime == "application/pdf" || name.endsWith(".pdf", true) -> Kind.Pdf
-            mime == "application/vnd.android.package-archive" || name.endsWith(".apk", true) -> Kind.Apk
+            mime == "application/vnd.android.package-archive" || name.endsWith(".apk", true) ||
+                name.endsWith(".xapk", true) || name.endsWith(".apks", true) || name.endsWith(".apkm", true) -> Kind.Apk
             else -> Kind.Other
         }
 }
