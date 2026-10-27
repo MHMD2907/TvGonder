@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: sürüm 0.40 (yansıtmada ekran kesin açık; uygulama kurma uyum kontrolü ve anlaşılır hatalar; kumanda kendiliğinden yeniden bağlanır)
+// v0.41 – 2026-10-27: sürüm 0.41 (TV'ye yazı bağlı değilken de açılır; yansıtmada ekran açık; uygulama kurma uyum kontrolü)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 42
-        versionName = "0.40"
+        versionCode = 43
+        versionName = "0.41"
     }
     signingConfigs {
         getByName("debug") {
