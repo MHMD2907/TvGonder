@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: arka plandan açmalar Launcher ile (Fare eklentisi); /apps, /mirror/request, /auth, indirme, kayıt yeri
+// v0.40 – 2026-10-27: /ping TV'nin işlemci türlerini ve Android sürümünü de bildirir (uygulama gönderirken uyum kontrolü); /apps, /mirror/request, /auth
 package com.onur.tvgonder
 
 import android.content.Context
@@ -33,7 +33,8 @@ class ReceiverServer(
     private fun route(s: IHTTPSession): Response {
         val path = s.uri
         if (path == "/ping") return json(
-            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId),
+            200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId)
+                .put("abis", Build.SUPPORTED_ABIS.joinToString(",")).put("sdk", Build.VERSION.SDK_INT),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
         if (path == "/auth") {

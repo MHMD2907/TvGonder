@@ -1,4 +1,4 @@
-// v0.38 – 2026-10-26: kurulum sonucu: başarısızlıkta nedenine göre Türkçe ipucu (işlemci, Android sürümü, parçalı paket, yer); onay ekranı; Fare açma ekranı
+// v0.40 – 2026-10-27: kurulum hatası TV'de kalıcı pencerede, anlaşılır nedenle (parçalı uygulama, işlemci, Android sürümü, yer); onay ekranı; Fare
 package com.onur.tvgonder
 
 import android.content.BroadcastReceiver
@@ -17,7 +17,7 @@ class InstallReceiver : BroadcastReceiver() {
                 confirm?.let { runCatching { c.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
             }
             PackageInstaller.STATUS_SUCCESS -> {
-                Toast.makeText(c, "Kurulum tamamlandı ✓", Toast.LENGTH_LONG).show()
+                Toast.makeText(c, "Kurulum tamamlandı ✓ (TV Gönder → Uygulamalar'dan açabilirsin)", Toast.LENGTH_LONG).show()
                 // Fare eklentisi kurulduysa: açma ekranına götür
                 if (i.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) == Apps.FARE && !Apps.fareEnabled(c)) {
                     Toast.makeText(c, "Şimdi listede \"TV Gönder Fare\"yi seç ve aç", Toast.LENGTH_LONG).show()
@@ -29,15 +29,18 @@ class InstallReceiver : BroadcastReceiver() {
                 val msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
                 val u = msg.uppercase()
                 val hint = when {
-                    "CONFLICT" in u || "SIGNATURE" in u -> " Eski sürümü kaldırıp yeniden gönder."
-                    "NO_MATCHING_ABIS" in u -> " Bu APK telefon işlemcisine göre yapılmış, TV'nin işlemcisi farklı. Uygulamanın \"armeabi-v7a\" ya da \"universal\" sürümünü indir."
-                    "OLDER_SDK" in u -> " Uygulama TV'nin Android sürümünden daha yenisini istiyor; daha eski bir sürümünü indir."
-                    "SPLIT" in u -> " Uygulama parçalı (XAPK/APKS); tek APK yerine paketin tamamını indir."
-                    "INSUFFICIENT_STORAGE" in u -> " TV'de yer yok; birkaç uygulamayı kaldır."
-                    "INVALID_APK" in u || "PARSE" in u -> " Dosya bozuk ya da eksik inmiş; yeniden indir."
+                    "CONFLICT" in u || "SIGNATURE" in u -> "\n\nEski sürümü kaldırıp yeniden gönder."
+                    "NO_MATCHING_ABIS" in u -> "\n\nBu APK telefon işlemcisine göre yapılmış, TV'nin işlemcisi farklı. Uygulamanın \"armeabi-v7a\" ya da \"universal\" sürümünü indir."
+                    "OLDER_SDK" in u -> "\n\nUygulama TV'nin Android sürümünden daha yenisini istiyor; daha eski bir sürümünü indir."
+                    "SPLIT" in u -> "\n\nBu uygulama parçalı; gelen dosya (base.apk) parçalardan sadece biri. " +
+                        "Telefonda \"📦 Telefondaki uygulamayı TV'ye kur\" ile gönder (tüm parçalar tek paket olarak gider) " +
+                        "ya da internetten XAPK/APKS olarak indirip flaştan kur."
+                    "INSUFFICIENT_STORAGE" in u -> "\n\nTV'de yer yok; birkaç uygulamayı kaldır."
+                    "INVALID_APK" in u || "PARSE" in u -> "\n\nDosya bozuk ya da eksik inmiş; yeniden indir."
                     else -> ""
                 }
-                Toast.makeText(c, "Kurulamadı: $msg$hint", Toast.LENGTH_LONG).show()
+                Hub.installMsg.value = "Kurulamadı.$hint\n\n(Teknik: $msg)"
+                if (!Hub.foreground) Toast.makeText(c, "Kurulamadı: $msg", Toast.LENGTH_LONG).show()
             }
         }
     }

@@ -1,4 +1,4 @@
-// v0.39 – 2026-10-26: kılavuz: telefondaki uygulamayı TV'ye kurma, USB'den APK/XAPK; TV'ye yazı, yansıtmada ekran açık; TV kumandası, oyun kolu, kızılötesi
+// v0.40 – 2026-10-27: kılavuz: yansıtmada ekran açık izni, parçalı uygulama ve uyum kontrolü; uygulama kurma, TV'ye yazı; TV kumandası, oyun kolu, kızılötesi
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -93,7 +93,7 @@ object GuideText {
             "• TV Gönder kurulu olmayan TV'ler için \"Başka TV'ye yansıt\": telefonun kendi Chromecast/Miracast ekranını açar.",
             "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
             "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
-            "• Yansıtma sürerken telefonun ekranı kapanmaz/kararmaz (kapanırsa TV'de de siyah olurdu). Bitince normale döner. Elle kilitlersen (güç tuşu) TV'de de kilit ekranı görünür.",
+            "• Yansıtma sürerken telefonun ekranı kapanmaz/kararmaz (kapanırsa TV'de de siyah olurdu). Bunun için ilk seferde \"Diğer uygulamaların üzerinde göster\" izni istenir; ver. Bitince normale döner. Elle kilitlersen (güç tuşu) TV'de de kilit ekranı görünür.",
             "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner. Sesin durumu telefonda kartın altında yazar.",
             "• YouTube, Spotify gibi bazı uygulamalar seslerinin başka uygulamaya verilmesine izin vermez: görüntü gelir, ses gelmez. YouTube için linki göndermek daha iyidir.",
             "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
@@ -102,6 +102,7 @@ object GuideText {
             "• Telefondaki bir uygulamayı TV'ye kurmak: telefonda \"📦 Telefondaki uygulamayı TV'ye kur\" → uygulamayı seç → gönderilir → TV'de dosyayı aç → Yükle. Play Store'dan gelen parçalı uygulamalar tek .apks paketi olarak gider (başka yoldan paylaşılan tek APK bunlarda kurulmaz).",
             "• Uygulama kurmak (USB'den): APK'yı flaşa at → TV'de Dosyalarım → dosyayı aç → Yükle. .xapk / .apks paketleri de kurulur. İlk seferde \"bilinmeyen kaynaklar\" izni istenir.",
             "• Telefon uygulamaları TV'nin ana ekranında görünmeyebilir (TV için yapılmadıkları için); TV Gönder'deki Uygulamalar listesinden açılır. Dokunmatik isteyen uygulamalarda Fare eklentisini kullan.",
+            "• \"Paylaş\" ile gönderilen base.apk, Play Store'dan gelen parçalı uygulamalarda kurulmaz; o uygulamayı 📦 kartıyla gönder. Telefon, göndermeden önce uygulamanın TV'de çalışıp çalışmayacağını kontrol eder (işlemci, Android sürümü).",
             "• \"Kurulamadı\" çıkarsa nedeni yazar: çoğunlukla APK telefonun işlemcisine göredir; sitesinden \"armeabi-v7a\" ya da \"universal\" sürümünü indir.",
             "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
             "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",

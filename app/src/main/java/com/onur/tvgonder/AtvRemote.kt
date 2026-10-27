@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: Google TV kumanda hizmeti: telefondan yazı yazma (TV'nin yazı alanına canlı), eşleşme, tuşlar, link açma
+// v0.40 – 2026-10-27: Google TV kumanda hizmeti: kopan bağlantıyı fark eder, tuşa basınca kendiliğinden yeniden bağlanır; yazı (IME), eşleşme, tuşlar, link
 package com.onur.tvgonder
 
 import android.content.Context
@@ -47,6 +47,10 @@ object AtvRemote {
 
     @Volatile private var sock: SSLSocket? = null
     @Volatile private var host: String? = null
+    /** Kopukken basılan tuşlar: yeniden bağlanınca gönderilir. */
+    private val pending = java.util.concurrent.ConcurrentLinkedQueue<ByteArray>()
+    @Volatile private var appCtx: Context? = null
+    @Volatile private var lastRx = 0L
     @Volatile private var pairSock: SSLSocket? = null
 
     // ---------------------------------------------------------------- küçük protobuf yardımcıları
@@ -254,6 +258,7 @@ object AtvRemote {
                 }
                 write(s.outputStream, outer().msg(40, PB().bytes(1, hash)).out())
                 val m = parse(read(s.inputStream))
+                lastRx = System.currentTimeMillis()
                 if ((m[2]?.firstOrNull() as? Long) != 200L || !m.containsKey(41)) error("TV kodu kabul etmedi")
                 runCatching { s.close() }; pairSock = null
                 c.getSharedPreferences("atv", Context.MODE_PRIVATE).edit().putBoolean("paired_${host}", true).putString("host", host).apply()
@@ -272,6 +277,7 @@ object AtvRemote {
 
     fun connect(c: Context, h: String) {
         filesDir = c.filesDir
+        appCtx = c.applicationContext
         if (state.value == State.Connected && host == h && sock?.isClosed == false) return
         host = h
         state.value = State.Connecting
@@ -288,7 +294,15 @@ object AtvRemote {
             }
             sock = s
             s.soTimeout = 0
+            lastRx = System.currentTimeMillis()
             Thread({ loop(c, s) }, "atv-remote").apply { isDaemon = true; start() }
+            // TV her ~5 sn yoklar; 20 sn ses gelmezse (TV uyudu / Wi‑Fi koptu) bağlantı ölü sayılır
+            Thread({
+                while (sock === s && !s.isClosed) {
+                    Thread.sleep(5000)
+                    if (System.currentTimeMillis() - lastRx > 20000) runCatching { s.close() }
+                }
+            }, "atv-watch").apply { isDaemon = true; start() }
         }
     }
 
@@ -297,6 +311,7 @@ object AtvRemote {
         try {
             while (!s.isClosed) {
                 val m = parse(read(s.inputStream))
+                lastRx = System.currentTimeMillis()
                 when {
                     m.containsKey(1) -> write(o, PB().msg(1, PB().int(1, FEATURES.toLong()).msg(2,
                         PB().str(1, Build.MODEL).str(2, Build.MANUFACTURER).int(3, 1).str(4, "1").str(5, "atvremote").str(6, "1.0.0"))).out())
@@ -332,16 +347,26 @@ object AtvRemote {
                     }
                 }
                 if (state.value == State.Connecting && (m.containsKey(2) || m.containsKey(8))) { state.value = State.Connected; message.value = "Bağlı ✓" }
+                if (state.value == State.Connected) while (true) { val b = pending.poll() ?: break; runCatching { write(o, b) } }
             }
         } catch (_: Exception) { }
         if (sock === s) {
             sock = null
-            if (state.value == State.Connected || state.value == State.Connecting) { state.value = State.Error; message.value = "Bağlantı koptu – dokununca yeniden bağlanır" }
+            if (state.value == State.Connected || state.value == State.Connecting) { state.value = State.Error; message.value = "Bağlantı koptu – bir tuşa basınca yeniden bağlanır" }
         }
     }
 
     private fun send(body: ByteArray) {
-        val s = sock ?: return
+        val s = sock
+        if (s == null || s.isClosed) {
+            // Kopuksa: son TV'ye kendiliğinden yeniden bağlan, tuşu bağlanınca gönder
+            val c = appCtx; val h = host
+            if (c != null && h != null && isPaired(c, h)) {
+                if (pending.size < 20) pending.add(body)
+                if (state.value != State.Connecting) connect(c, h)
+            }
+            return
+        }
         sendQ.execute { runCatching { write(s.outputStream, body) }.onFailure { runCatching { s.close() } } }
     }
 

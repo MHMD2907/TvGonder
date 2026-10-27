@@ -1,4 +1,4 @@
-// v0.38 – 2026-10-26: USB'deki APK/XAPK/APKS dosyaları TV Gönder'den kurulur; Fare önerisi, çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
+// v0.40 – 2026-10-27: kurulum hatası kalıcı pencerede; USB'deki APK/XAPK/APKS kurulumu; Fare önerisi, çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -112,6 +112,7 @@ fun TvScreen(
     val pending by Hub.pending.collectAsState()
     val running by Hub.running.collectAsState()
     val update by Hub.updateReady.collectAsState()
+    val installMsg by Hub.installMsg.collectAsState()
     val openUrl by Hub.openUrl.collectAsState()
     val rec by Hub.received.collectAsState()
     val mirror by Hub.mirrorIn.collectAsState()
@@ -151,7 +152,8 @@ fun TvScreen(
                 note = "Kurulum hazırlanıyor: ${e.name}…"
                 apkScope.launch {
                     val r = withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Installer.installUri(ctx, e.uri, e.name) } }
-                    note = r.exceptionOrNull()?.let { "Kurulamadı: ${it.message ?: it.javaClass.simpleName}" }
+                    note = null
+                    r.exceptionOrNull()?.let { Hub.installMsg.value = "Kurulamadı.\n\n${it.message ?: it.javaClass.simpleName}" }
                 }
             }
             Kind.Video -> push(TvNav.Video(listOf(e.uri), 0, audio = false))
@@ -378,6 +380,15 @@ fun TvScreen(
     }
 
     // ---- Telefondan gelen yeni sürüm
+    // Kurulum hatası: okunabilir, kalıcı pencere
+    installMsg?.let { m ->
+        AlertDialog(
+            onDismissRequest = { Hub.installMsg.value = null },
+            title = { Text("📦 Uygulama kurulamadı") },
+            text = { Text(m, style = MaterialTheme.typography.bodyLarge) },
+            confirmButton = { Button(onClick = { Hub.installMsg.value = null }) { Text("Tamam") } },
+        )
+    }
     update?.let { apk ->
         var info by remember { mutableStateOf<String?>(null) }
         AlertDialog(

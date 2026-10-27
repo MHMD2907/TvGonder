@@ -1,4 +1,4 @@
-// v0.36 – 2026-10-24: yansıtma görüntüsü TextureView ile: ortalı, Doldur'da düzgün kırpılır (sola kayma giderildi); TV ekranını gör + dokunma
+// v0.40 – 2026-10-27: yansıtma başlarken ekran açık kalsın izni sorulur; TextureView ile ortalı görüntü, Doldur/Sığdır; TV ekranını gör + dokunma
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -219,12 +219,41 @@ fun rememberMirrorStarter(store: Store): () -> Unit {
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         runCatching { capture.launch(mpm.createScreenCaptureIntent()) }
     }
-    return {
+    // Yansıtmada ekranın kapanmaması için "diğer uygulamaların üzerinde göster" izni (yoksa önce sorulur)
+    var askOverlay by remember { mutableStateOf(false) }
+    var go by remember { mutableStateOf(0) }
+    if (askOverlay) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { askOverlay = false },
+        title = { Text("Telefon ekranı kapanmasın") },
+        text = {
+            Text(
+                "Yansıtma sürerken telefonun uyku moduna geçmemesi için TV Gönder'e \"Diğer uygulamaların üzerinde göster\" izni ver. " +
+                    "Açılan ekranda TV Gönder'i aç, geri dön ve yansıtmayı yeniden başlat.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                askOverlay = false
+                runCatching {
+                    ctx.startActivity(
+                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${ctx.packageName}"))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+            }) { Text("İzin ver") }
+        },
+        dismissButton = { TextButton(onClick = { askOverlay = false; go++ }) { Text("Şimdi değil, başlat") } },
+    )
+    val launch: () -> Unit = {
         val need = buildList {
             if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.RECORD_AUDIO)
             if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.POST_NOTIFICATIONS)
         }
         if (need.isEmpty()) runCatching { capture.launch(mpm.createScreenCaptureIntent()) } else mic.launch(need.toTypedArray())
+    }
+    LaunchedEffect(go) { if (go > 0) launch() }
+    return {
+        if (Build.VERSION.SDK_INT >= 26 && !android.provider.Settings.canDrawOverlays(ctx)) askOverlay = true else launch()
     }
 }
 

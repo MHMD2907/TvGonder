@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: yansıtma sürerken telefon ekranı kapanmaz/kararmaz; ses durumu telefonda görünür; dönüş, telefon sesi kısılır
+// v0.40 – 2026-10-27: yansıtmada telefon ekranı kesin açık kalır (görünmez "ekranı açık tut" penceresi + uyanık kalma kilidi); ses durumu; dönüş
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -108,7 +108,26 @@ class MirrorService : Service() {
     /** Yansıtma sürerken telefon ekranı kapanmasın/kararmasın (kilitlenirse TV'de de siyah olurdu). */
     private var wake: android.os.PowerManager.WakeLock? = null
     @Suppress("DEPRECATION")
+    /** Ekranı açık tutan görünmez 1 piksellik pencere (en sağlam yol; "üstte göster" izni varsa). */
+    private var awakeView: android.view.View? = null
+    private fun keepAwakeOverlay() {
+        if (awakeView != null || Build.VERSION.SDK_INT < 26 || !android.provider.Settings.canDrawOverlays(this)) return
+        runCatching {
+            val v = android.view.View(this)
+            val lp = WindowManager.LayoutParams(
+                1, 1, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                android.graphics.PixelFormat.TRANSLUCENT,
+            )
+            lp.gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            getSystemService(WindowManager::class.java).addView(v, lp)
+            awakeView = v
+        }
+    }
+
     private fun keepAwake() {
+        keepAwakeOverlay()
         if (wake?.isHeld == true) return
         wake = runCatching {
             getSystemService(android.os.PowerManager::class.java)
@@ -382,6 +401,7 @@ class MirrorService : Service() {
 
     override fun onDestroy() {
         runCatching { wake?.let { if (it.isHeld) it.release() } }; wake = null
+        awakeView?.let { v -> runCatching { getSystemService(WindowManager::class.java).removeView(v) } }; awakeView = null
         if (savedVol >= 0) runCatching { am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, savedVol, 0) }
         runCatching { getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener) }
         running = false

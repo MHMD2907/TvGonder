@@ -1,4 +1,4 @@
-// v0.39 – 2026-10-26: sürüm 0.39 (telefondaki uygulamayı TV'ye kur; USB'den APK/XAPK kurulumu; TV'ye yazı)
+// v0.40 – 2026-10-27: sürüm 0.40 (yansıtmada ekran kesin açık; uygulama kurma uyum kontrolü ve anlaşılır hatalar; kumanda kendiliğinden yeniden bağlanır)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 41
-        versionName = "0.39"
+        versionCode = 42
+        versionName = "0.40"
     }
     signingConfigs {
         getByName("debug") {

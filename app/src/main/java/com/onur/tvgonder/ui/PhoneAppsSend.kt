@@ -1,4 +1,4 @@
-// v0.39 – 2026-10-26: telefondaki yüklü uygulamayı TV'ye kurulum dosyası olarak gönderme (parçalı uygulamalar .apks paketi olur)
+// v0.40 – 2026-10-27: telefondaki uygulamayı TV'ye gönderme: göndermeden önce TV'nin işlemcisi/Android sürümüyle uyum kontrolü; parçalılar .apks
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -40,6 +40,28 @@ object ApkPack {
             }
             .sortedBy { it.label.lowercase() }
     }
+
+    /** Uygulamanın yerel kod işlemci türleri (boşsa her işlemcide çalışır). */
+    fun abis(c: Context, pkg: String): Set<String> {
+        val ai = c.packageManager.getApplicationInfo(pkg, 0)
+        val out = mutableSetOf<String>()
+        val known = listOf("arm64-v8a", "armeabi-v7a", "armeabi", "x86_64", "x86")
+        ai.splitSourceDirs.orEmpty().forEach { p ->
+            val b = File(p).name.lowercase().removeSuffix(".apk").replace('_', '-')
+            known.firstOrNull { b.endsWith(".$it") || b.endsWith("-$it") }?.let { out += it }
+        }
+        runCatching {
+            java.util.zip.ZipFile(ai.sourceDir).use { z ->
+                z.entries().asSequence().map { it.name }.filter { it.startsWith("lib/") && it.endsWith(".so") }
+                    .forEach { out += it.removePrefix("lib/").substringBefore('/') }
+            }
+        }
+        return out
+    }
+
+    /** Uygulamanın istediği en düşük Android sürümü. */
+    fun minSdk(c: Context, pkg: String): Int =
+        if (android.os.Build.VERSION.SDK_INT >= 24) c.packageManager.getApplicationInfo(pkg, 0).minSdkVersion else 0
 
     fun icon(c: Context, pkg: String): ImageBitmap? = runCatching {
         c.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap()

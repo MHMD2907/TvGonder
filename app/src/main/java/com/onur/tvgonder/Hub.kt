@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: ana ekrana dönüş isteği; ekran yansıtma durumu, gelen dosya, link açma, ön planda mı
+// v0.40 – 2026-10-27: kurulum sonucu mesajı; ana ekrana dönüş isteği; ekran yansıtma durumu, gelen dosya, link açma, ön planda mı
 package com.onur.tvgonder
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,4 +32,6 @@ object Hub {
     val mirrorAudio = MutableStateFlow("")
     /** Bu cihaz şu an ekranını yansıtıyor mu. */
     val mirrorOut = MutableStateFlow(false)
+    /** Kurulum sonucu (TV ekranında kalıcı pencere olarak gösterilir; toast kısa kalıyor). */
+    val installMsg = MutableStateFlow<String?>(null)
 }

@@ -1,4 +1,4 @@
-// v0.38 – 2026-10-26: USB'deki APK ve XAPK/APKS/APKM (parçalı) kurulumu; oturumlu APK kurulumu, çıkış, depolama birimleri, sürüm yardımcıları
+// v0.40 – 2026-10-27: parçalı paketlerde TV'nin işlemcisine uyan parça seçilir, uymuyorsa nedeni açıkça yazılır; USB'den APK/XAPK/APKS; oturumlu kurulum
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -82,8 +82,26 @@ object Installer {
         }.getOrDefault(false)
         if (!isZipBundle) { install(c, f); return }
         java.util.zip.ZipFile(f).use { z ->
-            val parts = z.entries().asSequence().filter { !it.isDirectory && it.name.endsWith(".apk", true) }.toList()
-            if (parts.isEmpty()) error("Paketin içinde APK yok (şifreli olabilir)")
+            val all = z.entries().asSequence().filter { !it.isDirectory && it.name.endsWith(".apk", true) }.toList()
+            if (all.isEmpty()) error("Paketin içinde APK yok (şifreli olabilir)")
+            // İşlemci parçaları (config.arm64_v8a vb.): TV'nin desteklediği varsa yalnız onları al; hiçbiri uymuyorsa açıkça söyle
+            val abis = Build.SUPPORTED_ABIS.map { it.replace('-', '_').lowercase() }
+            fun abiOf(n: String): String? {
+                val b = n.substringAfterLast('/').lowercase().removeSuffix(".apk")
+                return listOf("arm64_v8a", "armeabi_v7a", "armeabi", "x86_64", "x86", "mips64", "mips").firstOrNull { b.endsWith(".$it") || b.endsWith("_$it") }
+            }
+            val abiParts = all.filter { abiOf(it.name) != null }
+            val okAbi = abiParts.filter { abiOf(it.name) in abis }
+            if (abiParts.isNotEmpty() && okAbi.isEmpty()) {
+                val has = abiParts.mapNotNull { abiOf(it.name) }.distinct().joinToString { it.replace('_', '-') }
+                error(
+                    "Bu uygulama telefonun işlemcisine ($has) göre indirilmiş; TV'nin işlemcisi ${Build.SUPPORTED_ABIS.joinToString()}. " +
+                        "Telefondan gönderilen sürüm bu TV'ye kurulamaz. APKPure / APKCombo gibi bir siteden " +
+                        "\"armeabi-v7a\" (ya da universal) sürümünü XAPK/APK olarak flaşa indirip buradan kur."
+                )
+            }
+            val best = abis.firstOrNull { a -> okAbi.any { abiOf(it.name) == a } }
+            val parts = all.filter { abiOf(it.name) == null } + okAbi.filter { abiOf(it.name) == best }
             val pi = c.packageManager.packageInstaller
             val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
             if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_REQUIRED)

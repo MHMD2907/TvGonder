@@ -1,4 +1,4 @@
-// v0.39 – 2026-10-26: "Telefondaki uygulamayı TV'ye kur" (parçalı uygulamalar .apks); TV kumandası kartı her zaman görünür; YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
+// v0.40 – 2026-10-27: uygulama gönderirken TV ile uyum kontrolü; "Telefondaki uygulamayı TV'ye kur"; TV kumandası kartı; YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -497,6 +497,24 @@ private fun SendUi(
         if (!paired) { msg = notPaired; return }
         msg = Msg("${a.label} hazırlanıyor…", false)
         scope.launch {
+            // Önce uyum: TV'nin işlemcisi ve Android sürümü (TV eskiyse bilgi gelmez, kontrol atlanır)
+            val problem = withContext(Dispatchers.IO) {
+                runCatching {
+                    val info = client.tvInfo()
+                    val tvAbis = info.optString("abis").split(',').filter { it.isNotBlank() }
+                    val appAbis = ApkPack.abis(ctx, a.pkg)
+                    val tvSdk = info.optInt("sdk", 0)
+                    val need = ApkPack.minSdk(ctx, a.pkg)
+                    when {
+                        tvAbis.isNotEmpty() && appAbis.isNotEmpty() && appAbis.none { it in tvAbis } ->
+                            "${a.label} bu telefona özel işlemci sürümüyle (${appAbis.joinToString()}) yüklenmiş; TV'nin işlemcisi ${tvAbis.joinToString()}. " +
+                                "Telefondan gönderilen sürüm TV'ye kurulamaz. Uygulamanın \"armeabi-v7a\" sürümünü APKPure / APKCombo'dan XAPK olarak flaşa indirip TV'de Dosyalarım'dan kur."
+                        tvSdk in 1 until need -> "${a.label} daha yeni bir Android istiyor (TV'nin sürümü yetmiyor). Uygulamanın eski bir sürümü gerekir."
+                        else -> null
+                    }
+                }.getOrNull()
+            }
+            if (problem != null) { msg = Msg(problem, true); return@launch }
             val r = withContext(Dispatchers.IO) { runCatching { ApkPack.build(ctx, a.pkg) } }
             r.onSuccess { f ->
                 msg = Msg("${a.label} TV'ye gidiyor. Bitince TV'de dosyayı aç → Yükle.", false)
