@@ -1,4 +1,4 @@
-// v0.41 – 2026-10-27: sürüm 0.41 (TV'ye yazı bağlı değilken de açılır; yansıtmada ekran açık; uygulama kurma uyum kontrolü)
+// v0.42 – 2026-10-30: sürüm 0.42 (TV pencerelerinde odak belirgin; uygun olmayan uygulama için indirme yardımı)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 43
-        versionName = "0.41"
+        versionCode = 44
+        versionName = "0.42"
     }
     signingConfigs {
         getByName("debug") {

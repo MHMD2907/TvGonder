@@ -1,4 +1,4 @@
-// v0.38 – 2026-10-26: Dosyalarım: XAPK/APKS/APKM de kurulum dosyası sayılır; yeni klasör, taşı/kopyala, küçük resimler, filtre, arama, silme
+// v0.42 – 2026-10-30: kumanda düğmeleri (TvButton) odakta belirgin; Dosyalarım: XAPK/APKS, yeni klasör, taşı/kopyala, küçük resimler, filtre, arama, silme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -223,6 +223,39 @@ fun TvCard(
             .clickable(interactionSource = src, indication = null, onClick = onClick)
             .padding(padding),
     ) { content(focused) }
+}
+
+/**
+ * Kumandayla kullanılan düğme: odaktayken belirgin (dolu renk + beyaz çerçeve + büyüme), böylece
+ * Evet / Hayır / İptal arasında hangisinde olduğun her zaman görünür. autoFocus: pencere açılınca odak buraya gelir.
+ */
+@Composable
+fun TvButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    autoFocus: Boolean = false,
+    enabled: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    val src = remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val fr = remember { FocusRequester() }
+    if (autoFocus) LaunchedEffect(Unit) { kotlinx.coroutines.delay(150); runCatching { fr.requestFocus() } }
+    val scale by animateFloatAsState(if (focused) 1.1f else 1f, label = "tvbtn")
+    androidx.compose.material3.Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = src,
+        shape = RoundedCornerShape(50),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = when { focused -> Accent; primary -> Accent.copy(alpha = 0.30f); else -> Panel },
+            contentColor = if (focused) Ink else TextMain,
+        ),
+        border = androidx.compose.foundation.BorderStroke(3.dp, if (focused) Color.White else TextMuted.copy(alpha = 0.35f)),
+        modifier = modifier.focusRequester(fr).graphicsLayer { scaleX = scale; scaleY = scale },
+        content = content,
+    )
 }
 
 // ---------------------------------------------------------------- Dosyalarım
@@ -512,7 +545,7 @@ fun TvFilesScreen(
             title = { Text("${selected.size} öğe silinsin mi?") },
             text = { Text("Seçilen dosya ve klasörler bellekten kalıcı olarak silinir.", style = MaterialTheme.typography.bodyLarge) },
             confirmButton = {
-                androidx.compose.material3.Button(onClick = {
+                TvButton(primary = true, onClick = {
                     confirm = false
                     val targets = entries.orEmpty().filter { it.uri in selected }
                     scope.launch {
@@ -524,7 +557,7 @@ fun TvFilesScreen(
                     }
                 }) { Text("Sil") }
             },
-            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { confirm = false }) { Text("Vazgeç") } },
+            dismissButton = { TvButton(autoFocus = true, onClick = { confirm = false }) { Text("Vazgeç") } },
         )
     }
 }
@@ -560,8 +593,8 @@ fun NameDialog(title: String, onDismiss: () -> Unit, onOk: (String) -> Unit) {
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (name.isNotBlank()) onOk(name.trim()) }),
             )
         },
-        confirmButton = { androidx.compose.material3.Button(onClick = { if (name.isNotBlank()) onOk(name.trim()) }) { Text("Oluştur") } },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Vazgeç") } },
+        confirmButton = { TvButton(primary = true, onClick = { if (name.isNotBlank()) onOk(name.trim()) }) { Text("Oluştur") } },
+        dismissButton = { TvButton(onClick = onDismiss) { Text("Vazgeç") } },
     )
 }
 

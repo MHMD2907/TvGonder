@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: uygulama gönderirken TV ile uyum kontrolü; "Telefondaki uygulamayı TV'ye kur"; TV kumandası kartı; YouTube linki kumanda hizmetiyle; yansıtma, kızılötesi
+// v0.42 – 2026-10-30: TV'ye uymayan uygulama için uygun sürümü indirme yardımı (sitede aranmış açılır, Belge/Diğer ile gönderilir); uyum kontrolü; uygulama gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -415,6 +415,8 @@ private fun SendUi(
     var showTvFiles by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
     var showPhoneApps by remember { mutableStateOf(false) }
+    /** İşlemci uymayan uygulama: (ad, paket) – TV'ye uygun sürümü indirme yardımı. */
+    var abiFix by remember { mutableStateOf<Pair<String, String>?>(null) }
     var showPad by remember { mutableStateOf(false) }
     var showTvScreen by remember { mutableStateOf(false) }
     val mirroring by com.onur.tvgonder.Hub.mirrorOut.collectAsState()
@@ -514,7 +516,10 @@ private fun SendUi(
                     }
                 }.getOrNull()
             }
-            if (problem != null) { msg = Msg(problem, true); return@launch }
+            if (problem != null) {
+                if ("işlemci" in problem) abiFix = a.label to a.pkg else msg = Msg(problem, true)
+                return@launch
+            }
             val r = withContext(Dispatchers.IO) { runCatching { ApkPack.build(ctx, a.pkg) } }
             r.onSuccess { f ->
                 msg = Msg("${a.label} TV'ye gidiyor. Bitince TV'de dosyayı aç → Yükle.", false)
@@ -1011,6 +1016,32 @@ private fun SendUi(
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
     if (showApps) RemoteAppsDialog(client, store.tvName) { showApps = false }
     if (showPhoneApps) PhoneAppPicker(onPick = { sendPhoneApp(it) }, onClose = { showPhoneApps = false })
+    abiFix?.let { (label, pkg) ->
+        fun web(u: String) = runCatching {
+            ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(u)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        AlertDialog(
+            onDismissRequest = { abiFix = null },
+            title = { Text("$label TV'ye uygun değil") },
+            text = {
+                Text(
+                    "Telefondaki $label, telefonun 64 bit işlemcisine göre yüklenmiş; TV'nin işlemcisi 32 bit (armeabi-v7a). " +
+                        "Aynı uygulamanın TV'ye uygun sürümünü telefona indirip buradan gönderebilirsin, flaş gerekmez:\n\n" +
+                        "1. Aşağıdan bir siteye gir (uygulama aranmış olarak açılır).\n" +
+                        "2. Uygulamayı seç → İndir. Sürüm seçeneği çıkarsa \"armeabi-v7a\" yazanı seç (XAPK ya da APK olabilir).\n" +
+                        "3. TV Gönder'e dön → \"Belge / Diğer\" → indirilen dosyayı seç → TV'ye gider.\n" +
+                        "4. TV'de dosyaya bas → Yükle.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { web("https://apkcombo.com/search/$pkg"); abiFix = null }) { Text("APKCombo'da ara") } },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { web("https://apkpure.com/search?q=$pkg"); abiFix = null }) { Text("APKPure'da ara") }
+                    TextButton(onClick = { abiFix = null }) { Text("Kapat") }
+                }
+            },
+        )
+    }
     if (showPad) GamepadDialog { showPad = false }
     if (showTvScreen) com.onur.tvgonder.mirror.TvScreenViewer(client, store) { showTvScreen = false }
 

@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: kurulum hatası kalıcı pencerede; USB'deki APK/XAPK/APKS kurulumu; Fare önerisi, çift Geri ile çıkış, Uygulamalar, gelen yansıtma, Ayarlar
+// v0.42 – 2026-10-30: pencerelerdeki düğmeler kumandada belirgin odaklı (TvButton), açılınca odak doğru düğmede; kurulum hatası penceresi; USB'den APK; Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -228,12 +228,12 @@ fun TvScreen(
             title = { Text(if (installed) "Fare eklentisi güncellensin mi?" else "Fare eklentisi de kurulsun mu?") },
             text = { Text("Telefonu her uygulamada fare gibi kullanmak için gerekir. Kurulunca açılan listede \"TV Gönder Fare\"yi seçip aç.", style = MaterialTheme.typography.bodyLarge) },
             confirmButton = {
-                androidx.compose.material3.Button(onClick = {
+                TvButton(primary = true, autoFocus = true, onClick = {
                     done()
                     fScope.launch { withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.onur.tvgonder.Apps.downloadAndInstallFare(ctx) } } }
                 }) { Text(if (installed) "Güncelle" else "Kur") }
             },
-            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { done() }) { Text("Şimdi değil") } },
+            dismissButton = { TvButton(onClick = { done() }) { Text("Şimdi değil") } },
         )
     }
 
@@ -314,7 +314,8 @@ fun TvScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     vols.forEachIndexed { i, v ->
-                        Button(
+                        TvButton(
+                            primary = true,
                             onClick = {
                                 onSetStorage(Uri.fromFile(v.dir).toString())
                                 showStorage = false
@@ -326,7 +327,7 @@ fun TvScreen(
                     if (vols.none { it.removable }) {
                         Text("Takılı USB bellek bulunamadı. Takıp tekrar dene ya da TV hafızasını seç.", style = MaterialTheme.typography.bodyMedium)
                     }
-                    OutlinedButton(
+                    TvButton(
                         onClick = {
                             showStorage = false
                             if (!onPickSaf()) note = "Bu TV'de klasör seçici yok. Listeden birini seç."
@@ -340,7 +341,7 @@ fun TvScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { OutlinedButton(onClick = { showStorage = false }) { Text("Kapat") } },
+            dismissButton = { TvButton(onClick = { showStorage = false }) { Text("Kapat") } },
         )
     }
 
@@ -363,7 +364,7 @@ fun TvScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { OutlinedButton(onClick = { Hub.pairingCode.value = null }) { Text("Vazgeç") } },
+            dismissButton = { TvButton(autoFocus = true, onClick = { Hub.pairingCode.value = null }) { Text("Vazgeç") } },
         )
     }
 
@@ -374,8 +375,8 @@ fun TvScreen(
             containerColor = PanelHi,
             title = { Text("Yeni telefon") },
             text = { Text("${req.name} bu TV'ye bağlanmak istiyor.", style = MaterialTheme.typography.bodyLarge) },
-            confirmButton = { Button(onClick = { req.decision.complete(true) }) { Text("Onayla") } },
-            dismissButton = { OutlinedButton(onClick = { req.decision.complete(false) }) { Text("Reddet") } },
+            confirmButton = { TvButton(primary = true, autoFocus = true, onClick = { req.decision.complete(true) }) { Text("✓ Onayla") } },
+            dismissButton = { TvButton(onClick = { req.decision.complete(false) }) { Text("✕ Reddet") } },
         )
     }
 
@@ -386,7 +387,7 @@ fun TvScreen(
             onDismissRequest = { Hub.installMsg.value = null },
             title = { Text("📦 Uygulama kurulamadı") },
             text = { Text(m, style = MaterialTheme.typography.bodyLarge) },
-            confirmButton = { Button(onClick = { Hub.installMsg.value = null }) { Text("Tamam") } },
+            confirmButton = { TvButton(primary = true, autoFocus = true, onClick = { Hub.installMsg.value = null }) { Text("Tamam") } },
         )
     }
     update?.let { apk ->
@@ -402,7 +403,7 @@ fun TvScreen(
                 )
             },
             confirmButton = {
-                Button(onClick = {
+                TvButton(primary = true, autoFocus = true, onClick = {
                     if (!Installer.canInstall(ctx)) {
                         val opened = Installer.openPermission(ctx)
                         info = if (opened) "Açılan ekranda TV Gönder için izni aç, geri dön ve tekrar Yükle'ye bas."
@@ -414,7 +415,7 @@ fun TvScreen(
                     }
                 }) { Text("Yükle") }
             },
-            dismissButton = { OutlinedButton(onClick = { Hub.updateReady.value = null }) { Text("Sonra") } },
+            dismissButton = { TvButton(onClick = { Hub.updateReady.value = null }) { Text("Sonra") } },
         )
     }
 }

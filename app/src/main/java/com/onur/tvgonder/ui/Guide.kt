@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: kılavuz: yansıtmada ekran açık izni, parçalı uygulama ve uyum kontrolü; uygulama kurma, TV'ye yazı; TV kumandası, oyun kolu, kızılötesi
+// v0.42 – 2026-10-30: kılavuz: TV'ye uymayan uygulamanın uygun sürümünü indirip gönderme; yansıtmada ekran açık izni, uygulama kurma, TV'ye yazı; kumanda, oyun kolu
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -103,6 +103,7 @@ object GuideText {
             "• Uygulama kurmak (USB'den): APK'yı flaşa at → TV'de Dosyalarım → dosyayı aç → Yükle. .xapk / .apks paketleri de kurulur. İlk seferde \"bilinmeyen kaynaklar\" izni istenir.",
             "• Telefon uygulamaları TV'nin ana ekranında görünmeyebilir (TV için yapılmadıkları için); TV Gönder'deki Uygulamalar listesinden açılır. Dokunmatik isteyen uygulamalarda Fare eklentisini kullan.",
             "• \"Paylaş\" ile gönderilen base.apk, Play Store'dan gelen parçalı uygulamalarda kurulmaz; o uygulamayı 📦 kartıyla gönder. Telefon, göndermeden önce uygulamanın TV'de çalışıp çalışmayacağını kontrol eder (işlemci, Android sürümü).",
+            "• Telefon \"TV'ye uygun değil\" derse: pencereden APKCombo / APKPure'u aç (uygulama aranmış gelir) → armeabi-v7a sürümünü indir → \"Belge / Diğer\" ile TV'ye gönder → TV'de Yükle. Flaş gerekmez.",
             "• \"Kurulamadı\" çıkarsa nedeni yazar: çoğunlukla APK telefonun işlemcisine göredir; sitesinden \"armeabi-v7a\" ya da \"universal\" sürümünü indir.",
             "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
             "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",

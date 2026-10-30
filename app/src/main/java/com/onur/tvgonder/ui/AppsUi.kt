@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: Uygulamalar: TV/tablette liste (aç, kaldır, bilgi); telefonda TV'deki uygulamaları aç/kaldır
+// v0.42 – 2026-10-30: TV uygulama penceresinde düğmeler kumandada belirgin odaklı; Uygulamalar: TV/tablette liste (aç, kaldır, bilgi); telefonda TV'deki uygulamaları aç/kaldır
 package com.onur.tvgonder.ui
 
 import android.graphics.Bitmap
@@ -115,12 +115,12 @@ fun TvAppsScreen() {
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { chosen = null; Apps.open(ctx, a.pkg) }) { Text("▶ Aç") }
-                    if (!a.system) OutlinedButton(onClick = { chosen = null; Apps.remove(ctx, a.pkg) }) { Text("🗑 Kaldır") }
-                    OutlinedButton(onClick = { chosen = null; Apps.info(ctx, a.pkg) }) { Text("ℹ Bilgi") }
+                    TvButton(primary = true, autoFocus = true, onClick = { chosen = null; Apps.open(ctx, a.pkg) }) { Text("▶ Aç") }
+                    if (!a.system) TvButton(onClick = { chosen = null; Apps.remove(ctx, a.pkg) }) { Text("🗑 Kaldır") }
+                    TvButton(onClick = { chosen = null; Apps.info(ctx, a.pkg) }) { Text("ℹ Bilgi") }
                 }
             },
-            dismissButton = { TextButton(onClick = { chosen = null }) { Text("Vazgeç") } },
+            dismissButton = { TvButton(onClick = { chosen = null }) { Text("Vazgeç") } },
         )
     }
 }
