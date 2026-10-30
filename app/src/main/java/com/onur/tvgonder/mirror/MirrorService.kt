@@ -107,7 +107,6 @@ class MirrorService : Service() {
 
     /** Yansıtma sürerken telefon ekranı kapanmasın/kararmasın (kilitlenirse TV'de de siyah olurdu). */
     private var wake: android.os.PowerManager.WakeLock? = null
-    @Suppress("DEPRECATION")
     /** Ekranı açık tutan görünmez 1 piksellik pencere (en sağlam yol; "üstte göster" izni varsa). */
     private var awakeView: android.view.View? = null
     private fun keepAwakeOverlay() {
@@ -126,6 +125,7 @@ class MirrorService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun keepAwake() {
         keepAwakeOverlay()
         if (wake?.isHeld == true) return

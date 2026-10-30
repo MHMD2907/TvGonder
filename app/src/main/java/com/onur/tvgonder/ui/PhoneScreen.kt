@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: TV'ye uymayan uygulama için uygun sürümü indirme yardımı (sitede aranmış açılır, Belge/Diğer ile gönderilir); uyum kontrolü; uygulama gönderme
+// v0.43 – 2026-10-30: büyük gönderimlerde telefon uyumaz (uyanık kalma + Wi‑Fi kilidi); TV ile uyum kontrolü ve indirme yardımı; uygulama gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -460,6 +460,18 @@ private fun SendUi(
     fun uploadAll(items: List<Pair<Transfer, Pair<String, Uri>>>, withDate: Boolean) {
         transfers.addAll(0, items.map { it.first })
         scope.launch {
+            // Büyük gönderimlerde telefon uyuyup Wi‑Fi'ı kısmasın (yarım kalan gönderimlerin ana sebebi)
+            val wl = runCatching {
+                ctx.getSystemService(android.os.PowerManager::class.java)
+                    .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "tvgonder:upload").apply { acquire(2 * 60 * 60 * 1000L) }
+            }.getOrNull()
+            @Suppress("DEPRECATION")
+            val wifiLock = runCatching {
+                (ctx.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager)
+                    .createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "tvgonder:upload")
+                    .apply { setReferenceCounted(false); acquire() }
+            }.getOrNull()
+            try {
             for ((t, dest) in items) {
                 val (dir, u) = dest
                 t.state = TState.Sending
@@ -479,6 +491,10 @@ private fun SendUi(
                 } else {
                     t.state = TState.Failed; t.error = friendly(r.exceptionOrNull())
                 }
+            }
+            } finally {
+                runCatching { if (wl?.isHeld == true) wl.release() }
+                runCatching { if (wifiLock?.isHeld == true) wifiLock.release() }
             }
             val done = items.count { it.first.state == TState.Done }
             if (items.size > 1) msg = Msg("$done / ${items.size} dosya gönderildi.", done < items.size)

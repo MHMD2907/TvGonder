@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: Kumanda sekmesinde telefondan TV'ye yazı (⌨, Wi‑Fi bağlıyken); oyun kolu Wi‑Fi'da TV kumandasının TV'sine bağlanır; Bluetooth yedek
+// v0.43 – 2026-10-30: Bluetooth yalnız gerekince (Wi‑Fi bağlıysa izin sorulmaz); "bağlanıyor" durumu; TV'ye yazı alanı üstte, klavye örtmez; oyun kolu Wi‑Fi/Bluetooth
 package com.onur.tvgonder.ui
 
 import android.Manifest
@@ -102,7 +102,19 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
             if (h != null) AtvRemote.connect(ctx, h)
         }
     }
-    LaunchedEffect(Unit) { if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms) }
+    // Bluetooth yalnız gerekince: Wi‑Fi (TV kumandası) 4 sn içinde bağlanmadıysa ya da Bağlantı sekmesi açılınca.
+    // Böylece Wi‑Fi ile kullananlara her açılışta Bluetooth izni sorulmaz, telefon gereksiz yere "klavye/kol" olarak görünmez.
+    var btStarted by remember { mutableStateOf(false) }
+    fun startBt() {
+        if (btStarted) return
+        btStarted = true
+        if (granted()) { BtPad.start(ctx); devices = BtPad.bonded() } else ask.launch(perms)
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(4000)
+        if (AtvRemote.state.value != AtvRemote.State.Connected) startBt()
+    }
+    LaunchedEffect(tab) { if (tab == 2) startBt() }
     LaunchedEffect(ready) { if (ready) devices = BtPad.bonded() }
 
     MaybeDialog(full, onClose) {
@@ -150,7 +162,13 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
                         color = TextMuted, style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                if (!wifi && connected == null && tab != 2) {
+                if (atv == AtvRemote.State.Connecting && tab != 2) {
+                    Text(
+                        "TV'ye bağlanıyor…",
+                        Modifier.align(Alignment.TopCenter).clip(RoundedCornerShape(10.dp)).background(PanelHi).padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = TextMuted, style = MaterialTheme.typography.bodySmall,
+                    )
+                } else if (!wifi && connected == null && tab != 2) {
                     val atvMsg by AtvRemote.message.collectAsState()
                     Text(
                         "Bağlı değil. Dokun → TV kumandası açılır, orada TV'ye bağlan (bir kez eşleşme), sonra buraya dön." +
@@ -170,7 +188,7 @@ fun GamepadDialog(full: Boolean = false, onClose: () -> Unit) {
 fun MaybeDialog(full: Boolean, onClose: () -> Unit, content: @Composable () -> Unit) {
     if (full) {
         androidx.activity.compose.BackHandler { onClose() }
-        Box(Modifier.fillMaxSize().background(Ink).windowInsetsPadding(WindowInsets.displayCutout)) { content() }
+        Box(Modifier.fillMaxSize().background(Ink).windowInsetsPadding(WindowInsets.displayCutout).imePadding()) { content() }
     } else Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) { content() }
 }
 
@@ -304,8 +322,9 @@ private fun PadRemote() {
     val portrait = maxHeight > maxWidth
     val body: @Composable (Modifier, Modifier) -> Unit = { dm, km -> RemoteBody(dm, km) }
     if (portrait) Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        body(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
+        // Yazı alanı üstte: telefon klavyesi açılınca altta kalıp gizlenmesin
         AtvKeyboard(Modifier.padding(horizontal = 8.dp))
+        body(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
     } else Row(Modifier.fillMaxSize().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
         body(Modifier.weight(1.1f), Modifier.weight(1.2f))
     }

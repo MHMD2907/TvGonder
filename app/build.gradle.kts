@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: sürüm 0.42 (TV pencerelerinde odak belirgin; uygun olmayan uygulama için indirme yardımı)
+// v0.43 – 2026-10-30: sürüm 0.43 (inceleme düzeltmeleri: gönderimde telefon uyumaz, oyun kolunda gereksiz Bluetooth izni yok, klavye yazı alanını örtmez)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 44
-        versionName = "0.42"
+        versionCode = 45
+        versionName = "0.43"
     }
     signingConfigs {
         getByName("debug") {
