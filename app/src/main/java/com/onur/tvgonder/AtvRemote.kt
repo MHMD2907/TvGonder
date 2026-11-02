@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: Google TV kumanda hizmeti: kopan bağlantıyı fark eder, tuşa basınca kendiliğinden yeniden bağlanır; yazı (IME), eşleşme, tuşlar, link
+// v0.45 – 2026-11-02: TV'ye yazı: TV yazı alanını bildirmezse harf harf tuşla yazar (her kutuda çalışır); kendiliğinden yeniden bağlanma; eşleşme, tuşlar, link
 package com.onur.tvgonder
 
 import android.content.Context
@@ -40,6 +40,8 @@ object AtvRemote {
     val imeActive = MutableStateFlow(false)
     /** TV'deki yazı alanının içeriği (TV bildirdikçe). */
     val imeText = MutableStateFlow("")
+    /** TV'den en son yazı alanı bilgisi geldiği an (yakın zamansa yazı IME ile, değilse tuş tuş gider). */
+    @Volatile private var lastImeAt = 0L
     @Volatile private var imeCounter = 0L
     @Volatile private var fieldCounter = 0L
     private val io = Executors.newSingleThreadExecutor()
@@ -278,6 +280,7 @@ object AtvRemote {
     fun connect(c: Context, h: String) {
         filesDir = c.filesDir
         appCtx = c.applicationContext
+        lastImeAt = 0L
         if (state.value == State.Connected && host == h && sock?.isClosed == false) return
         host = h
         state.value = State.Connecting
@@ -330,7 +333,7 @@ object AtvRemote {
                                 (parse(obj)[3]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
                             }
                         }
-                        imeActive.value = true
+                        imeActive.value = true; lastImeAt = System.currentTimeMillis()
                     }
                     m.containsKey(22) -> runCatching {
                         val req = parse(m[22]!!.first() as ByteArray)
@@ -339,7 +342,7 @@ object AtvRemote {
                             (f[1]?.firstOrNull() as? Long)?.let { fieldCounter = it }
                             (f[2]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
                         }
-                        imeActive.value = true
+                        imeActive.value = true; lastImeAt = System.currentTimeMillis()
                     }
                     m.containsKey(40) -> {
                         c.getSharedPreferences("atv", Context.MODE_PRIVATE).edit().putBoolean("paired_${host}", true).putString("host", host).apply()
@@ -362,7 +365,7 @@ object AtvRemote {
             // Kopuksa: son TV'ye kendiliğinden yeniden bağlan, tuşu bağlanınca gönder
             val c = appCtx; val h = host
             if (c != null && h != null && isPaired(c, h)) {
-                if (pending.size < 20) pending.add(body)
+                if (pending.size < 200) pending.add(body)
                 if (state.value != State.Connecting) connect(c, h)
             }
             return
@@ -379,9 +382,29 @@ object AtvRemote {
      */
     fun text(t: String) {
         if (t.isEmpty()) return
+        // TV yazı alanını bize bildirmediyse (ya da çok önceyse) tuş tuş yaz: her yazı kutusunda çalışır
+        if (System.currentTimeMillis() - lastImeAt > 120_000) { typeKeys(t); return }
         val n = (t.length - 1).toLong()
         send(PB().msg(21, PB().int(1, imeCounter).int(2, fieldCounter)
             .msg(3, PB().int(1, 1).msg(2, PB().int(1, n).int(2, n).str(3, t)))).out())
+    }
+
+    /** Harf harf tuş gönderir (Türkçe harfler en yakın harfe çevrilir: ç→c, ğ→g, ı→i, ö→o, ş→s, ü→u). */
+    private fun typeKeys(t: String) {
+        Thread({
+            for (ch0 in t) {
+                val ch = when (ch0) { 'ç', 'Ç' -> 'c'; 'ğ', 'Ğ' -> 'g'; 'ı', 'I' -> 'i'; 'İ' -> 'i'; 'ö', 'Ö' -> 'o'; 'ş', 'Ş' -> 's'; 'ü', 'Ü' -> 'u'; else -> ch0.lowercaseChar() }
+                val code = when (ch) {
+                    in 'a'..'z' -> 29 + (ch - 'a')
+                    in '0'..'9' -> 7 + (ch - '0')
+                    ' ' -> 62; '.' -> 56; ',' -> 55; '-' -> 69; '/' -> 76; '@' -> 77; '=' -> 70; ';' -> 74
+                    '\'' -> 75; '[' -> 71; ']' -> 72; '\\' -> 73; '`' -> 68; '+' -> 81; '#' -> 18; '*' -> 17
+                    else -> null
+                } ?: continue
+                key(code)
+                Thread.sleep(45)
+            }
+        }, "atv-type").apply { isDaemon = true; start() }
     }
 
     /** TV'de link açar (YouTube linki YouTube uygulamasında, açıkken bile). */

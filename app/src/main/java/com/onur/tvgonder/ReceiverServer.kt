@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: /fare/setup (telefondan TV'de Fare eklentisini kur/aç), /ping fare durumunu bildirir; işlemci/Android sürümü; /apps, /mirror/request
+// v0.45 – 2026-11-02: başka uygulama öndeyken TV ekranı isteği TV kumandası linkiyle açılır (goId); /fare/setup, /ping fare durumu; /apps
 package com.onur.tvgonder
 
 import android.content.Context
@@ -115,12 +115,18 @@ class ReceiverServer(
         val key = b.optString("key")
         if (port <= 0 || key.isBlank()) return json(400, JSONObject().put("error", "Eksik bilgi"))
         val host = s.remoteIpAddress
-        Launcher.start(
-            ctx,
-            android.content.Intent(ctx, com.onur.tvgonder.mirror.MirrorConsentActivity::class.java)
-                .putExtra("host", host).putExtra("port", port).putExtra("key", key)
-                .putExtra("name", b.optString("name", "Tablet")),
-        )
+        val i = android.content.Intent(ctx, com.onur.tvgonder.mirror.MirrorConsentActivity::class.java)
+            .putExtra("host", host).putExtra("port", port).putExtra("key", key)
+            .putExtra("name", b.optString("name", "Tablet"))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Başka uygulama öndeyse Android pencereyi engeller: telefon TV kumandasıyla açabiliyorsa ona bırak
+        if (!Hub.foreground && !Apps.fareEnabled(ctx) && b.optBoolean("atv")) {
+            val id = UUID.randomUUID().toString()
+            Hub.mirrorPending.clear()
+            Hub.mirrorPending[id] = i
+            return json(200, JSONObject().put("ok", true).put("goId", id))
+        }
+        Launcher.start(ctx, i)
         return json(200, JSONObject().put("ok", true))
     }
 

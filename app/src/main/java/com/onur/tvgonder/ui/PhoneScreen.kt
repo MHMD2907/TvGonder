@@ -439,7 +439,13 @@ private fun SendUi(
                     val h = Uri.parse(url).host?.lowercase() ?: ""
                     val yt = h == "youtu.be" || h == "youtube.com" || h.endsWith(".youtube.com")
                     val tvHost = store.tvHost
-                    if (!(yt && tvHost != null && com.onur.tvgonder.AtvRemote.launchBlocking(ctx, tvHost, url))) client.link(url)
+                    // Diğer linkler: TV'de başka uygulama öndeyken de açılsın diye TV kumandası linkiyle (yoksa TV Gönder sunucusuyla)
+                    val sent = when {
+                        yt && tvHost != null -> com.onur.tvgonder.AtvRemote.launchBlocking(ctx, tvHost, url)
+                        com.onur.tvgonder.TvGo.can(ctx, store) -> com.onur.tvgonder.TvGo.openLink(ctx, store, url)
+                        else -> false
+                    }
+                    if (!sent) client.link(url)
                 }
             }
             linkBusy = false

@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: sürüm 0.44 (Fare eklentisi kapalıysa TV ana ekranında uyarı + telefondan tek dokunuşla açma; APKPure önce)
+// v0.45 – 2026-11-02: sürüm 0.45 (TV'de başka uygulama açıkken telefondan açma/TV ekranını gör; yazı harf harf yedekli)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 46
-        versionName = "0.44"
+        versionCode = 47
+        versionName = "0.45"
     }
     signingConfigs {
         getByName("debug") {

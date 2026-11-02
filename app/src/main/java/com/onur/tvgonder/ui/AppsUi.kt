@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: TV uygulama penceresinde düğmeler kumandada belirgin odaklı; Uygulamalar: TV/tablette liste (aç, kaldır, bilgi); telefonda TV'deki uygulamaları aç/kaldır
+// v0.45 – 2026-11-02: telefondan Aç: TV'de başka uygulama öndeyken de açılır (TV kumandası linki); TV penceresinde belirgin odak; uygulama listesi
 package com.onur.tvgonder.ui
 
 import android.graphics.Bitmap
@@ -148,6 +148,7 @@ fun RemoteAppsDialog(client: TvClient, tvName: String, onClose: () -> Unit) {
     }
     LaunchedEffect(note) { if (note != null) { kotlinx.coroutines.delay(4000); note = null } }
 
+    val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
     fun act(block: () -> Unit, ok: String) {
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { block() } }
@@ -196,7 +197,13 @@ fun RemoteAppsDialog(client: TvClient, tvName: String, onClose: () -> Unit) {
                                 color = TextMuted, style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        TextButton(onClick = { act({ client.appOpen(a.pkg) }, "${a.label} TV'de açılıyor") }) { Text("▶ Aç") }
+                        TextButton(onClick = {
+                            act({
+                                // TV'de başka uygulama öndeyken de açılsın: önce TV kumandası linki, olmazsa TV Gönder sunucusu
+                                val st = com.onur.tvgonder.Store(appCtx)
+                                if (!(com.onur.tvgonder.TvGo.can(appCtx, st) && com.onur.tvgonder.TvGo.openApp(appCtx, st, a.pkg))) client.appOpen(a.pkg)
+                            }, "${a.label} TV'de açılıyor")
+                        }) { Text("▶ Aç") }
                         if (!a.system) TextButton(onClick = { confirm = a }) { Text("🗑", fontSize = 18.sp) }
                     }
                 }

@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: kurulum sonucu mesajı; ana ekrana dönüş isteği; ekran yansıtma durumu, gelen dosya, link açma, ön planda mı
+// v0.45 – 2026-11-02: bekleyen yansıtma istekleri; kurulum sonucu mesajı; ana ekrana dönüş; yansıtma durumu, gelen dosya, link açma
 package com.onur.tvgonder
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,4 +34,6 @@ object Hub {
     val mirrorOut = MutableStateFlow(false)
     /** Kurulum sonucu (TV ekranında kalıcı pencere olarak gösterilir; toast kısa kalıyor). */
     val installMsg = MutableStateFlow<String?>(null)
+    /** Telefonun istediği, TV kumandası linkiyle açılmayı bekleyen yansıtma izin ekranları (kimlik → intent). */
+    val mirrorPending = java.util.concurrent.ConcurrentHashMap<String, android.content.Intent>()
 }

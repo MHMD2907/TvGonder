@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: TV ekranını gör: Fare eklentisi kapalıysa tek dokunuşla TV'de açma; başlarken ekran açık izni; TextureView; dokunma
+// v0.45 – 2026-11-02: TV ekranını gör TV'de başka uygulama açıkken de başlar (TV kumandası linki); Fare açma düğmesi; ekran açık izni; dokunma
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -299,7 +299,8 @@ fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClos
             runCatching {
                 val ss = ServerSocket().apply { reuseAddress = true; bind(InetSocketAddress(0)); soTimeout = 90_000 }
                 server[0] = ss
-                client.mirrorRequest(ss.localPort, key, Build.MODEL)
+                val atv = com.onur.tvgonder.TvGo.can(ctx, store)
+                client.mirrorRequest(ss.localPort, key, Build.MODEL, atv)?.let { id -> com.onur.tvgonder.TvGo.mirror(ctx, store, id) }
                 withContext(Dispatchers.Main) {
                     phase = "TV'ye istek gitti.\n\nŞimdi TV ekranına bak: \"TV ekranı paylaşılsın mı / Şimdi başlat\" penceresi çıkar, kumandayla \"Başla\"ya bas.\n\n" +
                         "Pencere çıkmazsa TV'de TV Gönder'i açıp tekrar dene (Android, arka plandaki uygulamanın pencere açmasına izin vermeyebilir)."

@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: TV'de Fare eklentisini telefondan kur/aç; uzaktan uygulamalar, TV ekranını isteme, fare komutları, indirme, eşleşme
+// v0.45 – 2026-11-02: TV ekranı isteği TV kumandası linkini destekler; Fare eklentisini kur/aç; uzaktan uygulamalar, fare komutları, indirme
 package com.onur.tvgonder
 
 import android.content.Context
@@ -251,9 +251,10 @@ class TvClient(private val store: Store) {
     }
 
     /** TV'den ekranını bu cihaza (port) yansıtmasını ister. */
-    fun mirrorRequest(port: Int, key: String, name: String) {
-        val body = JSONObject().put("port", port).put("key", key).put("name", name).toString().toRequestBody(jsonType)
-        http.newCall(builder("${base()}/mirror/request").post(body).build()).execute().use { check(it) }
+    /** Dönen: TV kumandası linkiyle açılması gereken istek kimliği (gerekmiyorsa null). */
+    fun mirrorRequest(port: Int, key: String, name: String, atv: Boolean = false): String? {
+        val body = JSONObject().put("port", port).put("key", key).put("name", name).put("atv", atv).toString().toRequestBody(jsonType)
+        http.newCall(builder("${base()}/mirror/request").post(body).build()).execute().use { return check(it).optString("goId").ifBlank { null } }
     }
 
     /** TV'de Fare eklentisini kurar ya da açma listesini açar. Dönen: "install" | "enable" | "ok". */

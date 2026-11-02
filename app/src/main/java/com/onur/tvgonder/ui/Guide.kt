@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: kılavuz: TV'ye uymayan uygulamanın uygun sürümünü indirip gönderme; yansıtmada ekran açık izni, uygulama kurma, TV'ye yazı; kumanda, oyun kolu
+// v0.45 – 2026-11-02: kılavuz: başka uygulama açıkken de telefondan açma; TV'ye yazı; uygulama kurma; yansıtmada ekran açık; kumanda, oyun kolu
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -115,6 +115,7 @@ object GuideText {
             "• Tuşlar: güç, kaynak, ayarlar, sessiz, yön + OK, Geri, Ana ekran, menü, ses, kanal, oynat/sar, rakamlar, renkli tuşlar. Ses/kanal/yön basılı tutunca tekrarlar.",
             "• Eşleştikten sonra telefondan gönderilen YouTube linkleri bu yolla açılır: TV'de YouTube açıkken bile yeni video açılır.",
             "• \"📺 TV Gönder'i aç\": TV Gönder'i kendi ana ekranıyla açar. \"⌂ TV ana ekranı\" ise TV'nin kendi ana ekranına gider (uygulamadan çıkar).",
+            "• TV'de başka bir uygulama açıkken de telefondan uygulama açma, link gönderme ve \"TV ekranını gör\" çalışır (TV kumandası bir kez eşleşmiş olmalı).",
             "• ⌨ TV'ye yaz: önce TV'de yazı kutusunu seç (YouTube'da 🔍, tarayıcıda adres çubuğu, giriş ekranı…), telefonda yaz → Gönder. ⌫ Sil, ␣ Boşluk, ↵ Ara/Git. Bu alan Fare/Kumanda ekranında ve Oyun kolu → Kumanda sekmesinde de var.",
             "• Eşleştikten sonra \"Oyun kolu\" da Bluetooth'suz, bu bağlantı üzerinden çalışır (yön tuşları, A B X Y, L/R, Start; sol çubuk yön tuşu gibi).",
         ),
