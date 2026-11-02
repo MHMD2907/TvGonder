@@ -40,6 +40,7 @@ class GoActivity : Activity() {
                 }
                 // Yalnız telefonun az önce (eşleşmiş olarak) istediği yansıtma: kimlik sunucuda bekler
                 "mirror" -> u.getQueryParameter("id")?.let { id -> Hub.mirrorPending.remove(id)?.let { startActivity(it) } }
+                else -> Unit
             }
         }
         finish()
