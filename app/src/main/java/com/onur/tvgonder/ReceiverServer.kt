@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: /ping TV'nin işlemci türlerini ve Android sürümünü de bildirir (uygulama gönderirken uyum kontrolü); /apps, /mirror/request, /auth
+// v0.44 – 2026-11-02: /fare/setup (telefondan TV'de Fare eklentisini kur/aç), /ping fare durumunu bildirir; işlemci/Android sürümü; /apps, /mirror/request
 package com.onur.tvgonder
 
 import android.content.Context
@@ -34,7 +34,8 @@ class ReceiverServer(
         val path = s.uri
         if (path == "/ping") return json(
             200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId)
-                .put("abis", Build.SUPPORTED_ABIS.joinToString(",")).put("sdk", Build.VERSION.SDK_INT),
+                .put("abis", Build.SUPPORTED_ABIS.joinToString(",")).put("sdk", Build.VERSION.SDK_INT)
+                .put("fare", Apps.fareEnabled(ctx)).put("fareInstalled", Apps.fareVersion(ctx) >= 0),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
         if (path == "/auth") {
@@ -73,6 +74,21 @@ class ReceiverServer(
                 json(if (ok) 200 else 400, JSONObject().put("ok", ok).put("error", "Kaldırma penceresi açılamadı"))
             }
             path == "/mirror/request" && s.method == Method.POST -> mirrorRequest(s)
+            // Telefondan "TV'de Fare'yi aç": kurulu değilse kurar, kapalıysa TV'de erişilebilirlik listesini açar
+            path == "/fare/setup" && s.method == Method.POST -> {
+                val ver = Apps.fareVersion(ctx)
+                when {
+                    ver < Apps.FARE_LATEST -> {
+                        if (!Installer.canInstall(ctx)) { bringFront(); json(409, JSONObject().put("error", "TV'de \"bilinmeyen kaynaklar\" izni yok. TV'de TV Gönder → Ayarlar → Fare → Kur'a bas.")) }
+                        else { bringFront(); runCatching { Apps.downloadAndInstallFare(ctx) }; json(200, JSONObject().put("step", "install")) }
+                    }
+                    Apps.fareEnabled(ctx) -> json(200, JSONObject().put("step", "ok"))
+                    else -> {
+                        Launcher.start(ctx, android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        json(200, JSONObject().put("step", "enable"))
+                    }
+                }
+            }
             else -> json(404, JSONObject().put("error", "Bulunamadı"))
         }
     }

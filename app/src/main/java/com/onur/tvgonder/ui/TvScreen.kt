@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: pencerelerdeki düğmeler kumandada belirgin odaklı (TvButton), açılınca odak doğru düğmede; kurulum hatası penceresi; USB'den APK; Ayarlar
+// v0.44 – 2026-11-02: ana ekranda Fare eklentisi kapalı/kurulu değil uyarısı (tek basışla aç/kur); TvButton odak; kurulum hatası penceresi; USB'den APK; Ayarlar
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -470,6 +470,38 @@ private fun TvHome(
             )
             TvChip(if (hasTree) "USB: ${storageName ?: "seçili"}" else "USB bellek seçilmedi", if (hasTree) Accent else Danger)
             TvChip("$deviceCount telefon eşleşmiş", if (deviceCount > 0) Accent else TextMuted)
+        }
+        // Fare eklentisi kapalıysa: her açılışta görünür uyarı (telefonla imleç/dokunma başka uygulamalarda ancak bununla çalışır)
+        val hctx = androidx.compose.ui.platform.LocalContext.current
+        if (com.onur.tvgonder.isTv(hctx)) {
+            var tick by remember { mutableStateOf(0) }
+            val life = androidx.compose.ui.platform.LocalLifecycleOwner.current
+            DisposableEffect(life) {
+                val o = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) tick++ }
+                life.lifecycle.addObserver(o)
+                onDispose { life.lifecycle.removeObserver(o) }
+            }
+            val ver = remember(tick) { com.onur.tvgonder.Apps.fareVersion(hctx) }
+            val on = remember(tick) { com.onur.tvgonder.Apps.fareEnabled(hctx) }
+            val needInstall = ver < com.onur.tvgonder.Apps.FARE_LATEST
+            if (!on || needInstall) {
+                val hScope = rememberCoroutineScope()
+                Spacer(Modifier.height(14.dp))
+                TvCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), onClick = {
+                    if (needInstall) {
+                        if (!Installer.canInstall(hctx)) Installer.openPermission(hctx)
+                        else hScope.launch { withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.onur.tvgonder.Apps.downloadAndInstallFare(hctx) } } }
+                    } else runCatching {
+                        hctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }) { focused ->
+                    Text(
+                        if (needInstall) "🖱️  Fare eklentisi kurulu değil – telefonla diğer uygulamalarda imleç/dokunma için buraya bas → Kur"
+                        else "🖱️  Fare eklentisi KAPALI – telefonla diğer uygulamalarda imleç/dokunma çalışmaz. Buraya bas → listede \"TV Gönder Fare\" → Aç",
+                        style = MaterialTheme.typography.titleMedium, color = if (focused) TextMain else Color(0xFFFFC857),
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(32.dp))
 

@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: yansıtma başlarken ekran açık kalsın izni sorulur; TextureView ile ortalı görüntü, Doldur/Sığdır; TV ekranını gör + dokunma
+// v0.44 – 2026-11-02: TV ekranını gör: Fare eklentisi kapalıysa tek dokunuşla TV'de açma; başlarken ekran açık izni; TextureView; dokunma
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -287,6 +287,11 @@ fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClos
     LaunchedEffect(Unit) {
         mouse = withContext(Dispatchers.IO) { if (remote.probeMouse()) 2 else if (remote.probeApp()) 1 else 0 }
         remote.mousePort = if (mouse == 2) 8767 else com.onur.tvgonder.RemoteListener.PORT
+        // Eklenti sonradan açılırsa kendiliğinden fark et
+        while (mouse != 2) {
+            kotlinx.coroutines.delay(4000)
+            if (withContext(Dispatchers.IO) { remote.probeMouse() }) { mouse = 2; remote.mousePort = 8767 }
+        }
     }
     LaunchedEffect(Unit) {
         val key = UUID.randomUUID().toString()
@@ -323,12 +328,16 @@ fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClos
                     color = Color.White, style = MaterialTheme.typography.titleMedium,
                 )
                 if (mouse == 1 || mouse == 0) {
-                    Text(
-                        "Dokunarak kontrol yalnızca TV Gönder ekranlarında çalışır. Her uygulama için TV'de Fare eklentisini aç.",
+                    Column(
                         Modifier.align(Alignment.BottomStart).padding(12.dp).fillMaxWidth(0.55f)
-                            .clip(RoundedCornerShape(12.dp)).background(Color(0xAA000000)).padding(10.dp),
-                        color = Color(0xFFFFC857), style = MaterialTheme.typography.bodySmall,
-                    )
+                            .clip(RoundedCornerShape(12.dp)).background(Color(0xCC000000)).padding(10.dp),
+                    ) {
+                        Text(
+                            "Dokunarak kontrol yalnızca TV Gönder ekranlarında çalışır. Her uygulamada çalışması için TV'de Fare eklentisi açık olmalı.",
+                            color = Color(0xFFFFC857), style = MaterialTheme.typography.bodySmall,
+                        )
+                        com.onur.tvgonder.ui.FareFixButton(client)
+                    }
                 }
             }
         } else {

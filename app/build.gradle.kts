@@ -1,4 +1,4 @@
-// v0.43 – 2026-10-30: sürüm 0.43 (inceleme düzeltmeleri: gönderimde telefon uyumaz, oyun kolunda gereksiz Bluetooth izni yok, klavye yazı alanını örtmez)
+// v0.44 – 2026-11-02: sürüm 0.44 (Fare eklentisi kapalıysa TV ana ekranında uyarı + telefondan tek dokunuşla açma; APKPure önce)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 45
-        versionName = "0.43"
+        versionCode = 46
+        versionName = "0.44"
     }
     signingConfigs {
         getByName("debug") {

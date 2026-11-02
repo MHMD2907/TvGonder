@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: telefondaki uygulamayı TV'ye gönderme: göndermeden önce TV'nin işlemcisi/Android sürümüyle uyum kontrolü; parçalılar .apks
+// v0.44 – 2026-11-02: Fare eklentisini telefondan açma düğmesi; telefondaki uygulamayı TV'ye gönderme, uyum kontrolü; parçalılar .apks
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.zip.ZipEntry
@@ -148,4 +149,40 @@ fun PhoneAppPicker(onPick: (ApkPack.PhoneApp) -> Unit, onClose: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Kapat") } },
     )
+}
+
+/**
+ * Telefonda: TV'de Fare eklentisi kapalıyken çıkan düğme. Basınca TV'de eklenti kurulur ya da açma listesi açılır;
+ * listede seçimi telefondaki TV kumandasıyla (yön + OK) yapabilirsin.
+ */
+@Composable
+fun FareFixButton(client: com.onur.tvgonder.TvClient, modifier: Modifier = Modifier) {
+    val scope = rememberCoroutineScope()
+    var info by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Button(enabled = !busy, onClick = {
+            busy = true
+            scope.launch {
+                // Önce TV Gönder'i TV'de öne getir (Android arka plandan ayar ekranı açılmasına izin vermeyebilir)
+                if (com.onur.tvgonder.AtvRemote.state.value == com.onur.tvgonder.AtvRemote.State.Connected) {
+                    com.onur.tvgonder.AtvRemote.launch("tvgonder://home")
+                    kotlinx.coroutines.delay(1500)
+                }
+                val r = withContext(Dispatchers.IO) { runCatching { client.fareSetup() } }
+                busy = false
+                info = r.fold(
+                    {
+                        when (it) {
+                            "install" -> "TV'de kurulum penceresi açıldı: Yükle'ye bas. Bitince açılan listede \"TV Gönder Fare\" → Aç."
+                            "enable" -> "TV'de erişilebilirlik listesi açıldı: \"TV Gönder Fare\"yi seç → Aç → Tamam. (Telefondaki TV kumandasının yön/OK tuşlarıyla yapabilirsin.)"
+                            else -> "Fare eklentisi zaten açık ✓"
+                        }
+                    },
+                    { "Olmadı: ${it.message}" },
+                )
+            }
+        }) { Text(if (busy) "TV'ye soruluyor…" else "🖱 TV'de Fare eklentisini aç") }
+        info?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+    }
 }

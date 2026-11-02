@@ -1,4 +1,4 @@
-// v0.43 – 2026-10-30: büyük gönderimlerde telefon uyumaz (uyanık kalma + Wi‑Fi kilidi); TV ile uyum kontrolü ve indirme yardımı; uygulama gönderme
+// v0.44 – 2026-11-02: uygun sürüm indirme yardımında APKPure önce; büyük gönderimlerde telefon uyumaz; TV ile uyum kontrolü; uygulama gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -1043,16 +1043,16 @@ private fun SendUi(
                 Text(
                     "Telefondaki $label, telefonun 64 bit işlemcisine göre yüklenmiş; TV'nin işlemcisi 32 bit (armeabi-v7a). " +
                         "Aynı uygulamanın TV'ye uygun sürümünü telefona indirip buradan gönderebilirsin, flaş gerekmez:\n\n" +
-                        "1. Aşağıdan bir siteye gir (uygulama aranmış olarak açılır).\n" +
+                        "1. \"APKPure'da ara\"ya bas (uygulama aranmış olarak açılır; açılmazsa APKCombo'yu dene).\n" +
                         "2. Uygulamayı seç → İndir. Sürüm seçeneği çıkarsa \"armeabi-v7a\" yazanı seç (XAPK ya da APK olabilir).\n" +
                         "3. TV Gönder'e dön → \"Belge / Diğer\" → indirilen dosyayı seç → TV'ye gider.\n" +
                         "4. TV'de dosyaya bas → Yükle.",
                 )
             },
-            confirmButton = { TextButton(onClick = { web("https://apkcombo.com/search/$pkg"); abiFix = null }) { Text("APKCombo'da ara") } },
+            confirmButton = { TextButton(onClick = { web("https://apkpure.com/search?q=$pkg"); abiFix = null }) { Text("APKPure'da ara") } },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { web("https://apkpure.com/search?q=$pkg"); abiFix = null }) { Text("APKPure'da ara") }
+                    TextButton(onClick = { web("https://apkcombo.com/search/$pkg"); abiFix = null }) { Text("APKCombo")}
                     TextButton(onClick = { abiFix = null }) { Text("Kapat") }
                 }
             },

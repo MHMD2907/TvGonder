@@ -1,4 +1,4 @@
-// v0.37 – 2026-10-26: Fare/Kumanda: TV kumandası bağlıysa telefondan TV'ye yazı (⌨) + yön tuşları + OK; imleç, indirme
+// v0.44 – 2026-11-02: Fare/Kumanda: eklenti kapalıysa tek dokunuşla TV'de açma; TV'ye yazı (⌨) + yön tuşları + OK; imleç, indirme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -86,6 +86,11 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 }
             }
             remote.mousePort = if (mode == 2) 8767 else com.onur.tvgonder.RemoteListener.PORT
+            // Eklenti sonradan açılırsa (TV'de açma listesinden) kendiliğinden fark et
+            while (mode != 2) {
+                kotlinx.coroutines.delay(4000)
+                if (withContext(Dispatchers.IO) { remote.probeMouse() }) { mode = 2; remote.mousePort = 8767 }
+            }
         }
         DisposableEffect(Unit) { onDispose { remote.close() } }
         // YouTube ve video oynatıcıları dokunmaya değil yön tuşlarına tepki verir: tuşlar TV kumandası (Wi‑Fi) ile gider
@@ -112,6 +117,7 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 }
                 TextButton(onClick = onClose) { Text("Kapat") }
             }
+            if (mode == 1) FareFixButton(remember { com.onur.tvgonder.TvClient(store) })
             if (mode == 1 || mode == 0) {
                 Text(
                     if (mode == 1)
