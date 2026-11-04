@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: Fare/Kumanda: eklenti kapalıysa tek dokunuşla TV'de açma; TV'ye yazı (⌨) + yön tuşları + OK; imleç, indirme
+// v0.46 – 2026-11-04: Fare/Kumanda: kaydırılabilir, fare alanı sabit boyutta (yazılar örtmez), eklenti durumu kısa; TV'ye yazı, yön tuşları, Fare düzeltme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -107,7 +107,9 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
         var sAcc by remember { mutableStateOf(0f) }
 
         Column(
-            Modifier.fillMaxSize().background(Ink).imePadding().padding(16.dp),
+            // Kaydırılabilir: küçük ekranda da hiçbir düğme ya da fare alanı kaybolmaz
+            Modifier.fillMaxSize().background(Ink).imePadding()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -117,19 +119,24 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 }
                 TextButton(onClick = onClose) { Text("Kapat") }
             }
-            if (mode == 1) FareFixButton(remember { com.onur.tvgonder.TvClient(store) })
-            if (mode == 1 || mode == 0) {
-                Text(
-                    if (mode == 1)
-                        "İmleç şu an yalnızca TV Gönder açıkken çalışır (tarayıcı, dosyalar, oynatıcı). Her uygulamada imleç için: " +
-                            "⋮ → \"Fare eklentisini TV'ye gönder\" → TV'de Yükle → TV Gönder Ayarlar'dan aç."
-                    else "TV cevap vermiyor. TV açık ve aynı Wi‑Fi'da mı? Oynat/ses düğmelerini yine deneyebilirsin.",
+            when (mode) {
+                2 -> Text("✓ Fare her uygulamada çalışıyor", color = Accent, style = MaterialTheme.typography.bodyMedium)
+                1 -> Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("İmleç şu an yalnız TV Gönder ekranlarında çalışıyor (Fare eklentisi kapalı ya da takılmış).", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                    FareFixButton(remember { com.onur.tvgonder.TvClient(store) })
+                }
+                0 -> Text(
+                    "TV cevap vermiyor. TV açık ve aynı Wi‑Fi'da mı? Oynat/ses düğmelerini yine deneyebilirsin.",
                     Modifier.clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium, color = if (mode == 1) TextMuted else Danger,
+                    style = MaterialTheme.typography.bodySmall, color = Danger,
                 )
+                else -> {}
             }
-            // Dokunmatik yüzey + kaydırma şeridi
-            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Dokunmatik yüzey + kaydırma şeridi (sabit yükseklik: yazılar onu küçültmesin)
+            Row(Modifier.height(300.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(24.dp)).background(PanelHi)
                         .pointerInput(Unit) {

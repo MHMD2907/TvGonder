@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: ana ekranda Fare eklentisi kapalı/kurulu değil uyarısı (tek basışla aç/kur); TvButton odak; kurulum hatası penceresi; USB'den APK; Ayarlar
+// v0.46 – 2026-11-04: ana ekranda Fare eklentisi kapalı/takılmış/eski uyarısı (tek basışla düzelt); TvButton odak; kurulum hatası penceresi; USB'den APK
 package com.onur.tvgonder.ui
 
 import android.content.Intent
@@ -484,7 +484,12 @@ private fun TvHome(
             val ver = remember(tick) { com.onur.tvgonder.Apps.fareVersion(hctx) }
             val on = remember(tick) { com.onur.tvgonder.Apps.fareEnabled(hctx) }
             val needInstall = ver < com.onur.tvgonder.Apps.FARE_LATEST
-            if (!on || needInstall) {
+            // Açık görünüp takılmış olabilir: gerçekten cevap veriyor mu
+            val alive by androidx.compose.runtime.produceState(true, tick, on) {
+                value = if (!on) false else withContext(kotlinx.coroutines.Dispatchers.IO) { com.onur.tvgonder.Apps.fareAlive(hctx) }
+            }
+            val stuck = on && !needInstall && !alive
+            if (!on || needInstall || stuck) {
                 val hScope = rememberCoroutineScope()
                 Spacer(Modifier.height(14.dp))
                 TvCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), onClick = {
@@ -496,7 +501,8 @@ private fun TvHome(
                     }
                 }) { focused ->
                     Text(
-                        if (needInstall) "🖱️  Fare eklentisi kurulu değil – telefonla diğer uygulamalarda imleç/dokunma için buraya bas → Kur"
+                        if (needInstall) (if (ver >= 0) "🖱️  Fare eklentisinin yeni sürümü var – buraya bas → Güncelle (takılma giderildi)" else "🖱️  Fare eklentisi kurulu değil – telefonla diğer uygulamalarda imleç/dokunma için buraya bas → Kur")
+                        else if (stuck) "🖱️  Fare eklentisi takılmış – buraya bas → listede \"TV Gönder Fare\" → Kapat, sonra tekrar Aç"
                         else "🖱️  Fare eklentisi KAPALI – telefonla diğer uygulamalarda imleç/dokunma çalışmaz. Buraya bas → listede \"TV Gönder Fare\" → Aç",
                         style = MaterialTheme.typography.titleMedium, color = if (focused) TextMain else Color(0xFFFFC857),
                     )

@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: TV Gönder Fare 1.3: TV Gönder adına uygulama/ekran açma (YouTube öndeyken link); dokunma, imleç, kaydırma
+// v1.4 – 2026-11-04: TV Gönder Fare 1.4: hizmet yeniden bağlanınca dinleyici yenilenir (takılma giderildi); uygulama/ekran açma, dokunma, imleç
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -26,6 +26,8 @@ class MouseService : AccessibilityService() {
     companion object {
         @Volatile var instance: MouseService? = null
             private set
+        /** Süreçte tek dinleyici (hizmet yeniden bağlanınca eskisi kapatılır). */
+        @Volatile private var shared: MouseListener? = null
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -42,7 +44,9 @@ class MouseService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         runCatching { setup() }
-        if (listener == null) runCatching { listener = MouseListener(this).also { it.isDaemon = true; it.start() } }
+        // Önceki (ölmüş/eski) dinleyiciyi kapatıp tek ve yeni bir dinleyici başlat
+        runCatching { shared?.close() }
+        runCatching { listener = MouseListener(this).also { it.isDaemon = true; it.start(); shared = it } }
     }
 
     private fun setup() {

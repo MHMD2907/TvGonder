@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: "TV Gönder Fare" 1.3 — TV Gönder adına ekran/uygulama açma; yalnız TV/tablete kurulur
+// v1.4 – 2026-11-04: "TV Gönder Fare" 1.4 — dinleyici takılması giderildi; TV Gönder adına ekran/uygulama açma; yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
     signingConfigs {
         getByName("debug") {

@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: başka uygulama öndeyken TV ekranı isteği TV kumandası linkiyle açılır (goId); /fare/setup, /ping fare durumu; /apps
+// v0.46 – 2026-11-04: Fare eklentisi gerçekten çalışıyor mu (takılmışsa "restart"); başka uygulama öndeyken TV ekranı isteği TV kumandası linkiyle
 package com.onur.tvgonder
 
 import android.content.Context
@@ -35,7 +35,7 @@ class ReceiverServer(
         if (path == "/ping") return json(
             200, JSONObject().put("app", "tvgonder").put("name", Build.MODEL).put("version", appVersionCode(ctx)).put("storage", store.treeUri != null).put("id", store.receiverId)
                 .put("abis", Build.SUPPORTED_ABIS.joinToString(",")).put("sdk", Build.VERSION.SDK_INT)
-                .put("fare", Apps.fareEnabled(ctx)).put("fareInstalled", Apps.fareVersion(ctx) >= 0),
+                .put("fare", Apps.fareAlive(ctx)).put("fareInstalled", Apps.fareVersion(ctx) >= 0),
         )
         if (path == "/pair" && s.method == Method.POST) return pair(s)
         if (path == "/auth") {
@@ -82,7 +82,12 @@ class ReceiverServer(
                         if (!Installer.canInstall(ctx)) { bringFront(); json(409, JSONObject().put("error", "TV'de \"bilinmeyen kaynaklar\" izni yok. TV'de TV Gönder → Ayarlar → Fare → Kur'a bas.")) }
                         else { bringFront(); runCatching { Apps.downloadAndInstallFare(ctx) }; json(200, JSONObject().put("step", "install")) }
                     }
-                    Apps.fareEnabled(ctx) -> json(200, JSONObject().put("step", "ok"))
+                    Apps.fareEnabled(ctx) && Apps.fareAlive(ctx) -> json(200, JSONObject().put("step", "ok"))
+                    // Açık görünüyor ama cevap vermiyor: kapatıp açmak gerekir
+                    Apps.fareEnabled(ctx) -> {
+                        Launcher.start(ctx, android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        json(200, JSONObject().put("step", "restart"))
+                    }
                     else -> {
                         Launcher.start(ctx, android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
                         json(200, JSONObject().put("step", "enable"))
@@ -120,7 +125,7 @@ class ReceiverServer(
             .putExtra("name", b.optString("name", "Tablet"))
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         // Başka uygulama öndeyse Android pencereyi engeller: telefon TV kumandasıyla açabiliyorsa ona bırak
-        if (!Hub.foreground && !Apps.fareEnabled(ctx) && b.optBoolean("atv")) {
+        if (!Hub.foreground && !Apps.fareAlive(ctx) && b.optBoolean("atv")) {
             val id = UUID.randomUUID().toString()
             Hub.mirrorPending.clear()
             Hub.mirrorPending[id] = i

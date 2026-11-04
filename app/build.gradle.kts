@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: sürüm 0.45 (TV'de başka uygulama açıkken telefondan açma/TV ekranını gör; yazı harf harf yedekli)
+// v0.46 – 2026-11-04: sürüm 0.46 (Fare 1.4 takılma düzeltmesi + gerçek durum yoklaması; Fare/Kumanda ve TV ekranını gör düzeni)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 47
-        versionName = "0.45"
+        versionCode = 48
+        versionName = "0.46"
     }
     signingConfigs {
         getByName("debug") {

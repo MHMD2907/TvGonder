@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: TV ekranını gör TV'de başka uygulama açıkken de başlar (TV kumandası linki); Fare açma düğmesi; ekran açık izni; dokunma
+// v0.46 – 2026-11-04: TV ekranını gör: düğmeler sağ sütunda (görüntüyü kapatmaz), Fare düzeltme düğmesi; başka uygulama açıkken de başlar; dokunma
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -63,7 +63,7 @@ import java.util.UUID
  * "t x y" dokun, "lp x y" basılı tut, "sw x1 y1 x2 y2 ms" kaydır (x,y: 0..1).
  */
 @Composable
-fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () -> Unit) {
+fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () -> Unit, side: (@Composable () -> Unit)? = null) {
     var size by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var ui by remember { mutableStateOf(true) }
     var uiTick by remember { mutableIntStateOf(0) }
@@ -111,7 +111,8 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
             val sc = if (doFill) maxOf(w / vw, h / vh) else minOf(w / vw, h / vh)
             tv.setTransform(android.graphics.Matrix().apply { setScale(vw * sc / w, vh * sc / h, w / 2f, h / 2f) })
         }
-        Box(Modifier.fillMaxSize()) {
+        // Dokunmalı kullanımda (telefon/tablet) düğmeler sağda ayrı sütunda: görüntünün üstünü kapatmaz
+        Box(Modifier.fillMaxSize().padding(end = if (touch != null) 112.dp else 0.dp)) {
             AndroidView(
                 factory = { c ->
                     TextureView(c).apply {
@@ -152,17 +153,18 @@ fun MirrorScreen(session: MirrorSession?, touch: ((String) -> Unit)?, onEnd: () 
             )
         }
         if (touch != null) {
-            Row(
-                Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                Modifier.align(Alignment.CenterEnd).width(104.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             ) {
-                listOf("⟵ Geri" to { touch("back") }, "⌂ Ana ekran" to { touch("home") }, "✕ Kapat" to { player?.stop(); onEnd() }).forEach { (l, a) ->
+                listOf("✕\nKapat" to { player?.stop(); onEnd() }, "⟵\nGeri" to { touch("back") }, "⌂\nAna ekran" to { touch("home") }).forEach { (l, a) ->
                     Text(
-                        l, Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0x99000000)).clickable { a() }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = Color.White,
+                        l, Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFF1E3650)).clickable { a() }
+                            .padding(vertical = 10.dp),
+                        color = Color.White, textAlign = TextAlign.Center,
                     )
                 }
+                side?.invoke()
             }
         }
     }
@@ -322,24 +324,10 @@ fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClos
         val s = session
         if (s != null) {
             Box(Modifier.fillMaxSize()) {
-                MirrorScreen(s, touch = { remote.send(it) }, onEnd = onClose)
-                Text(
-                    "✕", Modifier.align(Alignment.TopEnd).padding(10.dp).clip(RoundedCornerShape(50)).background(Color(0xAA000000))
-                        .clickable { s.close(); onClose() }.padding(horizontal = 16.dp, vertical = 10.dp),
-                    color = Color.White, style = MaterialTheme.typography.titleMedium,
-                )
-                if (mouse == 1 || mouse == 0) {
-                    Column(
-                        Modifier.align(Alignment.BottomStart).padding(12.dp).fillMaxWidth(0.55f)
-                            .clip(RoundedCornerShape(12.dp)).background(Color(0xCC000000)).padding(10.dp),
-                    ) {
-                        Text(
-                            "Dokunarak kontrol yalnızca TV Gönder ekranlarında çalışır. Her uygulamada çalışması için TV'de Fare eklentisi açık olmalı.",
-                            color = Color(0xFFFFC857), style = MaterialTheme.typography.bodySmall,
-                        )
-                        com.onur.tvgonder.ui.FareFixButton(client)
-                    }
-                }
+                MirrorScreen(s, touch = { remote.send(it) }, onEnd = { s.close(); onClose() }, side = {
+                    // Fare eklentisi çalışmıyorsa dokunma yalnız TV Gönder ekranlarında olur: tek düğmeyle düzelt
+                    if (mouse == 1 || mouse == 0) com.onur.tvgonder.ui.FareFixButton(client, compact = true)
+                })
             }
         } else {
             Column(

@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: arka plandan uygulama/ekran açma: TV Gönder öndeyse doğrudan, değilse Fare eklentisi üzerinden (Android engeline takılmaz)
+// v0.46 – 2026-11-04: arka plandan açma: Fare eklentisi yalnız cevap veriyorsa kullanılır; öndeyse doğrudan
 package com.onur.tvgonder
 
 import android.content.Context
@@ -14,7 +14,9 @@ object Launcher {
      */
     fun start(c: Context, i: Intent): Boolean {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (!Hub.foreground && Apps.fareEnabled(c) && viaFare(c, i)) return true
+        // Eklenti yalnız gerçekten cevap veriyorsa kullanılır (takılmışsa istek boşa giderdi); ana iş parçacığından (ön plandaki ekrandan) doğrudan
+        val onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+        if (!Hub.foreground && !onMain && Apps.fareAlive(c) && viaFare(c, i)) return true
         return runCatching { c.startActivity(i) }.isSuccess
     }
 

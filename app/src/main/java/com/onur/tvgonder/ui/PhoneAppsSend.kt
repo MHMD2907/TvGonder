@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: Fare eklentisini telefondan açma düğmesi; telefondaki uygulamayı TV'ye gönderme, uyum kontrolü; parçalılar .apks
+// v0.46 – 2026-11-04: Fare düzeltme düğmesi: takılmış eklentiyi de söyler, dar sütun için kısa hali; uygulama gönderme, uyum kontrolü; .apks
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -156,7 +156,8 @@ fun PhoneAppPicker(onPick: (ApkPack.PhoneApp) -> Unit, onClose: () -> Unit) {
  * listede seçimi telefondaki TV kumandasıyla (yön + OK) yapabilirsin.
  */
 @Composable
-fun FareFixButton(client: com.onur.tvgonder.TvClient, modifier: Modifier = Modifier) {
+fun FareFixButton(client: com.onur.tvgonder.TvClient, modifier: Modifier = Modifier, compact: Boolean = false) {
+    val fctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -176,13 +177,17 @@ fun FareFixButton(client: com.onur.tvgonder.TvClient, modifier: Modifier = Modif
                         when (it) {
                             "install" -> "TV'de kurulum penceresi açıldı: Yükle'ye bas. Bitince açılan listede \"TV Gönder Fare\" → Aç."
                             "enable" -> "TV'de erişilebilirlik listesi açıldı: \"TV Gönder Fare\"yi seç → Aç → Tamam. (Telefondaki TV kumandasının yön/OK tuşlarıyla yapabilirsin.)"
-                            else -> "Fare eklentisi zaten açık ✓"
+                            "restart" -> "Fare eklentisi açık görünüyor ama cevap vermiyor (takılmış). TV'de açılan listede \"TV Gönder Fare\" → Kapat, sonra tekrar Aç."
+                            else -> "Fare eklentisi çalışıyor ✓"
                         }
                     },
                     { "Olmadı: ${it.message}" },
                 )
+                if (compact) info?.let { android.widget.Toast.makeText(fctx, it, android.widget.Toast.LENGTH_LONG).show() }
             }
-        }) { Text(if (busy) "TV'ye soruluyor…" else "🖱 TV'de Fare eklentisini aç") }
-        info?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }, modifier = if (compact) Modifier.fillMaxWidth() else Modifier,
+            contentPadding = if (compact) PaddingValues(4.dp) else ButtonDefaults.ContentPadding,
+        ) { Text(if (busy) "…" else if (compact) "🖱\nFare'yi aç" else "🖱 TV'de Fare eklentisini aç", textAlign = if (compact) androidx.compose.ui.text.style.TextAlign.Center else null) }
+        if (!compact) info?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
 }

@@ -1,4 +1,4 @@
-// v0.33 – 2026-10-21: Fare eklentisi uygulamanın içinde gömülü (GitHub'dan indirilmez); uygulamalar listesi, aç/kaldır
+// v0.46 – 2026-11-04: Fare eklentisinin gerçekten çalıştığını yoklar (takılmışsa fark eder); eklenti 1.4; uygulamalar listesi, aç/kaldır
 package com.onur.tvgonder
 
 import android.content.Context
@@ -68,13 +68,41 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 4
+    const val FARE_LATEST = 5
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {
         val pi = c.packageManager.getPackageInfo(FARE, 0)
         if (android.os.Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
     }.getOrDefault(-1L)
+
+    @Volatile private var aliveAt = 0L
+    @Volatile private var aliveVal = false
+
+    /**
+     * Fare eklentisi gerçekten çalışıyor mu (açık görünüp takılmış olabilir): TV içinde ping → pong.
+     * Ağ işi: ana iş parçacığında çağrılmaz (orada yalnız "açık mı" bilgisi döner). Sonuç 8 sn saklanır.
+     */
+    fun fareAlive(c: Context): Boolean {
+        if (!fareEnabled(c)) return false
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return true
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - aliveAt < 8000) return aliveVal
+        val token = com.onur.tvgonder.Store(c).devices().keys.firstOrNull() ?: return true
+        val ok = runCatching {
+            java.net.DatagramSocket().use { s ->
+                s.soTimeout = 800
+                val b = "$token ping".toByteArray()
+                s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName("127.0.0.1"), 8767))
+                val buf = ByteArray(16)
+                val p = java.net.DatagramPacket(buf, buf.size)
+                s.receive(p)
+                String(buf, 0, p.length) == "pong"
+            }
+        }.getOrDefault(false)
+        aliveAt = now; aliveVal = ok
+        return ok
+    }
 
     fun fareEnabled(c: Context): Boolean =
         (Settings.Secure.getString(c.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains(FARE)
