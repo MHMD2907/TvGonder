@@ -358,5 +358,5 @@ private fun Context.findActivity(): Activity? {
 @Composable
 fun IncomingMirror(onDone: () -> Unit) {
     val s by Hub.mirrorIn.collectAsState()
-    MirrorScreen(s, null) { s?.close(); Hub.mirrorIn.value = null; onDone() }
+    MirrorScreen(s, null, onEnd = { s?.close(); Hub.mirrorIn.value = null; onDone() })
 }
