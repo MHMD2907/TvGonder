@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: TV'ye yazı: TV yazı alanını bildirmezse harf harf tuşla yazar (her kutuda çalışır); kendiliğinden yeniden bağlanma; eşleşme, tuşlar, link
+// v0.47 – 2026-11-09: TV'ye yazı her zaman harf harf tuşla (her kutuda güvenilir); kendiliğinden yeniden bağlanma; eşleşme, tuşlar, link
 package com.onur.tvgonder
 
 import android.content.Context
@@ -382,11 +382,9 @@ object AtvRemote {
      */
     fun text(t: String) {
         if (t.isEmpty()) return
-        // TV yazı alanını bize bildirmediyse (ya da çok önceyse) tuş tuş yaz: her yazı kutusunda çalışır
-        if (System.currentTimeMillis() - lastImeAt > 120_000) { typeKeys(t); return }
-        val n = (t.length - 1).toLong()
-        send(PB().msg(21, PB().int(1, imeCounter).int(2, fieldCounter)
-            .msg(3, PB().int(1, 1).msg(2, PB().int(1, n).int(2, n).str(3, t)))).out())
+        // Harf harf tuş göndermek her TV'de ve her yazı kutusunda çalışıyor; IME (toplu yazı) bazı TV'lerde sessizce yok sayılıyor.
+        // Bu yüzden her zaman tuşla yazılır (Türkçe harfler en yakın harfe çevrilir).
+        typeKeys(t)
     }
 
     /** Harf harf tuş gönderir (Türkçe harfler en yakın harfe çevrilir: ç→c, ğ→g, ı→i, ö→o, ş→s, ü→u). */

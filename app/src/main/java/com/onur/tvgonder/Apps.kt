@@ -1,4 +1,4 @@
-// v0.46 – 2026-11-04: Fare eklentisinin gerçekten çalıştığını yoklar (takılmışsa fark eder); eklenti 1.4; uygulamalar listesi, aç/kaldır
+// v0.47 – 2026-11-09: Fare eklentisi 1.5 (doğrulama düzeltmesi); gerçek çalışma yoklaması; uygulamalar listesi, aç/kaldır
 package com.onur.tvgonder
 
 import android.content.Context
@@ -68,7 +68,7 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 5
+    const val FARE_LATEST = 6
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {

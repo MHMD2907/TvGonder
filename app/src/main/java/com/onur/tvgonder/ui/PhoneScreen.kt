@@ -1,4 +1,4 @@
-// v0.44 – 2026-11-02: uygun sürüm indirme yardımında APKPure önce; büyük gönderimlerde telefon uyumaz; TV ile uyum kontrolü; uygulama gönderme
+// v0.47 – 2026-11-09: uygun sürüm yoksa yansıtma önerisi; APKPure önce; büyük gönderimlerde telefon uyumaz; TV ile uyum kontrolü; uygulama gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -1052,7 +1052,8 @@ private fun SendUi(
                         "1. \"APKPure'da ara\"ya bas (uygulama aranmış olarak açılır; açılmazsa APKCombo'yu dene).\n" +
                         "2. Uygulamayı seç → İndir. Sürüm seçeneği çıkarsa \"armeabi-v7a\" yazanı seç (XAPK ya da APK olabilir).\n" +
                         "3. TV Gönder'e dön → \"Belge / Diğer\" → indirilen dosyayı seç → TV'ye gider.\n" +
-                        "4. TV'de dosyaya bas → Yükle.",
+                        "4. TV'de dosyaya bas → Yükle.\n\n" +
+                        "Sitede armeabi-v7a sürümü yoksa uygulama bu TV'de çalışamaz; telefonda açıp \"Ekranı TV'de göster\" ile TV'ye yansıt.",
                 )
             },
             confirmButton = { TextButton(onClick = { web("https://apkpure.com/search?q=$pkg"); abiFix = null }) { Text("APKPure'da ara") } },

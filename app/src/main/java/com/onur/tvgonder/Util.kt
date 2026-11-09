@@ -1,4 +1,4 @@
-// v0.40 – 2026-10-27: parçalı paketlerde TV'nin işlemcisine uyan parça seçilir, uymuyorsa nedeni açıkça yazılır; USB'den APK/XAPK/APKS; oturumlu kurulum
+// v0.47 – 2026-11-09: 64 bit'e özel paketlerde anlaşılır mesaj ve yansıtma önerisi; parçalı paketler, USB'den APK/XAPK/APKS; oturumlu kurulum
 package com.onur.tvgonder
 
 import android.app.UiModeManager
@@ -95,9 +95,9 @@ object Installer {
             if (abiParts.isNotEmpty() && okAbi.isEmpty()) {
                 val has = abiParts.mapNotNull { abiOf(it.name) }.distinct().joinToString { it.replace('_', '-') }
                 error(
-                    "Bu uygulama telefonun işlemcisine ($has) göre indirilmiş; TV'nin işlemcisi ${Build.SUPPORTED_ABIS.joinToString()}. " +
-                        "Telefondan gönderilen sürüm bu TV'ye kurulamaz. APKPure / APKCombo gibi bir siteden " +
-                        "\"armeabi-v7a\" (ya da universal) sürümünü XAPK/APK olarak flaşa indirip buradan kur."
+                    "Bu dosya yalnız 64 bit işlemciler için ($has). Bu TV'nin işlemcisi 32 bit (${Build.SUPPORTED_ABIS.joinToString()}), bu yüzden kurulamaz.\n\n" +
+                        "• İndirdiğin sitede aynı uygulamanın \"armeabi-v7a\" sürümü varsa onu indir.\n" +
+                        "• Yoksa uygulama bu TV'de çalışamaz. Telefonda açıp \"Ekranı TV'de göster\" ile TV'ye yansıtabilirsin."
                 )
             }
             val best = abis.firstOrNull { a -> okAbi.any { abiOf(it.name) == a } }

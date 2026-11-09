@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.19 – 2026-10-15: TV Gönder Fare — telefondan gelen fare komutlarıyla TV'de imleç (erişilebilirlik hizmeti) -->
+<!-- v1.5 – 2026-11-09: TV Gönder Fare — TV içi anahtar doğrulamasına (127.0.0.1) izin (usesCleartextTraffic): komutlar artık reddedilmiyor -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -12,7 +12,8 @@
         android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:usesCleartextTraffic="true">
 
         <activity android:name=".SetupActivity" android:exported="true">
             <intent-filter>
