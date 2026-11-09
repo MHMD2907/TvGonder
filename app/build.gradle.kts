@@ -1,4 +1,4 @@
-// v0.47 – 2026-11-09: sürüm 0.47 (Fare 1.5: komutların reddedilmesi düzeldi; yansıtma izni TV uygulamasını kapatmaz; yazı harf harf)
+// v0.48 – 2026-11-09: sürüm 0.48 (inceleme: gösterimlerde ekran kapanmaz, tarayıcıda yeni sekme bağlantıları, USB klasör döngü engeli, PDF bellek)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 49
-        versionName = "0.47"
+        versionCode = 50
+        versionName = "0.48"
     }
     signingConfigs {
         getByName("debug") {

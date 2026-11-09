@@ -1,4 +1,4 @@
-// v0.42 – 2026-10-30: kumanda düğmeleri (TvButton) odakta belirgin; Dosyalarım: XAPK/APKS, yeni klasör, taşı/kopyala, küçük resimler, filtre, arama, silme
+// v0.48 – 2026-11-09: klasörü kendi içine kopyalama/taşıma engeli (USB); kumanda düğmeleri (TvButton); XAPK/APKS; yeni klasör, taşı/kopyala, arama, silme
 package com.onur.tvgonder.ui
 
 import android.content.Context
@@ -163,6 +163,13 @@ object Usb {
             return true
         }
         val cr = ctx.contentResolver
+        // USB (SAF): klasörü kendi içine kopyalama/taşıma sonsuz döngü olurdu
+        if (e.kind == Kind.Folder && e.uri.scheme != "file" && dest.scheme != "file") {
+            val sid = runCatching { DocumentsContract.getDocumentId(e.uri) }.getOrNull()
+            val did = runCatching { DocumentsContract.getDocumentId(dest) }.getOrNull()
+                ?: runCatching { DocumentsContract.getTreeDocumentId(dest) }.getOrNull()
+            if (sid != null && did != null && (did == sid || did.startsWith("$sid/"))) return false
+        }
         if (move && android.os.Build.VERSION.SDK_INT >= 24 && e.uri.scheme != "file" && dest.scheme != "file") {
             val r = runCatching { DocumentsContract.moveDocument(cr, e.uri, from, dest) }.getOrNull()
             if (r != null) return true

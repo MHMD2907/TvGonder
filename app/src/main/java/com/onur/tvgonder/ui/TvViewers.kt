@@ -1,4 +1,4 @@
-// v0.29 – 2026-10-20: video varsayılan Sığdır (tamamı görünür), ⛶ / ▲ ile Doldur, dikey video hep sığar; medya oturumu; tarayıcı tam ekran video düzeltmesi
+// v0.48 – 2026-11-09: resim/PDF/slayt/tarayıcıda ekran kapanmaz; tarayıcıda "yeni sekme" bağlantıları açılır; PDF bellek sınırı; video Sığdır/Doldur, medya oturumu
 package com.onur.tvgonder.ui
 
 import android.annotation.SuppressLint
@@ -101,6 +101,16 @@ fun decodeForTv(ctx: Context, uri: Uri, maxW: Int = 1920, maxH: Int = 1080): Bit
         }
     }
 }.getOrNull()
+
+/** Bu ekran açıkken TV ekran koruyucusu/uyku devreye girmesin (resim, PDF, slayt, tarayıcı). */
+@Composable
+private fun KeepScreenOn() {
+    val v = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(v) {
+        v.keepScreenOn = true
+        onDispose { v.keepScreenOn = false }
+    }
+}
 
 @Composable
 private fun Hint(text: String, modifier: Modifier = Modifier) {
@@ -271,6 +281,7 @@ fun TvImageViewer(images: List<Entry>, start: Int) {
     }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     BackHandler(enabled = z.zoomed) { z.reset() }
+    KeepScreenOn()
 
     Box(
         Modifier.fillMaxSize().background(Color.Black)
@@ -365,8 +376,8 @@ fun TvPdfViewer(uri: Uri, name: String) {
             lock.withLock {
                 runCatching {
                     r.openPage(page).use { p ->
-                        // büyütünce de net olsun: uzun kenar ~2800 piksel
-                        val s = 2800f / max(p.width, p.height)
+                        // büyütünce de net olsun: uzun kenar ~2400 piksel (TV belleği için sınırlı)
+                        val s = 2400f / max(p.width, p.height)
                         val b = Bitmap.createBitmap(max(1, (p.width * s).toInt()), max(1, (p.height * s).toInt()), Bitmap.Config.ARGB_8888)
                         b.eraseColor(AColor.WHITE)
                         p.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -384,6 +395,7 @@ fun TvPdfViewer(uri: Uri, name: String) {
     }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     BackHandler(enabled = z.zoomed) { z.reset(); keepZoom = 1f }
+    KeepScreenOn()
 
     fun go(d: Int) {
         val n = (page + d).coerceIn(0, max(0, count - 1))
@@ -657,6 +669,7 @@ fun TvBrowser(url: String, onClose: () -> Unit, onVideo: (String, String, String
     DisposableEffect(Unit) { onDispose { web?.apply { stopLoading(); loadUrl("about:blank"); destroy() } } }
     LaunchedEffect(url) { if (web?.url != url) web?.loadUrl(url) }
     LaunchedEffect(media) { if (media != null) ui.poke() }
+    KeepScreenOn()
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
         AndroidView(
@@ -702,7 +715,22 @@ fun TvBrowser(url: String, onClose: () -> Unit, onVideo: (String, String, String
                         }
                         override fun onHideCustomView() { custom = null; customCb = null; web?.requestFocus() }
                         override fun onProgressChanged(view: WebView, p: Int) { progress = p }
-                        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?) = false
+                        // "Yeni sekmede aç" bağlantıları (target=_blank): kullanıcı tıkladıysa aynı sayfada aç (önceden hiç açılmıyordu)
+                        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean {
+                            if (!isUserGesture || resultMsg == null) return false
+                            val tmp = WebView(view.context)
+                            tmp.webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(v: WebView, r: android.webkit.WebResourceRequest): Boolean {
+                                    val s = r.url.scheme
+                                    if (s == "http" || s == "https") view.loadUrl(r.url.toString())
+                                    v.post { runCatching { v.destroy() } }
+                                    return true
+                                }
+                            }
+                            (resultMsg.obj as? WebView.WebViewTransport)?.webView = tmp
+                            resultMsg.sendToTarget()
+                            return true
+                        }
                     }
                     // Kumanda: ⏯ veya OK'e uzun basınca bulunan videoyu tam ekran aç
                     var longFired = false
@@ -778,6 +806,7 @@ fun TvSlideshow(tree: Uri, onExit: () -> Unit) {
     LaunchedEffect(tree) {
         images = withContext(Dispatchers.IO) { Usb.allImages(ctx, tree).shuffled() }
     }
+    KeepScreenOn()
     LaunchedEffect(images) {
         val list = images ?: return@LaunchedEffect
         if (list.isEmpty()) return@LaunchedEffect
