@@ -1,4 +1,4 @@
-// v0.48 – 2026-11-09: sürüm 0.48 (inceleme: gösterimlerde ekran kapanmaz, tarayıcıda yeni sekme bağlantıları, USB klasör döngü engeli, PDF bellek)
+// v0.49 – 2026-11-11: sürüm 0.49 (Fare 1.6: tıklama düğmeye doğrudan, TV Gönder kapalıyken de fare; tıklama sonucu telefonda)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 50
-        versionName = "0.48"
+        versionCode = 51
+        versionName = "0.49"
     }
     signingConfigs {
         getByName("debug") {

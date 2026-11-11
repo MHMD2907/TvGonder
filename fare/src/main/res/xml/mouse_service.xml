@@ -1,10 +1,10 @@
-<!-- v0.22 – 2026-10-19: TV Gönder Fare erişilebilirlik hizmeti; bayraklar ve "erişilebilirlik aracı" işareti eklendi (yalnız dokunma hareketi gönderir, ekran içeriği okumaz) -->
+<!-- v1.6 – 2026-11-11: TV Gönder Fare: tıklama için imlecin altındaki düğmeyi bulabilmesi gerekiyor (pencere içeriğine erişim; yalnız tıklanacak düğmeyi bulmak için, hiçbir şey kaydedilmez/gönderilmez) -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canPerformGestures="true"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:description="@string/mouse_desc"
     android:isAccessibilityTool="true"
     android:settingsActivity="com.onur.tvgonder.fare.SetupActivity"

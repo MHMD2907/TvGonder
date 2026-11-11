@@ -1,4 +1,4 @@
-// v1.4 – 2026-11-04: TV Gönder Fare 1.4: hizmet yeniden bağlanınca dinleyici yenilenir (takılma giderildi); uygulama/ekran açma, dokunma, imleç
+// v1.6 – 2026-11-11: TV Gönder Fare 1.6: tıklama ekrandaki düğmeye doğrudan basar (dokunmayı yok sayan TV'lerde de), olmazsa dokunma; sonuç bildirimi; imleç
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -106,15 +106,84 @@ class MouseService : AccessibilityService() {
         show()
     }
 
-    private fun gesture(path: Path, duration: Long) {
-        if (android.os.Build.VERSION.SDK_INT < 24) return
-        runCatching {
+    /** Son tıklamanın sonucu: "ok" (dokunma uygulandı), "düğme" (ekrandaki düğmeye basıldı), "iptal", "red", "yok". */
+    @Volatile var lastResult = "-"
+
+    /**
+     * Dokunma hareketi gönderir. Sistem hareketi iptal eder ya da reddederse (bazı TV'lerde olur)
+     * [fx],[fy] verildiyse o noktadaki düğmeye erişilebilirlik ile basılır.
+     */
+    private fun gesture(path: Path, duration: Long, fx: Float? = null, fy: Float? = null) {
+        if (android.os.Build.VERSION.SDK_INT < 24) { if (fx != null && fy != null) nodeClick(fx, fy); return }
+        val sent = runCatching {
             val g = GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, duration)).build()
-            dispatchGesture(g, null, null)
-        }
+            dispatchGesture(g, object : GestureResultCallback() {
+                override fun onCompleted(d: GestureDescription?) { if (fx != null) lastResult = "ok" }
+                override fun onCancelled(d: GestureDescription?) {
+                    lastResult = "iptal"
+                    if (fx != null && fy != null) lastResult = if (nodeClick(fx, fy)) "düğme" else "iptal"
+                }
+            }, main)
+        }.getOrDefault(false)
+        if (!sent && fx != null && fy != null) lastResult = if (nodeClick(fx, fy)) "düğme" else "red"
     }
 
-    fun click() = main.post { show(); gesture(Path().apply { moveTo(x, y) }, 60) }
+    /** Noktanın altındaki en küçük tıklanabilir öğeyi bulur (üstteki pencereden başlayarak). */
+    private fun clickableAt(px: Float, py: Float): android.view.accessibility.AccessibilityNodeInfo? {
+        val pt = android.graphics.Rect()
+        val roots = buildList {
+            runCatching {
+                windows.sortedByDescending { it.layer }.forEach { w ->
+                    if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) return@forEach
+                    w.getBoundsInScreen(pt)
+                    if (pt.contains(px.toInt(), py.toInt())) w.root?.let { add(it) }
+                }
+            }
+            if (isEmpty()) rootInActiveWindow?.let { add(it) }
+        }
+        for (root in roots) {
+            var best: android.view.accessibility.AccessibilityNodeInfo? = null
+            var bestArea = Long.MAX_VALUE
+            val stack = ArrayDeque<android.view.accessibility.AccessibilityNodeInfo>().apply { add(root) }
+            var guard = 0
+            while (stack.isNotEmpty() && guard++ < 3000) {
+                val n = stack.removeLast()
+                n.getBoundsInScreen(pt)
+                if (!pt.contains(px.toInt(), py.toInt()) || !n.isVisibleToUser) continue
+                if (n.isClickable && n.isEnabled) {
+                    val a = pt.width().toLong() * pt.height()
+                    if (a < bestArea) { best = n; bestArea = a }
+                }
+                for (i in 0 until n.childCount) n.getChild(i)?.let { stack.add(it) }
+            }
+            if (best != null) return best
+        }
+        return null
+    }
+
+    /** Erişilebilirlikle tıklama (dokunma hareketi işlemeyen ekranlar için). */
+    private fun nodeClick(px: Float, py: Float): Boolean = runCatching {
+        clickableAt(px, py)?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true
+    }.getOrDefault(false)
+
+    /**
+     * Tıklama: noktada gerçek bir düğme varsa (ekranın yarısından küçük) doğrudan ona basılır — dokunmayı yok sayan
+     * TV'lerde de çalışır. Yoksa (oyun, çizim alanı, video…) dokunma hareketi gönderilir.
+     */
+    private fun tapPoint(px: Float, py: Float, ms: Long) {
+        if (ms < 300) {
+            val n = runCatching { clickableAt(px, py) }.getOrNull()
+            if (n != null) {
+                val r = android.graphics.Rect().also { n.getBoundsInScreen(it) }
+                if (r.width().toLong() * r.height() < w.toLong() * h / 2 &&
+                    runCatching { n.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) }.getOrDefault(false)
+                ) { lastResult = "düğme"; return }
+            }
+        }
+        gesture(Path().apply { moveTo(px, py) }, ms, px, py)
+    }
+
+    fun click() = main.post { show(); tapPoint(x, y, 100) }
 
     fun longPress() = main.post { show(); gesture(Path().apply { moveTo(x, y) }, 800) }
 
@@ -130,7 +199,7 @@ class MouseService : AccessibilityService() {
     /** Ekranın oranına göre (0..1) bir noktaya dokunur. */
     fun tapAt(nx: Float, ny: Float, ms: Long) = main.post {
         x = (nx * w).coerceIn(0f, w - 2f); y = (ny * h).coerceIn(0f, h - 2f)
-        gesture(Path().apply { moveTo(x, y) }, ms)
+        tapPoint(x, y, ms)
     }
 
     fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long) = main.post {

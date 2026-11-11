@@ -1,4 +1,4 @@
-// v0.46 – 2026-11-04: Fare/Kumanda: kaydırılabilir, fare alanı sabit boyutta (yazılar örtmez), eklenti durumu kısa; TV'ye yazı, yön tuşları, Fare düzeltme
+// v0.49 – 2026-11-11: Fare/Kumanda: son tıklamanın TV'de uygulanıp uygulanmadığı görünür; kaydırılabilir, fare alanı sabit; TV'ye yazı, yön tuşları, Fare düzeltme
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -120,7 +120,22 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 TextButton(onClick = onClose) { Text("Kapat") }
             }
             when (mode) {
-                2 -> Text("✓ Fare her uygulamada çalışıyor", color = Accent, style = MaterialTheme.typography.bodyMedium)
+                2 -> {
+                    // Son tıklama TV'de gerçekten uygulandı mı (eklenti 1.6+)
+                    var diag by remember { mutableStateOf<String?>(null) }
+                    LaunchedEffect(Unit) {
+                        while (true) { diag = withContext(Dispatchers.IO) { remote.fareDiag() }; kotlinx.coroutines.delay(1500) }
+                    }
+                    Column {
+                        Text("✓ Fare her uygulamada çalışıyor", color = Accent, style = MaterialTheme.typography.bodyMedium)
+                        when (diag) {
+                            "ok" -> Text("Son tıklama TV'de uygulandı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                            "düğme" -> Text("Son tıklama: düğmeye basıldı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                            "iptal", "red" -> Text("Son tıklamayı TV kabul etmedi. Burada düğme yoksa (oyun/video alanı) OK tuşunu dene.", color = Danger, style = MaterialTheme.typography.bodySmall)
+                            else -> {}
+                        }
+                    }
+                }
                 1 -> Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),

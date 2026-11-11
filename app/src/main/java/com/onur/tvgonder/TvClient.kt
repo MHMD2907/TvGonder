@@ -61,6 +61,19 @@ class Remote(private val host: String, private val token: String) {
         }
     }.getOrDefault(false)
 
+    /** Fare eklentisinden son tıklamanın sonucu ("ok", "düğme", "iptal", "red"; eski eklentide null). */
+    fun fareDiag(): String? = runCatching {
+        java.net.DatagramSocket().use { s ->
+            s.soTimeout = 800
+            val b = "$token diag".toByteArray()
+            s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName(host), 8767))
+            val buf = ByteArray(32)
+            val p = java.net.DatagramPacket(buf, buf.size)
+            s.receive(p)
+            String(buf, 0, p.length)
+        }
+    }.getOrNull()
+
     fun close() { exec.shutdown(); runCatching { sock?.close() } }
 }
 

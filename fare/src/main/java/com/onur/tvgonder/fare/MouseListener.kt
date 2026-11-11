@@ -1,4 +1,4 @@
-// v1.4 – 2026-11-04: dinleyici hiç ölmez (hata/meşgul kapıda yeniden açılır); fare + dokunma + launch; anahtar doğrulama
+// v1.6 – 2026-11-11: onaylı telefonlar kalıcı saklanır (TV Gönder kapalıyken de fare çalışır); diag; dinleyici hiç ölmez; fare + dokunma + launch
 package com.onur.tvgonder.fare
 
 import android.os.SystemClock
@@ -19,14 +19,26 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
     @Volatile private var socket: DatagramSocket? = null
     private val ok = HashMap<String, Long>()   // doğrulanmış anahtar -> zaman
 
+    private val prefs by lazy { svc.getSharedPreferences("fare", android.content.Context.MODE_PRIVATE) }
+
+    /**
+     * Anahtar doğrulama: TV Gönder'e sorulur ve onaylanan anahtar kalıcı saklanır.
+     * TV Gönder kapalıyken (sunucu cevap vermiyor) daha önce onaylanmış telefonlar yine çalışır.
+     */
     private fun valid(token: String): Boolean {
         val now = SystemClock.elapsedRealtime()
         ok[token]?.let { if (now - it < 60_000) return true }
-        val good = runCatching {
+        val code = runCatching {
             val c = URL("http://127.0.0.1:8765/auth?token=" + URLEncoder.encode(token, "UTF-8")).openConnection() as HttpURLConnection
             c.connectTimeout = 800; c.readTimeout = 800
-            try { c.responseCode == 200 } finally { c.disconnect() }
-        }.getOrDefault(false)
+            try { c.responseCode } finally { c.disconnect() }
+        }.getOrDefault(-1)
+        val known = prefs.getStringSet("tokens", emptySet()).orEmpty()
+        val good = when (code) {
+            200 -> { if (token !in known) prefs.edit().putStringSet("tokens", known + token).apply(); true }
+            401 -> { if (token in known) prefs.edit().putStringSet("tokens", known - token).apply(); false }
+            else -> token in known   // TV Gönder kapalı: daha önce onaylanmışsa kabul
+        }
         if (good) ok[token] = now
         return good
     }
@@ -61,6 +73,11 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
         when (parts[1]) {
             "ping" -> {
                 val b = "pong".toByteArray()
+                s.send(DatagramPacket(b, b.size, pkt.address, pkt.port))
+            }
+            // Son tıklamanın sonucu (telefonda gösterilir: TV'de uygulandı mı)
+            "diag" -> {
+                val b = svc.lastResult.toByteArray()
                 s.send(DatagramPacket(b, b.size, pkt.address, pkt.port))
             }
             "m" -> svc.move(a, parts.getOrNull(3)?.toFloatOrNull() ?: 0f)
