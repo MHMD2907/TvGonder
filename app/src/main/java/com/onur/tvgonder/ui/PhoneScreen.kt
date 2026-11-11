@@ -1,4 +1,4 @@
-// v0.47 – 2026-11-09: uygun sürüm yoksa yansıtma önerisi; APKPure önce; büyük gönderimlerde telefon uyumaz; TV ile uyum kontrolü; uygulama gönderme
+// v0.50 – 2026-11-11: ana ekranda Kılavuz ve kurulum kontrolü kartı; uygun sürüm yoksa yansıtma önerisi; TV ile uyum kontrolü; uygulama gönderme
 package com.onur.tvgonder.ui
 
 import android.content.ClipboardManager
@@ -825,6 +825,7 @@ private fun SendUi(
                 Tile("🎮", "Oyun kolu (Bluetooth)", Modifier.weight(1f)) { com.onur.tvgonder.FullActivity.open(ctx, "pad") }
             }
             Tile("📦", "Telefondaki uygulamayı TV'ye kur", Modifier.fillMaxWidth()) { showPhoneApps = true }
+            Tile("📖", "Kılavuz ve kurulum kontrolü", Modifier.fillMaxWidth()) { showGuide = true }
         }
         // TV kumandası: Google TV'nin kendi hizmeti; TV Gönder eşleşmesi gerekmez
         Tile("📺", "TV kumandası (hızlı, Google TV)", Modifier.fillMaxWidth()) {
