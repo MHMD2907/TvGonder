@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: kılavuz: başka uygulama açıkken de telefondan açma; TV'ye yazı; uygulama kurma; yansıtmada ekran açık; kumanda, oyun kolu
+// v0.50 – 2026-11-11: kılavuz baştan yazıldı (göreve göre bölümler, adım adım, güncel); telefonda Kurulum kontrolü (✓/✗ + düzeltme düğmeleri)
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -34,158 +34,189 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-/** Kılavuz metni: (başlık, satırlar). "• " ile başlayan satır madde, "1." ile başlayan adım. */
+/** Kılavuz metni: (başlık, satırlar). "• " madde, "1." adım, ":" ile biten satır ara başlık. */
 object GuideText {
     val sections: List<Pair<String, List<String>>> = listOf(
-        "1. Kurulum ve ilk ayar" to listOf(
-            "Aynı uygulama telefona, TV'ye ve tablete kurulur. Fare için TV'ye ayrıca küçük \"TV Gönder Fare\" eklentisi kurulur.",
-            "1. Telefon: TvGonder APK'yı aç, Yükle. \"Bilinmeyen kaynak\" uyarısında izin ver.",
-            "2. TV (ilk kez): APK'yı flaşa kopyala, TV'ye tak, dosya yöneticisinde aç, Yükle.",
-            "3. TV'de uygulamayı aç; takılı USB kayıt yeri olarak otomatik seçilir. USB yoksa \"USB belleği seç\" → USB veya TV hafızası.",
-            "4. Eşleştirme: TV'de Telefon ekle → QR çıkar. Telefonda \"QR kodu okut\" → TV'de Onayla.",
-            "5. Telefonun üstünde yeşil \"Bağlı\" görünüyorsa hazırsın. \"Şimdilik geç\" ile eşleşmeden de gezebilirsin.",
+        "⭐ İlk kurulum (bir kez, 5 dakika)" to listOf(
+            "Telefona ve TV'ye aynı TV Gönder uygulaması kurulur. TV'ye ayrıca küçük \"TV Gönder Fare\" eklentisi kurulur (TV Gönder'in içinde gelir).",
+            "1. Telefona TvGonder APK'yı kur.",
+            "2. TV'ye ilk kez: APK'yı flaşa kopyala → TV'ye tak → TV'nin dosya yöneticisinde aç → Yükle. Sonraki güncellemeler telefondan gider.",
+            "3. Eşleştir: TV'de TV Gönder → Telefon ekle → QR çıkar. Telefonda \"QR kodu okut\" → TV'de Onayla. Telefonun üstünde yeşil \"Bağlı\" yazmalı.",
+            "4. TV kumandası: telefonda \"TV kumandası (hızlı)\" → Eşleşmeyi başlat → TV'de çıkan 6 haneli kodu yaz → Eşleştir.",
+            "5. Fare: TV'de TV Gönder ana ekranındaki sarı uyarıya bas (ya da Ayarlar → Fare → Kur) → Yükle → açılan listede \"TV Gönder Fare\" → Aç → İzin ver.",
+            "6. Bu kılavuzun en üstündeki \"Kurulum kontrolü\"nde hepsi ✓ olmalı. ✗ olanın yanındaki düğme onu düzeltir.",
         ),
-        "2. Telefon ana ekranı" to listOf(
-            "• Üstte seçili cihaz ve durumu: Bağlı / TV'ye ulaşılamıyor / TV ağda aranıyor (modem IP değiştirdiyse kendisi bulur).",
-            "• \"Nereye gönderilsin?\": birden fazla cihaz eşleşmişse dokunduğun cihaz seçilir.",
-            "• Kartlar: Fare / Kumanda, TV'deki dosyalar, Ekranı TV'de göster, TV ekranını gör, TV'deki uygulamalar, Oyun kolu, Link gönder, Dosya gönder, Gönderimler, Son linkler.",
-            "• ⋮ menüsü: cihaza geç, yeni cihaz ekle, güncelle, Fare eklentisini gönder, Gönderim geçmişi, Ayarlar, Kullanım kılavuzu, alıcı yap (tablet), çıkış.",
+        "📤 Dosya ve link gönder" to listOf(
+            "Link:",
+            "1. Linki kopyala → TV Gönder'i aç (link kutuya kendiliğinden gelir) → \"TV'de aç\".",
+            "• YouTube linki TV'de YouTube'da açılır (YouTube açıkken bile). Diğer linkler TV Gönder'in tarayıcısında açılır.",
+            "• Başka uygulamada Paylaş → \"TV'ye gönder\" de olur.",
+            "Dosya:",
+            "1. Fotoğraf / Video, Müzik, Belge / Diğer ya da Klasör (toplu) → seç → gider.",
+            "2. Kaydedilecek yer → Değiştir ile TV'de klasör seç ya da yeni klasör aç.",
+            "• Büyük dosya gönderirken telefon uyumaz; gönderim yarıda kalmaz.",
+            "• TV'de yeni dosya gelince \"Aç\" kartı çıkar. Sonra Dosyalarım'dan da açılır.",
         ),
-        "3. Link ve karekod" to listOf(
-            "• Kopyaladığın link, uygulamayı açınca kutuya gelir; \"TV'de aç\" de. Yapıştır düğmesi de var.",
-            "• YouTube linkleri TV'de YouTube'da açılır (YouTube zaten açıksa yeni video onun yerine açılır); diğerleri TV Gönder'in tarayıcısında.",
-            "• Tarayıcıda video: sayfadaki oynatıcının tam ekran düğmesi çalışır. Video bulununca sağ altta \"🎬 Videoyu tam ekran aç\" çıkar (kumandada ⏯ veya OK'e uzun bas); video TV Gönder oynatıcısında açılır.",
-            "• Tablette tarayıcı iki parmakla büyütülür.",
-            "• Karekod okut (kamera): kitaptaki kodu okut.",
-            "• Resimden / PDF'ten karekod oku: sayfadaki tüm kodlar bulunur; önizlemede kırmızı numaralar listeyle aynıdır.",
-            "• Sonuç: Telefonda aç, TV'de aç veya Kopyala. Kodda link yoksa \"Link değil\" yazar.",
-            "• Paylaş → \"TV Gönder ile karekod oku\": fotoğraftan doğrudan okur.",
+        "🖱️ Telefonla fare ve kumanda" to listOf(
+            "Fare (her uygulamada, TV Gönder kapalı olsa bile):",
+            "1. Telefonda Fare / Kumanda → üstte \"✓ Fare her uygulamada çalışıyor\" yazmalı. Yazmıyorsa çıkan \"TV'de Fare eklentisini aç\" düğmesine bas.",
+            "2. Parmağını kaydır: imleç gezer. Dokun: tıklar. Basılı tut: uzun basar. Sağdaki ↕ şerit: sayfayı kaydırır.",
+            "• Tıklamanın gidip gitmediği altta yazar: \"uygulandı ✓\" / \"düğmeye basıldı ✓\". \"TV kabul etmedi\" yazarsa orada düğme yoktur (oyun/video alanı); yön tuşları + OK'i dene.",
+            "Kumanda:",
+            "• ◀ ▲ OK ▼ ▶, Geri, Ana ekran, oynat/sar, ses tuşları aynı ekranda. YouTube ve TV uygulamaları imleçten çok yön tuşlarıyla rahat kullanılır.",
+            "• \"TV kumandası (hızlı)\" kartı: TV'nin kendi kumandasının tamamı (güç, kaynak, rakamlar, renkli tuşlar, kanal).",
+            "• Kumanda bağlantısı koparsa bir tuşa basınca kendisi yeniden bağlanır.",
         ),
-        "4. Dosya gönderme" to listOf(
-            "• Fotoğraf / Video, Müzik (MP3), Belge / Diğer: birden fazla seçilebilir.",
-            "• Klasör (toplu): bir klasörün tamamı alt klasörleriyle gider.",
-            "• Kaydedilecek yer → Değiştir: TV'de klasör seç veya \"+ Yeni klasör\" ile ad yazıp oluştur.",
-            "• Kaydedilecek klasör her TV/tablet için ayrı hatırlanır.",
-            "• Dosya adına gönderim tarihi eklenir (ör. 2026-10-15 15.30 - foto.jpg); Ayarlar'dan kapatılır.",
-            "• Başka uygulamada Paylaş → \"TV'ye gönder\": uygulamayı açmadan gider.",
+        "⌨️ TV'ye yazı yaz" to listOf(
+            "1. TV'de yazı kutusunu seç (YouTube'da 🔍, Play Store'da arama, tarayıcıda adres çubuğu).",
+            "2. Telefonda \"⌨ TV'ye yaz\" kutusuna yaz → Gönder. Arama için ↵ Ara / Git.",
+            "• Kutu Fare / Kumanda, TV kumandası (hızlı) ve Oyun kolu → Kumanda ekranlarında var.",
+            "• Yazı harf harf gider; Türkçe harfler en yakın harfe çevrilir (ç→c, ş→s, ğ→g, ı→i, ö→o, ü→u).",
         ),
-        "5. Yazdırma" to listOf(
-            "1. Yazdır sekmesi: Fotoğraf seç, Dosya / PDF veya Belge / kimlik tara (kamera, kenarları kırpar).",
-            "2. Sıra: ↑ ↓, çıkar: ✕. Düzen: Tek, 2'li, 4'lü, 6'lı veya Kimlik (ön-arka gerçek kart boyutu).",
-            "3. Kağıt A4/A5, Dikey/Yatay, Renkli/Siyah-beyaz; önizlemede ◀ ▶ ile kağıtları gez.",
-            "4. Yazıcıya gönder: Android ekranında yazıcı, sayfa ve kopya seçilir; telefon son yazıcıyı hatırlar.",
-            "• PDF olarak kaydet: seçilenleri tek PDF yapar. Paylaş → \"TV Gönder ile yazdır\" da çalışır.",
+        "📺 Ekran yansıtma" to listOf(
+            "Telefonun ekranını TV'de göster:",
+            "1. \"Ekranı TV'de göster\" → izinleri ver → Şimdi başlat. Telefonda ne açarsan TV'de görünür, ses TV'den gelir.",
+            "2. Durdurmak için aynı karta ya da bildirimdeki Durdur'a bas.",
+            "• İlk seferde \"Diğer uygulamaların üzerinde göster\" izni ver: yansıtma sürerken telefon ekranı kapanmaz.",
+            "• YouTube/Spotify sesini başka uygulamaya vermez (görüntü gelir, ses gelmez); YouTube için link gönder. Netflix gibi korumalı uygulamalar siyah görünür.",
+            "TV'nin ekranını telefonda gör ve yönet:",
+            "1. \"TV ekranını gör\" → TV'de çıkan izin penceresinde kumandayla Başla.",
+            "2. Telefonda TV görüntüsüne dokununca TV'de oraya tıklanır. Kapat / Geri / Ana ekran sağ sütunda.",
+            "• TV'de başka uygulama açıkken de çalışır.",
         ),
-        "6. Fare / Kumanda" to listOf(
-            "• Parmağı kaydır: imleç. Dokun: tıkla. Basılı tut: uzun bas. Sağdaki ↕ şerit: kaydır.",
-            "• Geri, Ana ekran, ⏮ ⏪ ⏯ ⏩ ⏭, ses −/sessiz/+.",
-            "• Eklenti olmadan da fare TV Gönder açıkken çalışır (tarayıcı, dosyalar, oynatıcı).",
-            "Her uygulamada imleç için (bir kez):",
-            "1. TV'de TV Gönder → Ayarlar → Telefonla fare kontrolü → \"Kur\" → Yükle (eklenti uygulamanın içinde gelir, internet gerekmez). Ya da telefonda ⋮ → Fare eklentisini gönder.",
-            "2. Aynı satırda → Aç. Eklenti eskiyse satırda \"Güncelle\" çıkar.",
-            "3. Erişilebilirlik ekranında \"TV Gönder Fare\" → anahtarı Açık yap → İzin ver.",
-            "• Anahtar kendiliğinden kapanıyorsa: TV Gönder Ayarlar → \"Fare eklentisini kaldır\" → sonra \"Kur\" → Yükle → tekrar aç. Yeni kurulum yöntemiyle engel kalkar.",
-            "• YouTube ve video oynatıcılar imleçle tıklamaya tepki vermeyebilir (TV uygulamaları yön tuşuyla çalışır). TV kumandası (hızlı) ile eşleştiysen Fare ekranında ◀ ▲ OK ▼ ▶ tuşları da çıkar; orada onları kullan.",
+        "📦 Uygulama kur ve aç" to listOf(
+            "Telefondaki uygulamayı TV'ye kurmak:",
+            "1. \"📦 Telefondaki uygulamayı TV'ye kur\" → uygulamayı seç → TV'ye gider.",
+            "2. TV'de gelen dosyaya bas → Yükle.",
+            "• Telefon önce uygulamanın TV'de çalışıp çalışmayacağına bakar. \"TV'ye uygun değil\" derse çıkan penceredeki APKPure düğmesiyle uygulamanın \"armeabi-v7a\" sürümünü indir → \"Belge / Diğer\" ile gönder → TV'de Yükle.",
+            "• O sürüm yoksa uygulama bu TV'de çalışamaz (TV 32 bit). Telefonda açıp \"Ekranı TV'de göster\" ile yansıt.",
+            "• Flaştan: APK / XAPK / APKS dosyasını TV'de Dosyalarım'dan aç → Yükle.",
+            "Açmak ve kaldırmak:",
+            "• Telefonda \"TV'deki uygulamalar\" → ▶ Aç (TV'de hangi uygulama açık olursa olsun açılır) · 🗑 Kaldır (TV'de onay ister).",
+            "• TV'de TV Gönder → Uygulamalar → uygulamayı seç → Aç / Kaldır / Bilgi. Telefon uygulamaları TV'nin ana ekranında görünmeyebilir; buradan açılır.",
         ),
-        "7. Ekran yansıtma" to listOf(
-            "• Telefon/tablet → TV: \"Ekranı TV'de göster\" → ses izni → \"Şimdi başlat\". Telefonda ne açarsan TV'de görünür (sesiyle). Durdurmak: aynı kart ya da bildirimdeki Durdur; TV'de Geri.",
-            "• Telefonu yan çevirince TV'deki görüntü de yatay olur. TV'de OK (tablette dokun): Doldur ↔ Sığdır.",
-            "• TV Gönder kurulu olmayan TV'ler için \"Başka TV'ye yansıt\": telefonun kendi Chromecast/Miracast ekranını açar.",
-            "• TV → tablet: \"TV ekranını gör\" → TV'de çıkan pencerede kumandayla \"Başla\". Tablete dokununca TV'de tıklar, kaydırınca kaydırır; altta Geri / Ana ekran.",
-            "• Tabletten TV'yi her uygulamada kontrol etmek için TV'de Fare eklentisi açık olmalı.",
-            "• Yansıtma sürerken telefonun ekranı kapanmaz/kararmaz (kapanırsa TV'de de siyah olurdu). Bunun için ilk seferde \"Diğer uygulamaların üzerinde göster\" izni istenir; ver. Bitince normale döner. Elle kilitlersen (güç tuşu) TV'de de kilit ekranı görünür.",
-            "• Yansıtma başlayınca telefonun sesi kendiliğinden kısılır, ses TV'den gelir; bitince eski ses düzeyine döner. Sesin durumu telefonda kartın altında yazar.",
-            "• YouTube, Spotify gibi bazı uygulamalar seslerinin başka uygulamaya verilmesine izin vermez: görüntü gelir, ses gelmez. YouTube için linki göndermek daha iyidir.",
-            "• Netflix gibi korumalı uygulamalar yansıtmada siyah görünür (Android kuralı). Biraz gecikme (0,1–0,2 sn) normaldir.",
+        "🎮 Oyun" to listOf(
+            "• En iyisi gerçek oyun kolu: PS4/PS5/Xbox kolunu TV'de Ayarlar → Kumandalar ve aksesuarlar → Aksesuar eşle ile bağla (PS kolunda PS + Share'e ışık yanıp sönene kadar bas).",
+            "• Telefondaki \"Oyun kolu\" Wi‑Fi ile yön tuşları ve A/B gönderir; menüler ve basit oyunlar için uygundur, çoğu oyun bunu gerçek kol olarak görmez.",
+            "• Tabletteki oyunu TV'de oynamak: tablette \"Ekranı TV'de göster\", oyunu tablette oyna (biraz gecikme olur).",
         ),
-        "8. Uygulamalar" to listOf(
-            "• Telefondaki bir uygulamayı TV'ye kurmak: telefonda \"📦 Telefondaki uygulamayı TV'ye kur\" → uygulamayı seç → gönderilir → TV'de dosyayı aç → Yükle. Play Store'dan gelen parçalı uygulamalar tek .apks paketi olarak gider (başka yoldan paylaşılan tek APK bunlarda kurulmaz).",
-            "• Uygulama kurmak (USB'den): APK'yı flaşa at → TV'de Dosyalarım → dosyayı aç → Yükle. .xapk / .apks paketleri de kurulur. İlk seferde \"bilinmeyen kaynaklar\" izni istenir.",
-            "• Telefon uygulamaları TV'nin ana ekranında görünmeyebilir (TV için yapılmadıkları için); TV Gönder'deki Uygulamalar listesinden açılır. Dokunmatik isteyen uygulamalarda Fare eklentisini kullan.",
-            "• \"Paylaş\" ile gönderilen base.apk, Play Store'dan gelen parçalı uygulamalarda kurulmaz; o uygulamayı 📦 kartıyla gönder. Telefon, göndermeden önce uygulamanın TV'de çalışıp çalışmayacağını kontrol eder (işlemci, Android sürümü).",
-            "• Telefon \"TV'ye uygun değil\" derse: pencereden APKCombo / APKPure'u aç (uygulama aranmış gelir) → armeabi-v7a sürümünü indir → \"Belge / Diğer\" ile TV'ye gönder → TV'de Yükle. Flaş gerekmez.",
-            "• \"Kurulamadı\" çıkarsa nedeni yazar: çoğunlukla APK telefonun işlemcisine göredir; sitesinden \"armeabi-v7a\" ya da \"universal\" sürümünü indir.",
-            "• TV/tablet: ana ekranda \"Uygulamalar\" → uygulamayı seç → Aç / Kaldır / Bilgi. \"Sistem uygulamaları\" ile TV'nin kendi uygulamaları da listelenir (bunlar kaldırılamaz, Bilgi'den devre dışı bırakılır).",
-            "• Telefon: \"TV'deki uygulamalar\" → ▶ Aç: TV'de açılır · 🗑: TV'de \"Kaldırılsın mı?\" çıkar, kumandayla Tamam.",
+        "🗂️ TV'de Dosyalarım ve gösterme" to listOf(
+            "• Kumanda: oklar gezinir, OK açar, Geri geri gider. Ana ekranda Geri'ye iki kez basınca çıkılır.",
+            "• Dosyalarım: filtre (Video / Müzik / Resim / PDF), Ara, ➕ Yeni klasör, ☑ Seç → 📂 Taşı / 📋 Kopyala / 🗑 Sil.",
+            "• Resim: ◀ ▶ önceki/sonraki, ▲ ▼ döndür, OK büyüt. PDF: ◀ ▶ sayfa, OK okunaklı büyüt, ▲ ▼ kaydır.",
+            "• Video: kaldığı yerden devam eder; ▲ / Menü ile Sığdır ↔ Doldur. Müzik: klasördeki şarkılar sırayla çalar.",
+            "• Resim, PDF, slayt ve tarayıcı açıkken TV ekran koruyucuya geçmez.",
+            "• Tarayıcıda videoyu büyütmek için sağ alttaki \"🎬 Videoyu tam ekran aç\" (ya da ⏯ / OK'e uzun bas).",
+            "• Telefona indirmek: telefonda \"TV'deki dosyalar\" → dosyaya dokun (İndirilenler/TvGonder'e iner).",
         ),
-        "9a. TV kumandası (hızlı, Wi‑Fi)" to listOf(
-            "• Google TV / Android TV'nin kendi kumanda hizmetini kullanır (Google TV uygulamasındaki kumandayla aynı); TV'nin kendi kumandası kadar hızlıdır. TV Gönder'in TV'de açık olması gerekmez.",
-            "1. Telefonda \"TV kumandası (hızlı)\" → üstte TV'yi seç (ya da \"IP yaz\").",
-            "2. İlk seferde \"Eşleşmeyi başlat\" → TV ekranında 6 haneli kod çıkar → kodu yaz → Eşleştir. Bir kez yapılır.",
-            "• Tuşlar: güç, kaynak, ayarlar, sessiz, yön + OK, Geri, Ana ekran, menü, ses, kanal, oynat/sar, rakamlar, renkli tuşlar. Ses/kanal/yön basılı tutunca tekrarlar.",
-            "• Eşleştikten sonra telefondan gönderilen YouTube linkleri bu yolla açılır: TV'de YouTube açıkken bile yeni video açılır.",
-            "• \"📺 TV Gönder'i aç\": TV Gönder'i kendi ana ekranıyla açar. \"⌂ TV ana ekranı\" ise TV'nin kendi ana ekranına gider (uygulamadan çıkar).",
-            "• TV'de başka bir uygulama açıkken de telefondan uygulama açma, link gönderme ve \"TV ekranını gör\" çalışır (TV kumandası bir kez eşleşmiş olmalı).",
-            "• ⌨ TV'ye yaz: önce TV'de yazı kutusunu seç (YouTube'da 🔍, tarayıcıda adres çubuğu, giriş ekranı…), telefonda yaz → Gönder. ⌫ Sil, ␣ Boşluk, ↵ Ara/Git. Bu alan Fare/Kumanda ekranında ve Oyun kolu → Kumanda sekmesinde de var.",
-            "• Eşleştikten sonra \"Oyun kolu\" da Bluetooth'suz, bu bağlantı üzerinden çalışır (yön tuşları, A B X Y, L/R, Start; sol çubuk yön tuşu gibi).",
+        "🖨️ Yazdırma" to listOf(
+            "1. Yazdır sekmesi → Fotoğraf, Dosya / PDF ya da Belge / kimlik tara.",
+            "2. Düzen (Tek, 2'li, 4'lü, 6'lı, Kimlik), kağıt (A4/A5, Dikey/Yatay), renk seç; önizlemeye bak.",
+            "3. Yazıcıya gönder → Android ekranında yazıcıyı seç. Ya da PDF olarak kaydet.",
         ),
-        "9. Bluetooth oyun kolu ve fare" to listOf(
-            "• Telefon/tablet TV'ye gerçek oyun kolu + fare gibi bağlanır: her oyunda ve her uygulamada çalışır, eklenti gerekmez.",
-            "1. TV: Ayarlar → Kumandalar ve aksesuarlar → Aksesuar ekle; bu ekranda kalsın.",
-            "2. Telefon: Bluetooth kumanda → Bağlantı → \"🔍 Yakındaki cihazları ara\" → listede TV'ye dokun. Kod çıkarsa iki tarafta da onayla.",
-            "3. TV kod isterse telefonda kod kutusu çıkar: TV'deki kodu yaz → Gönder. Kod gösterilirse iki tarafta da Eşle de.",
-            "4. \"Bağlı\" yazınca Kumanda sekmesine geç (dikey açılır; Kol sekmesi yatay). Sonraki seferlerde: Bağlantı → eşleşmiş TV'ye dokun.",
-            "• Kumanda: yön tuşları, OK, Geri, Ana ekran, Menü, ses, kanal +/−, Ara (rakamlar için \"TV kumandası (hızlı)\") — TV'nin kendi kumandası kadar hızlı (Bluetooth). Ok tuşunu basılı tutunca TV kendisi tekrarlar.",
-            "• Kol: yön tuşları, iki analog çubuk, A B X Y, L1 L2 R1 R2, Select/Start, Geri, Ana ekran. Fare: kaydır = imleç, dokun = tıkla, ↕ = kaydırma; ses ve oynat tuşları.",
-            "• Bazı telefon markaları bu Bluetooth özelliğini kapatmıştır; o zaman \"desteklemiyor\" yazar. Yalnızca dokunmatikle oynanan oyunlar oyun koluyla çalışmaz.",
+        "🔴 Kızılötesi kumanda (telefonda verici varsa)" to listOf(
+            "1. Kızılötesi kumanda → + Cihaz ekle → tür → marka → model.",
+            "2. Telefonu cihaza doğrult, ⏻ / Ses + ile dene → \"Çalıştı, kaydet\" ya da \"Sonraki\".",
+            "• Marka yoksa \"Tümünü sırayla dene\". Google TV'ler için \"TV kumandası (hızlı)\" daha iyidir.",
         ),
-        "9b. Kızılötesi kumanda" to listOf(
-            "• Kızılötesi vericisi olan telefonlarda (Xiaomi/Poco vb.) \"Kızılötesi kumanda\" kartı çıkar. TV Gönder kurulu olmayan cihazlarla da çalışır: Panasonic TV, uydu alıcısı, ses sistemi, projeksiyon.",
-            "1. + Cihaz ekle → tür (Televizyon, Uydu alıcısı…) → marka → model. Modelini bilmiyorsan ilkinden başla.",
-            "2. Telefonun üst kenarını cihaza doğrult, ⏻ / Ses + / OK ile dene. Tepki verirse \"Çalıştı, kaydet\", vermezse \"Sonraki\".",
-            "3. Marka listede yoksa (ör. Nextstar): \"Tümünü sırayla dene\" ile o türdeki bütün kodlar tek tek denenir. Dijitsu gibi Google TV'ler için \"TV kumandası (hızlı)\" daha iyidir.",
-            "• Kodlar ilk seferde internetten indirilir, sonra internetsiz çalışır. Ses/kanal/yön tuşları basılı tutunca tekrarlar; cihazı silmek için adına uzun bas.",
-        ),
-        "10. TV'deki dosyaları telefona indirme" to listOf(
-            "• \"TV'deki dosyalar\" kartı: klasörleri gez; dosyaya dokun, iner.",
-            "• Çoklu: ☑ Seç → işaretle veya Tümü → \"Seçilenleri indir\".",
-            "• İnenler telefonda İndirilenler/TvGonder klasörüne gider.",
-        ),
-        "11. TV / tablet ekranı" to listOf(
-            "• Kumanda: oklar gezinir, OK seçer, Geri bir önceki ekrana döner.",
-            "• Ana ekran: Dosyalarım, Uygulamalar, Slayt gösterisi, Telefon ekle, Ayarlar, resimli Son gelenler. Yeni dosya gelince \"Aç\" kartı çıkar.",
-            "• Dosyalarım: küçük resimler, filtre (Video / Müzik / Resim / PDF), Ara. ➕ Yeni klasör. ☑ Seç → 📂 Taşı / 📋 Kopyala (hedef klasörü seç, orada yeni klasör de açabilirsin) / 🗑 Sil.",
-            "• Ana ekranda Geri'ye iki kez basınca uygulamadan çıkılır.",
-            "• Resim tam ekran ve her zaman TAMAMI görünür açılır. ◀ ▶ önceki/sonraki, ▲ ▼ döndür (hatırlanır), OK büyüt (büyükken oklar kaydırır, Geri küçültür).",
-            "• PDF: sayfa ekrana sığar. ◀ ▶ sayfa, OK genişliğe büyüt, ▲ ▼ kaydır (sayfa sonunda sonrakine geçer).",
-            "• Ekrandaki yazı ve düğmeler 3-4 saniyede kaybolur; bir tuşa basınca ya da dokununca geri gelir.",
-            "• Video: videonun tamamı görünür (Sığdır). Sağ üstteki ⛶ ya da kumandada ▲ / Menü ile Doldur'a geçer. Dikey videolar hep tam sığar.",
-            "• Video: kaldığı yerden devam eder. Müzik: klasördeki şarkılar sırayla çalar (karıştır, tekrar).",
-            "• Slayt gösterisi: TV 5 dk boşta kalınca başlar; herhangi bir tuş ya da dokunuş çıkarır.",
-            "• Video tam ekran açılır; oran bozulmaz, kenar kırpılabilir. Ayarlar → Video görüntüsü → Sığdır.",
-        ),
-        "12. Tablet: alıcı ve verici" to listOf(
-            "1. Tablete kur → Şimdilik geç → ⋮ → Bu cihazı alıcı yap → Alıcı yap.",
-            "2. Tablette Telefon ekle → telefonda ⋮ → Yeni cihaz ekle → QR'ı okut → Onayla.",
-            "3. Telefonda \"Nereye gönderilsin?\"den tableti seç.",
-            "• Tabletten TV'ye göndermek: tablette \"Gönder\" kartı → ⋮ → Yeni cihaz ekle → TV'deki QR.",
+        "📱 Tablet" to listOf(
+            "• Alıcı yapmak (TV gibi): tablette ⋮ → Bu cihazı alıcı yap → telefonda ⋮ → Yeni cihaz ekle → tabletin QR'ını okut.",
+            "• Telefonda \"Nereye gönderilsin?\"den TV ya da tableti seç.",
             "• Geri dönmek: tablette Ayarlar → Gönderici moduna dön.",
-            "• Dokunmatik: resim ve PDF'te iki parmakla büyüt/küçült, sürükle; çift dokun = büyüt/sığdır; sağa-sola kaydır = önceki/sonraki; tek dokun = düğmeler.",
         ),
-        "13. Güncelleme" to listOf(
-            "1. Telefona en yeni TvGonder APK'yı kur (GitHub Releases); ayarlar silinmez.",
-            "2. TV/tablet: telefonda cihazı seç → ⋮ → uygulamasını güncelle → cihazda Yükle, sonra tekrar Yükle.",
-            "• Fare eklentisi yalnız ilk kurulumda gönderilir.",
-            "• Sürüm: telefonda ana ekranın en altı, TV'de Ayarlar'ın en altı.",
+        "🔄 Güncelleme" to listOf(
+            "1. Yeni APK'yı telefona kur (eskisinin üzerine; ayarlar silinmez).",
+            "2. Telefonda ⋮ → \"… uygulamasını güncelle\" → TV'de Yükle.",
+            "3. TV'de \"Fare eklentisi güncellensin mi?\" çıkarsa Güncelle → Yükle. Sonra Kurulum kontrolü ✓ mi bak.",
         ),
-        "14. Sorun giderme" to listOf(
+        "🛠️ Sorun giderme" to listOf(
+            "• Önce bu kılavuzun en üstündeki Kurulum kontrolü'ne bak: ✗ olan satırın düğmesi çoğu sorunu çözer.",
             "• \"TV'ye ulaşılamıyor\": TV açık ve aynı Wi‑Fi'de mi? ⋮ → Bağlantıyı yenile.",
-            "• Yansıtma/uygulama açma başlamıyor: TV'de TV Gönder açık olsun ya da Ayarlar → \"Linkleri her an açabilme izni\".",
-            "• \"Kayıt yeri seçilmemiş\": USB'yi tak, TV'de USB belleği seç.",
-            "• TV'de Yükle çalışmıyor: açılan ekranda TV Gönder'e bilinmeyen kaynak izni ver.",
-            "• Fare ekranında kırmızı uyarı: bölüm 6'daki ilk kullanım adımları.",
-            "• Resim ters: ▲ veya ▼ ile döndür.",
-            "• YouTube açıkken link açılmıyor: TV'de Fare eklentisi açık olsun (en az 1.3; Ayarlar'da \"Güncelle\" çıkarsa güncelle). Eklenti, TV Gönder adına yeni linki açar.",
-            "• Tarayıcıda video oynamıyor: \"🎬 Videoyu tam ekran aç\" düğmesini dene; bazı siteler videoyu korur.",
-            "• Yazıcı yok: ⋮ → Ayarlar → Telefonun yazıcı ayarlarını aç, hizmeti aç.",
+            "• Fare hareket ediyor ama tıklamıyor: Fare ekranının altındaki yazıya bak. TV Gönder ana ekranında sarı uyarı varsa ona bas.",
+            "• Fare hiç yok: TV Gönder → Ayarlar → Fare eklentisini kaldır → Kur → Yükle → Aç.",
+            "• TV'de Yükle çalışmıyor: açılan ekranda TV Gönder'e \"bilinmeyen kaynak\" izni ver.",
+            "• Uygulama kurulmuyor: çıkan pencere nedenini yazar (çoğunlukla 64 bit / parçalı uygulama). Bölüm \"📦 Uygulama kur ve aç\".",
+            "• Kayıt yeri seçilmemiş: TV'ye USB tak, TV Gönder'de USB belleği seç.",
         ),
     )
 }
 
+/**
+ * Kurulum kontrolü (telefon): her şeyin hazır olup olmadığını tek bakışta gösterir; ✗ olanın düzeltme düğmesi var.
+ */
+@Composable
+fun SetupCheck(store: com.onur.tvgonder.Store) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val client = remember { com.onur.tvgonder.TvClient(store) }
+    var info by remember { androidx.compose.runtime.mutableStateOf<org.json.JSONObject?>(null) }
+    var reach by remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(tick) {
+        reach = null
+        val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { client.tvInfo() }.getOrNull() }
+        info = r; reach = r != null
+    }
+    val myVer = remember { com.onur.tvgonder.appVersionCode(ctx) }
+    val paired = store.tvToken != null
+    val atv = store.tvHost?.let { com.onur.tvgonder.AtvRemote.isPaired(ctx, it) } == true
+    val overlay = android.os.Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(ctx)
+
+    @Composable
+    fun Row2(ok: Boolean?, title: String, fix: (@Composable () -> Unit)? = null) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PanelHi).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(when (ok) { true -> "✓"; false -> "✗"; null -> "…" }, color = when (ok) { true -> Accent; false -> Danger; null -> TextMuted },
+                    style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(28.dp))
+                Text(title, color = TextMain, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (ok == false) fix?.invoke()
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row2(paired, if (paired) "Telefon ${store.tvName} ile eşleşmiş" else "Telefon henüz bir TV ile eşleşmemiş") {
+            Text("TV'de TV Gönder → Telefon ekle → QR'ı telefonda \"QR kodu okut\" ile okut.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+        if (paired) {
+            Row2(reach, if (reach == false) "TV'ye ulaşılamıyor" else "TV'ye ulaşılıyor") {
+                Text("TV açık ve aynı Wi‑Fi'de mi? TV'de TV Gönder'i bir kez aç.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                androidx.compose.material3.Button(onClick = { tick++ }) { Text("Tekrar dene") }
+            }
+            val tvVer = info?.optLong("version", -1L) ?: -1L
+            if (reach == true) {
+                Row2(tvVer >= myVer, if (tvVer >= myVer) "TV'deki TV Gönder güncel" else "TV'deki TV Gönder eski (telefondaki daha yeni)") {
+                    Text("Telefonda ⋮ → \"${store.tvName} uygulamasını güncelle\" → TV'de Yükle.", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                }
+                Row2(info?.optBoolean("storage") == true, "TV'de kayıt yeri seçili") {
+                    Text("TV'ye USB tak, TV Gönder'de \"USB belleği seç\".", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                }
+                val fare = info?.optBoolean("fare") == true
+                Row2(fare, if (fare) "Fare eklentisi TV'de çalışıyor" else "Fare eklentisi TV'de kapalı / kurulu değil") {
+                    FareFixButton(client)
+                }
+            }
+        }
+        Row2(atv, if (atv) "TV kumandası (hızlı) eşleşmiş" else "TV kumandası (hızlı) eşleşmemiş (yazı, uygulama açma ve YouTube için gerekli)") {
+            androidx.compose.material3.Button(onClick = {
+                runCatching { ctx.startActivity(android.content.Intent(ctx, com.onur.tvgonder.AtvActivity::class.java).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }) { Text("TV kumandasını eşleştir") }
+        }
+        Row2(overlay, if (overlay) "Yansıtmada telefon ekranı açık kalır" else "Yansıtmada telefon ekranı kapanabilir (izin yok)") {
+            androidx.compose.material3.Button(onClick = {
+                runCatching {
+                    ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${ctx.packageName}"))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }) { Text("İzni ver") }
+        }
+        TextButton(onClick = { tick++ }) { Text("↻ Yeniden kontrol et") }
+    }
+}
+
 /** Telefon: tam ekran kılavuz; başlığa dokununca bölüm açılır. */
 @Composable
-fun GuideDialog(onClose: () -> Unit) {
-    var open by remember { mutableIntStateOf(0) }
+fun GuideDialog(store: com.onur.tvgonder.Store? = null, onClose: () -> Unit) {
+    var open by remember { mutableIntStateOf(if (store != null) -2 else 0) }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(Ink).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -194,6 +225,19 @@ fun GuideDialog(onClose: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (store != null) item {
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Panel)
+                            .clickable { open = if (open == -2) -1 else -2 }.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("✅ Kurulum kontrolü", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = if (open == -2) Accent else TextMain)
+                            Text(if (open == -2) "▲" else "▼", color = TextMuted)
+                        }
+                        if (open == -2) SetupCheck(store)
+                    }
+                }
                 itemsIndexed(GuideText.sections) { i, (title, lines) ->
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Panel)

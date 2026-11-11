@@ -1,4 +1,4 @@
-// v0.49 – 2026-11-11: sürüm 0.49 (Fare 1.6: tıklama düğmeye doğrudan, TV Gönder kapalıyken de fare; tıklama sonucu telefonda)
+// v0.50 – 2026-11-11: sürüm 0.50 (yeni kullanım kılavuzu + kurulum kontrolü)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 51
-        versionName = "0.49"
+        versionCode = 52
+        versionName = "0.50"
     }
     signingConfigs {
         getByName("debug") {

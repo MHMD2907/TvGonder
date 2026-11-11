@@ -1034,7 +1034,7 @@ private fun SendUi(
     }
 
     if (showRemote) RemoteDialog(store) { showRemote = false }
-    if (showGuide) GuideDialog { showGuide = false }
+    if (showGuide) GuideDialog(store) { showGuide = false }
     if (showTvFiles) TvFilesDialog(client) { showTvFiles = false }
     if (showApps) RemoteAppsDialog(client, store.tvName) { showApps = false }
     if (showPhoneApps) PhoneAppPicker(onPick = { sendPhoneApp(it) }, onClose = { showPhoneApps = false })
