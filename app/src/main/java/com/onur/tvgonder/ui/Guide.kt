@@ -1,4 +1,4 @@
-// v0.50 – 2026-11-11: kılavuz baştan yazıldı (göreve göre bölümler, adım adım, güncel); telefonda Kurulum kontrolü (✓/✗ + düzeltme düğmeleri)
+// v0.51 – 2026-11-13: kılavuz: TV'ye canlı yazı; kurulum kontrolü; göreve göre bölümler
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -68,10 +68,11 @@ object GuideText {
             "• Kumanda bağlantısı koparsa bir tuşa basınca kendisi yeniden bağlanır.",
         ),
         "⌨️ TV'ye yazı yaz" to listOf(
-            "1. TV'de yazı kutusunu seç (YouTube'da 🔍, Play Store'da arama, tarayıcıda adres çubuğu).",
-            "2. Telefonda \"⌨ TV'ye yaz\" kutusuna yaz → Gönder. Arama için ↵ Ara / Git.",
-            "• Kutu Fare / Kumanda, TV kumandası (hızlı) ve Oyun kolu → Kumanda ekranlarında var.",
-            "• Yazı harf harf gider; Türkçe harfler en yakın harfe çevrilir (ç→c, ş→s, ğ→g, ı→i, ö→o, ü→u).",
+            "1. Telefonda Fare / Kumanda (ya da TV kumandası hızlı) açık olsun.",
+            "2. TV'de yazı kutusunu seç (YouTube'da 🔍, Play Store'da arama, tarayıcıda adres çubuğu).",
+            "3. TV \"Mobil cihazınızdaki klavyeyi kullanın\" der; telefonda klavye kendiliğinden açılır. Yaz: harfler anında TV'de görünür (Türkçe harfler dahil). Bitince Ara ↵.",
+            "• TV kutuyu bildirmezse yazı \"Gönder\" ile harf harf gider (Türkçe harfler en yakın harfe çevrilir).",
+            "• Telefonda TV Gönder kapatılınca 30 sn sonra bağlantı bırakılır; TV'nin kendi ekran klavyesi geri gelir, kumandayla yazabilirsin.",
         ),
         "📺 Ekran yansıtma" to listOf(
             "Telefonun ekranını TV'de göster:",

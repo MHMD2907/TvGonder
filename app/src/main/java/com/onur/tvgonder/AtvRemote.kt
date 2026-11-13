@@ -1,4 +1,4 @@
-// v0.47 – 2026-11-09: TV'ye yazı her zaman harf harf tuşla (her kutuda güvenilir); kendiliğinden yeniden bağlanma; eşleşme, tuşlar, link
+// v0.51 – 2026-11-13: TV'ye yazı doğru IME ile (sayaçlar alan durumundan; Türkçe, canlı), bildirmezse tuşla; kopma eşiği 45 sn; eşleşme, tuşlar, link
 package com.onur.tvgonder
 
 import android.content.Context
@@ -44,6 +44,8 @@ object AtvRemote {
     @Volatile private var lastImeAt = 0L
     @Volatile private var imeCounter = 0L
     @Volatile private var fieldCounter = 0L
+    @Volatile private var hasImeCounter = false
+    @Volatile private var hasFieldCounter = false
     private val io = Executors.newSingleThreadExecutor()
     private val sendQ = Executors.newSingleThreadExecutor()
 
@@ -280,8 +282,8 @@ object AtvRemote {
     fun connect(c: Context, h: String) {
         filesDir = c.filesDir
         appCtx = c.applicationContext
-        lastImeAt = 0L
         if (state.value == State.Connected && host == h && sock?.isClosed == false) return
+        lastImeAt = 0L; hasImeCounter = false; hasFieldCounter = false; imeActive.value = false
         host = h
         state.value = State.Connecting
         message.value = "Bağlanıyor…"
@@ -303,7 +305,7 @@ object AtvRemote {
             Thread({
                 while (sock === s && !s.isClosed) {
                     Thread.sleep(5000)
-                    if (System.currentTimeMillis() - lastRx > 20000) runCatching { s.close() }
+                    if (System.currentTimeMillis() - lastRx > 45000) runCatching { s.close() }
                 }
             }, "atv-watch").apply { isDaemon = true; start() }
         }
@@ -323,15 +325,16 @@ object AtvRemote {
                         val p = parse(m[8]!!.first() as ByteArray)
                         write(o, PB().msg(9, PB().int(1, (p[1]?.firstOrNull() as? Long) ?: 0L)).out())
                     }
-                    // TV'de yazı alanı odaklandı / içeriği değişti
-                    m.containsKey(21) -> runCatching {
-                        val be = parse(m[21]!!.first() as ByteArray)
-                        imeCounter = (be[1]?.firstOrNull() as? Long) ?: imeCounter
-                        fieldCounter = (be[2]?.firstOrNull() as? Long) ?: fieldCounter
-                        (be[3]?.firstOrNull() as? ByteArray)?.let { ei ->
-                            (parse(ei)[2]?.firstOrNull() as? ByteArray)?.let { obj ->
-                                (parse(obj)[3]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
-                            }
+                    // TV'de yazı alanı odaklandı: sayaçlar alanın durumundan (key_inject / show_request) alınır,
+                    // batch_edit yalnız yedek (androidtvremote2 ile aynı mantık). TV bunu gönderince kendi ekran
+                    // klavyesini gizleyip "Mobil cihazınızdaki klavyeyi kullanın" der.
+                    m.containsKey(20) -> runCatching {
+                        val inj = parse(m[20]!!.first() as ByteArray)
+                        (inj[1]?.firstOrNull() as? ByteArray)?.let { ai -> (parse(ai)[1]?.firstOrNull() as? Long)?.let { imeCounter = it; hasImeCounter = it != 0L } }
+                        (inj[2]?.firstOrNull() as? ByteArray)?.let { st ->
+                            val f = parse(st)
+                            (f[1]?.firstOrNull() as? Long)?.let { fieldCounter = it; hasFieldCounter = it != 0L }
+                            (f[2]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
                         }
                         imeActive.value = true; lastImeAt = System.currentTimeMillis()
                     }
@@ -339,8 +342,19 @@ object AtvRemote {
                         val req = parse(m[22]!!.first() as ByteArray)
                         (req[2]?.firstOrNull() as? ByteArray)?.let { st ->
                             val f = parse(st)
-                            (f[1]?.firstOrNull() as? Long)?.let { fieldCounter = it }
+                            (f[1]?.firstOrNull() as? Long)?.let { fieldCounter = it; hasFieldCounter = true }
                             (f[2]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
+                        }
+                        imeActive.value = true; lastImeAt = System.currentTimeMillis()
+                    }
+                    m.containsKey(21) -> runCatching {
+                        val be = parse(m[21]!!.first() as ByteArray)
+                        if (!hasImeCounter) (be[1]?.firstOrNull() as? Long)?.let { imeCounter = it }
+                        if (!hasFieldCounter) (be[2]?.firstOrNull() as? Long)?.let { fieldCounter = it }
+                        (be[3]?.firstOrNull() as? ByteArray)?.let { ei ->
+                            (parse(ei)[2]?.firstOrNull() as? ByteArray)?.let { obj ->
+                                (parse(obj)[3]?.firstOrNull() as? ByteArray)?.let { imeText.value = String(it) }
+                            }
                         }
                         imeActive.value = true; lastImeAt = System.currentTimeMillis()
                     }
@@ -380,11 +394,19 @@ object AtvRemote {
      * TV'deki odaklı yazı alanının içeriğini [t] yapar (YouTube araması, tarayıcı adres çubuğu, giriş ekranları…).
      * Telefonda yazdıkça TV'de canlı görünür.
      */
+    /** TV yakın zamanda bir yazı alanının açık olduğunu bildirdi mi (o zaman yazı doğrudan alana gider). */
+    fun imeReady(): Boolean = System.currentTimeMillis() - lastImeAt < 10 * 60_000
+
+    /**
+     * TV'deki yazı alanının içeriğini [t] yapar. TV alanı bildirdiyse (ekranda "Mobil cihazınızdaki klavyeyi kullanın")
+     * içerik doğrudan alana yazılır — Türkçe harfler dahil, yazdıkça canlı. Bildirmediyse harf harf tuşla yazılır.
+     */
     fun text(t: String) {
-        if (t.isEmpty()) return
-        // Harf harf tuş göndermek her TV'de ve her yazı kutusunda çalışıyor; IME (toplu yazı) bazı TV'lerde sessizce yok sayılıyor.
-        // Bu yüzden her zaman tuşla yazılır (Türkçe harfler en yakın harfe çevrilir).
-        typeKeys(t)
+        if (!imeReady()) { if (t.isNotEmpty()) typeKeys(t); return }
+        val n = t.length.toLong()
+        send(PB().msg(21, PB().int(1, imeCounter).int(2, fieldCounter)
+            .msg(3, PB().int(1, 1).msg(2, PB().int(1, n).int(2, n).str(3, t)))).out())
+        imeText.value = t
     }
 
     /** Harf harf tuş gönderir (Türkçe harfler en yakın harfe çevrilir: ç→c, ğ→g, ı→i, ö→o, ş→s, ü→u). */
@@ -418,8 +440,26 @@ object AtvRemote {
             if (state.value != State.Connected) return false
         }
         val s = sock ?: return false
+        closeLaterIfHidden()
         return runCatching { write(s.outputStream, PB().msg(90, PB().str(1, url)).out()) }.isSuccess
     }
 
     fun disconnect() { runCatching { sock?.close() }; sock = null; state.value = State.Idle }
+
+    // ---- Uygulama arka plandayken bağlantıyı bırak ----
+    // Bu bağlantı açıkken Google TV kendi ekran klavyesini gizler ("Mobil cihazınızdaki klavyeyi kullanın").
+    // Telefonda TV Gönder kapalıyken TV kumandasıyla yazabilmek için ekranlar kapanınca 30 sn sonra bağlantı kapatılır.
+    private val life = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var visible = 0
+    @Volatile private var idleClosed = false
+    private val idleClose = Runnable { if (visible <= 0 && sock != null) { disconnect(); idleClosed = true } }
+    fun uiStarted() {
+        visible++; life.removeCallbacks(idleClose)
+        // Arka planda kapattıysak, uygulamaya dönünce sessizce yeniden bağlan
+        val c = appCtx; val h = host
+        if (idleClosed && c != null && h != null && isPaired(c, h)) { idleClosed = false; connect(c, h) }
+    }
+    fun uiStopped() { visible = (visible - 1).coerceAtLeast(0); if (visible == 0) { life.removeCallbacks(idleClose); life.postDelayed(idleClose, 30_000) } }
+    /** Ekran yokken (ör. Paylaş ile link) açılan bağlantı da bir süre sonra kapansın. */
+    private fun closeLaterIfHidden() { if (visible == 0) { life.removeCallbacks(idleClose); life.postDelayed(idleClose, 30_000) } }
 }

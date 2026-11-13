@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() { super.onStart(); AtvRemote.uiStarted() }
+    override fun onStop() { AtvRemote.uiStopped(); super.onStop() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store(this)

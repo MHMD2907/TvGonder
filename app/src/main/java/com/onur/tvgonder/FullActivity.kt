@@ -20,6 +20,9 @@ class FullActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() { super.onStart(); AtvRemote.uiStarted() }
+    override fun onStop() { AtvRemote.uiStopped(); super.onStop() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -52,6 +55,9 @@ class FullActivity : ComponentActivity() {
 
 /** Kızılötesi kumanda sayfası (dikey; telefonun üst kenarı cihaza doğrultulur). */
 class IrActivity : ComponentActivity() {
+    override fun onStart() { super.onStart(); AtvRemote.uiStarted() }
+    override fun onStop() { AtvRemote.uiStopped(); super.onStop() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppTheme { com.onur.tvgonder.ui.IrRemoteScreen { finish() } } }
@@ -60,6 +66,9 @@ class IrActivity : ComponentActivity() {
 
 /** TV kumandası sayfası (dikey). */
 class AtvActivity : ComponentActivity() {
+    override fun onStart() { super.onStart(); AtvRemote.uiStarted() }
+    override fun onStop() { AtvRemote.uiStopped(); super.onStop() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppTheme { com.onur.tvgonder.ui.AtvRemoteScreen { finish() } } }

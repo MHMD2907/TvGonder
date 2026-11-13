@@ -1,4 +1,4 @@
-// v0.49 – 2026-11-11: Fare/Kumanda: son tıklamanın TV'de uygulanıp uygulanmadığı görünür; kaydırılabilir, fare alanı sabit; TV'ye yazı, yön tuşları, Fare düzeltme
+// v0.51 – 2026-11-13: Fare/Kumanda: imleçte ivme (hızlı ve hassas); son tıklama sonucu; kaydırılabilir, fare alanı sabit; TV'ye yazı, yön tuşları
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -160,7 +160,10 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                         .pointerInput(Unit) {
                             detectDragGestures { change, drag ->
                                 change.consume()
-                                rx += drag.x * speed; ry += drag.y * speed
+                                // İvme: yavaş kaydırınca hassas, hızlı kaydırınca imleç ekranı çabuk geçer
+                                val d = kotlin.math.hypot(drag.x, drag.y)
+                                val acc = speed * (1f + (d / 10f).coerceAtMost(3f))
+                                rx += drag.x * acc; ry += drag.y * acc
                                 val ix = rx.toInt(); val iy = ry.toInt()
                                 if (ix != 0 || iy != 0) { remote.send("m $ix $iy"); rx -= ix; ry -= iy }
                             }
