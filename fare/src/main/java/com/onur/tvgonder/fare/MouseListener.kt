@@ -1,4 +1,4 @@
-// v1.6 – 2026-11-11: onaylı telefonlar kalıcı saklanır (TV Gönder kapalıyken de fare çalışır); diag; dinleyici hiç ölmez; fare + dokunma + launch
+// v1.7 – 2026-11-16: autoaccept (TV Gönder'den, ekran paylaşım onayı); onaylı telefonlar kalıcı; diag; dinleyici hiç ölmez
 package com.onur.tvgonder.fare
 
 import android.os.SystemClock
@@ -75,6 +75,8 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
                 val b = "pong".toByteArray()
                 s.send(DatagramPacket(b, b.size, pkt.address, pkt.port))
             }
+            // Yalnız aynı cihazdaki TV Gönder'den: 20 sn içinde çıkan ekran paylaşım onayına otomatik bas
+            "autoaccept" -> if (pkt.address.isLoopbackAddress) svc.acceptUntil = SystemClock.elapsedRealtime() + 20_000
             // Son tıklamanın sonucu (telefonda gösterilir: TV'de uygulandı mı)
             "diag" -> {
                 val b = svc.lastResult.toByteArray()

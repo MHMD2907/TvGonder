@@ -1,4 +1,4 @@
-// v0.51 – 2026-11-13: kılavuz: TV'ye canlı yazı; kurulum kontrolü; göreve göre bölümler
+// v0.52 – 2026-11-16: kılavuz: imleç hızı, TV ekranını gör otomatik onay; TV'ye canlı yazı; kurulum kontrolü
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -60,6 +60,7 @@ object GuideText {
         "🖱️ Telefonla fare ve kumanda" to listOf(
             "Fare (her uygulamada, TV Gönder kapalı olsa bile):",
             "1. Telefonda Fare / Kumanda → üstte \"✓ Fare her uygulamada çalışıyor\" yazmalı. Yazmıyorsa çıkan \"TV'de Fare eklentisini aç\" düğmesine bas.",
+            "• İmleç çok hızlı / yavaşsa: fare alanının üstündeki 🐢—🐇 kaydırıcısıyla ayarla (telefon hatırlar).",
             "2. Parmağını kaydır: imleç gezer. Dokun: tıklar. Basılı tut: uzun basar. Sağdaki ↕ şerit: sayfayı kaydırır.",
             "• Tıklamanın gidip gitmediği altta yazar: \"uygulandı ✓\" / \"düğmeye basıldı ✓\". \"TV kabul etmedi\" yazarsa orada düğme yoktur (oyun/video alanı); yön tuşları + OK'i dene.",
             "Kumanda:",
@@ -81,7 +82,7 @@ object GuideText {
             "• İlk seferde \"Diğer uygulamaların üzerinde göster\" izni ver: yansıtma sürerken telefon ekranı kapanmaz.",
             "• YouTube/Spotify sesini başka uygulamaya vermez (görüntü gelir, ses gelmez); YouTube için link gönder. Netflix gibi korumalı uygulamalar siyah görünür.",
             "TV'nin ekranını telefonda gör ve yönet:",
-            "1. \"TV ekranını gör\" → TV'de çıkan izin penceresinde kumandayla Başla.",
+            "1. \"TV ekranını gör\" → Fare eklentisi açıksa TV'deki onay penceresine kendisi basar, görüntü doğrudan gelir (açık değilse TV'de kumandayla Başla).",
             "2. Telefonda TV görüntüsüne dokununca TV'de oraya tıklanır. Kapat / Geri / Ana ekran sağ sütunda.",
             "• TV'de başka uygulama açıkken de çalışır.",
         ),

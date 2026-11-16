@@ -1,4 +1,4 @@
-// v0.51 – 2026-11-13: sürüm 0.51 (TV klavyesi doğru IME ile canlı yazı, arka planda bağlantı bırakılır; imleç ivmesi; kopma azaltıldı)
+// v0.52 – 2026-11-16: sürüm 0.52 (imleç hızı ayarı; TV ekranını gör TV onayı olmadan — Fare 1.7)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 53
-        versionName = "0.51"
+        versionCode = 54
+        versionName = "0.52"
     }
     signingConfigs {
         getByName("debug") {

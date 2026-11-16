@@ -1,4 +1,4 @@
-// v0.51 – 2026-11-13: Fare/Kumanda: imleçte ivme (hızlı ve hassas); son tıklama sonucu; kaydırılabilir, fare alanı sabit; TV'ye yazı, yön tuşları
+// v0.52 – 2026-11-16: Fare/Kumanda: imleç hızı ayarı (kaydırıcı, saklanır), yumuşak ivme; son tıklama sonucu; TV'ye yazı, yön tuşları
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -36,6 +36,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -101,7 +102,9 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
             if (!keysOn) ctx.getSharedPreferences("atv", 0).getString("host", null)?.let { com.onur.tvgonder.AtvRemote.connect(ctx, it) }
         }
         fun k(code: Int) = com.onur.tvgonder.AtvRemote.key(code)
-        val speed = 1.8f
+        // İmleç hızı: kullanıcı ayarlar, telefonda saklanır (TV çözünürlüğüne göre farklı hissedilebilir)
+        val mp = remember { ctx.getSharedPreferences("mouse", 0) }
+        var speed by remember { mutableStateOf(mp.getFloat("speed", 1.2f)) }
         var rx by remember { mutableStateOf(0f) }
         var ry by remember { mutableStateOf(0f) }
         var sAcc by remember { mutableStateOf(0f) }
@@ -151,6 +154,16 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                 else -> {}
             }
             // Dokunmatik yüzey + kaydırma şeridi (sabit yükseklik: yazılar onu küçültmesin)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("🐢", style = MaterialTheme.typography.titleMedium)
+                Slider(
+                    value = speed, onValueChange = { speed = it }, valueRange = 0.4f..3f,
+                    onValueChangeFinished = { mp.edit().putFloat("speed", speed).apply() },
+                    modifier = Modifier.weight(1f),
+                )
+                Text("🐇", style = MaterialTheme.typography.titleMedium)
+            }
+            Text("İmleç hızı: kaydırarak ayarla", color = TextMuted, style = MaterialTheme.typography.bodySmall)
             Row(Modifier.height(300.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(24.dp)).background(PanelHi)
@@ -162,7 +175,7 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                                 change.consume()
                                 // İvme: yavaş kaydırınca hassas, hızlı kaydırınca imleç ekranı çabuk geçer
                                 val d = kotlin.math.hypot(drag.x, drag.y)
-                                val acc = speed * (1f + (d / 10f).coerceAtMost(3f))
+                                val acc = speed * (1f + (d / 16f).coerceAtMost(1.5f))
                                 rx += drag.x * acc; ry += drag.y * acc
                                 val ix = rx.toInt(); val iy = ry.toInt()
                                 if (ix != 0 || iy != 0) { remote.send("m $ix $iy"); rx -= ix; ry -= iy }

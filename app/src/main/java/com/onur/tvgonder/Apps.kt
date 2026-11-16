@@ -1,4 +1,4 @@
-// v0.49 – 2026-11-11: Fare eklentisi 1.6 (tıklama düzeltmesi, TV Gönder kapalıyken de çalışır); gerçek çalışma yoklaması; uygulamalar
+// v0.52 – 2026-11-16: Fare 1.7 (ekran paylaşım onayına otomatik basma); takılma yoklaması; uygulamalar listesi, aç/kaldır
 package com.onur.tvgonder
 
 import android.content.Context
@@ -68,7 +68,7 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 7
+    const val FARE_LATEST = 8
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {
@@ -102,6 +102,20 @@ object Apps {
         }.getOrDefault(false)
         aliveAt = now; aliveVal = ok
         return ok
+    }
+
+    /** Fare eklentisine: birazdan çıkacak ekran paylaşım onayına kendin bas (20 sn). Arka planda gönderir. */
+    fun fareAutoAccept(c: Context) {
+        if (!fareEnabled(c)) return
+        val token = com.onur.tvgonder.Store(c).devices().keys.firstOrNull() ?: return
+        Thread {
+            runCatching {
+                java.net.DatagramSocket().use { s ->
+                    val b = "$token autoaccept".toByteArray()
+                    s.send(java.net.DatagramPacket(b, b.size, java.net.InetAddress.getByName("127.0.0.1"), 8767))
+                }
+            }
+        }.start()
     }
 
     fun fareEnabled(c: Context): Boolean =

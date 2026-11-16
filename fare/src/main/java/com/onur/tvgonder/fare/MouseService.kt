@@ -1,4 +1,4 @@
-// v1.6 – 2026-11-11: TV Gönder Fare 1.6: tıklama ekrandaki düğmeye doğrudan basar (dokunmayı yok sayan TV'lerde de), olmazsa dokunma; sonuç bildirimi; imleç
+// v1.7 – 2026-11-16: TV Gönder Fare 1.7: TV Gönder isteyince ekran paylaşım onayına kendisi basar (TV'den onay gerekmez); düğmeye doğrudan tıklama; imleç
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -11,6 +11,7 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -228,7 +229,63 @@ class MouseService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    /**
+     * Otomatik onay: yalnız TV Gönder az önce istediyse (eşleşmiş telefonun "TV ekranını gör" isteği, 20 sn içinde)
+     * sistemin "ekranı paylaş" ve mikrofon izni pencerelerindeki onay düğmesine basar. Başka hiçbir durumda dokunmaz.
+     */
+    @Volatile var acceptUntil = 0L
+    private val acceptWords = listOf(
+        "şimdi başlat", "start now", "başlat", "start", "paylaş", "share", "ekranı paylaş", "share screen",
+        "uygulamayı kullanırken", "while using the app", "yalnızca bu sefer", "only this time", "izin ver", "allow",
+    )
+    private val acceptPkgs = setOf("com.android.systemui", "android", "com.android.permissioncontroller", "com.google.android.permissioncontroller")
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null || SystemClock.elapsedRealtime() > acceptUntil) return
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg !in acceptPkgs) return
+        main.postDelayed({ autoAccept() }, 300)
+    }
+
+    private fun autoAccept() {
+        if (SystemClock.elapsedRealtime() > acceptUntil) return
+        val roots = buildList {
+            runCatching { windows.mapNotNullTo(this) { it.root } }
+            rootInActiveWindow?.let { add(it) }
+        }.filter { it.packageName?.toString() in acceptPkgs }
+        for (root in roots) {
+            val all = ArrayDeque<android.view.accessibility.AccessibilityNodeInfo>().apply { add(root) }
+            val buttons = mutableListOf<android.view.accessibility.AccessibilityNodeInfo>()
+            var guard = 0
+            while (all.isNotEmpty() && guard++ < 800) {
+                val n = all.removeFirst()
+                if (n.isClickable && n.isEnabled) buttons.add(n)
+                for (i in 0 until n.childCount) n.getChild(i)?.let { all.add(it) }
+            }
+            // Düğme yazısı (kendisi ya da çocuğu) sözlükteki ilk eşleşen kelimeye göre: en güçlü eşleşme önce
+            for (w in acceptWords) {
+                val b = buttons.firstOrNull { b -> textOf(b).equals(w, true) } ?: buttons.firstOrNull { b -> textOf(b).contains(w, true) }
+                if (b != null) {
+                    if (b.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                        // Mikrofon izni sonrası paylaşım penceresi de gelebilir: süreyi kısa tut ama kapatma
+                        acceptUntil = minOf(acceptUntil, SystemClock.elapsedRealtime() + 8000)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    private fun textOf(n: android.view.accessibility.AccessibilityNodeInfo): String {
+        val t = (n.text ?: n.contentDescription)?.toString()
+        if (!t.isNullOrBlank()) return t.trim()
+        for (i in 0 until n.childCount) {
+            val c = n.getChild(i) ?: continue
+            val ct = (c.text ?: c.contentDescription)?.toString()
+            if (!ct.isNullOrBlank()) return ct.trim()
+        }
+        return ""
+    }
     override fun onInterrupt() {}
 
     override fun onDestroy() {

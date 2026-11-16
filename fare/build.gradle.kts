@@ -1,4 +1,4 @@
-// v1.6 – 2026-11-11: "TV Gönder Fare" 1.6 — tıklama düzeltmesi (düğmeye doğrudan basma), TV Gönder kapalıyken de çalışır; yalnız TV/tablete kurulur
+// v1.7 – 2026-11-16: "TV Gönder Fare" 1.7 — TV ekranını gör onayına otomatik basma; tıklama düzeltmesi; yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.6"
+        versionCode = 8
+        versionName = "1.7"
     }
     signingConfigs {
         getByName("debug") {

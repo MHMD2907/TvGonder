@@ -1,4 +1,4 @@
-// v0.23 – 2026-10-19: TV'de: tablet "TV ekranını gör" deyince ekran kaydı iznini sorar, verilirse TV ekranını tablete yollar
+// v0.52 – 2026-11-16: TV'de: eşleşmiş telefon "TV ekranını gör" deyince onaya Fare eklentisi kendisi basar (TV'den onay gerekmez); ekran ve ses telefona gider
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -36,6 +36,8 @@ class MirrorConsentActivity : ComponentActivity() {
         key = intent.getStringExtra("key") ?: ""
         if (savedInstanceState != null) return
         val name = intent.getStringExtra("name") ?: "Tablet"
+        // İstek eşleşmiş telefondan geldi (sunucu anahtarla doğruladı): onay penceresine Fare eklentisi kendisi bassın
+        com.onur.tvgonder.Apps.fareAutoAccept(this)
         Toast.makeText(this, "$name TV ekranını görmek istiyor", Toast.LENGTH_LONG).show()
         if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             mic.launch(Manifest.permission.RECORD_AUDIO)
