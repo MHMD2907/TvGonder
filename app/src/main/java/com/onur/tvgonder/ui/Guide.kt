@@ -1,4 +1,4 @@
-// v0.52 – 2026-11-16: kılavuz: imleç hızı, TV ekranını gör otomatik onay; TV'ye canlı yazı; kurulum kontrolü
+// v0.53 – 2026-11-17: kılavuz: video çubuğu, otomatik sıradaki, PS5 notu; imleç hızı; canlı yazı; kurulum kontrolü
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -60,6 +60,8 @@ object GuideText {
         "🖱️ Telefonla fare ve kumanda" to listOf(
             "Fare (her uygulamada, TV Gönder kapalı olsa bile):",
             "1. Telefonda Fare / Kumanda → üstte \"✓ Fare her uygulamada çalışıyor\" yazmalı. Yazmıyorsa çıkan \"TV'de Fare eklentisini aç\" düğmesine bas.",
+            "• Videoda ileri/geri: ilerleme çubuğunda gitmek istediğin yere dokun (ya da kaydır). TV ekranını gör'de sağdaki ⏪ ⏩ ⏯ tuşları da var.",
+            "• ⏭ \"Video bitince sıradakine otomatik geç\" anahtarını açarsan (Fare / Kumanda ekranında) video bitince sağdaki \"N. soru\" ya da \"Sıradaki\" düğmesine kendisi basar.",
             "• İmleç çok hızlı / yavaşsa: fare alanının üstündeki 🐢—🐇 kaydırıcısıyla ayarla (telefon hatırlar).",
             "2. Parmağını kaydır: imleç gezer. Dokun: tıklar. Basılı tut: uzun basar. Sağdaki ↕ şerit: sayfayı kaydırır.",
             "• Tıklamanın gidip gitmediği altta yazar: \"uygulandı ✓\" / \"düğmeye basıldı ✓\". \"TV kabul etmedi\" yazarsa orada düğme yoktur (oyun/video alanı); yön tuşları + OK'i dene.",
@@ -99,6 +101,7 @@ object GuideText {
         ),
         "🎮 Oyun" to listOf(
             "• En iyisi gerçek oyun kolu: PS4/PS5/Xbox kolunu TV'de Ayarlar → Kumandalar ve aksesuarlar → Aksesuar eşle ile bağla (PS kolunda PS + Share'e ışık yanıp sönene kadar bas).",
+            "• PlayStation (PS5/PS4) yalnız Sony kollarını kabul eder; telefon PS5'e kol olarak bağlanamaz. Telefondan PS5 oynamak için Sony'nin \"PS Remote Play\" uygulamasını kullan.",
             "• Telefondaki \"Oyun kolu\" Wi‑Fi ile yön tuşları ve A/B gönderir; menüler ve basit oyunlar için uygundur, çoğu oyun bunu gerçek kol olarak görmez.",
             "• Tabletteki oyunu TV'de oynamak: tablette \"Ekranı TV'de göster\", oyunu tablette oyna (biraz gecikme olur).",
         ),

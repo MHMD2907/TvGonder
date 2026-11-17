@@ -1,4 +1,4 @@
-// v1.7 – 2026-11-16: "TV Gönder Fare" 1.7 — TV ekranını gör onayına otomatik basma; tıklama düzeltmesi; yalnız TV/tablete kurulur
+// v1.8 – 2026-11-17: "TV Gönder Fare" 1.8 — video çubuğu ileri-geri, otomatik sıradaki; yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
     }
     signingConfigs {
         getByName("debug") {

@@ -1,4 +1,4 @@
-// v0.52 – 2026-11-16: Fare/Kumanda: imleç hızı ayarı (kaydırıcı, saklanır), yumuşak ivme; son tıklama sonucu; TV'ye yazı, yön tuşları
+// v0.53 – 2026-11-17: Fare/Kumanda: otomatik sıradaki video anahtarı; imleç hızı ayarı; son tıklama sonucu; TV'ye yazı, yön tuşları
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -129,11 +129,22 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                     LaunchedEffect(Unit) {
                         while (true) { diag = withContext(Dispatchers.IO) { remote.fareDiag() }; kotlinx.coroutines.delay(1500) }
                     }
+                    // Video bitince sıradakine otomatik geç (Fare eklentisi 1.8+); telefon hatırlar, açılışta eklentiye bildirilir
+                    var autoNext by remember { mutableStateOf(mp.getBoolean("autoNext", false)) }
+                    LaunchedEffect(Unit) { remote.send("autonext " + if (autoNext) "1" else "0") }
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("⏭ Video bitince sıradakine otomatik geç", Modifier.weight(1f), color = TextMain, style = MaterialTheme.typography.bodyMedium)
+                            androidx.compose.material3.Switch(checked = autoNext, onCheckedChange = {
+                                autoNext = it; mp.edit().putBoolean("autoNext", it).apply()
+                                remote.send("autonext " + if (it) "1" else "0")
+                            })
+                        }
                         Text("✓ Fare her uygulamada çalışıyor", color = Accent, style = MaterialTheme.typography.bodyMedium)
                         when (diag) {
                             "ok" -> Text("Son tıklama TV'de uygulandı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                             "düğme" -> Text("Son tıklama: düğmeye basıldı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                            "otomatik sıradaki" -> Text("Sıradaki videoya otomatik geçildi ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                             "iptal", "red" -> Text("Son tıklamayı TV kabul etmedi. Burada düğme yoksa (oyun/video alanı) OK tuşunu dene.", color = Danger, style = MaterialTheme.typography.bodySmall)
                             else -> {}
                         }

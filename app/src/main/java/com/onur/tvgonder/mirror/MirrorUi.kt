@@ -1,4 +1,4 @@
-// v0.46 – 2026-11-04: TV ekranını gör: düğmeler sağ sütunda (görüntüyü kapatmaz), Fare düzeltme düğmesi; başka uygulama açıkken de başlar; dokunma
+// v0.53 – 2026-11-17: TV ekranını gör: yan sütunda ⏯ ⏪ ⏩ OK hızlı tuşları; Fare düzeltme; başka uygulama açıkken de başlar; otomatik onay
 package com.onur.tvgonder.mirror
 
 import android.Manifest
@@ -325,6 +325,28 @@ fun TvScreenViewer(client: TvClient, store: Store, full: Boolean = false, onClos
         if (s != null) {
             Box(Modifier.fillMaxSize()) {
                 MirrorScreen(s, touch = { remote.send(it) }, onEnd = { s.close(); onClose() }, side = {
+                    // Video için hızlı tuşlar (TV kumandası hizmetiyle; dokunmaktan daha hızlı ve kesin)
+                    val atvOn by com.onur.tvgonder.AtvRemote.state.collectAsState()
+                    LaunchedEffect(Unit) {
+                        if (atvOn != com.onur.tvgonder.AtvRemote.State.Connected)
+                            ctx.getSharedPreferences("atv", 0).getString("host", null)?.let { com.onur.tvgonder.AtvRemote.connect(ctx, it) }
+                    }
+                    listOf(
+                        "⏯" to android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        "⏪" to android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                        "⏩" to android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+                        "OK" to android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                    ).chunked(2).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            row.forEach { (l, k) ->
+                                Text(
+                                    l, Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1E3650))
+                                        .clickable { com.onur.tvgonder.AtvRemote.key(k) }.padding(vertical = 8.dp),
+                                    color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
                     // Fare eklentisi çalışmıyorsa dokunma yalnız TV Gönder ekranlarında olur: tek düğmeyle düzelt
                     if (mouse == 1 || mouse == 0) com.onur.tvgonder.ui.FareFixButton(client, compact = true)
                 })

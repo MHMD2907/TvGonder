@@ -1,4 +1,4 @@
-// v1.7 – 2026-11-16: TV Gönder Fare 1.7: TV Gönder isteyince ekran paylaşım onayına kendisi basar (TV'den onay gerekmez); düğmeye doğrudan tıklama; imleç
+// v1.8 – 2026-11-17: TV Gönder Fare 1.8: video çubuğuna dokunarak/kaydırarak ileri-geri; otomatik sıradaki video; ekran paylaşım onayı; düğmeye doğrudan tıklama
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -45,6 +45,7 @@ class MouseService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         runCatching { setup() }
+        if (getSharedPreferences("fare", MODE_PRIVATE).getBoolean("autoNext", false)) setAutoNext(true)
         // Önceki (ölmüş/eski) dinleyiciyi kapatıp tek ve yeni bir dinleyici başlat
         runCatching { shared?.close() }
         runCatching { listener = MouseListener(this).also { it.isDaemon = true; it.start(); shared = it } }
@@ -171,7 +172,97 @@ class MouseService : AccessibilityService() {
      * Tıklama: noktada gerçek bir düğme varsa (ekranın yarısından küçük) doğrudan ona basılır — dokunmayı yok sayan
      * TV'lerde de çalışır. Yoksa (oyun, çizim alanı, video…) dokunma hareketi gönderilir.
      */
+    /** Noktanın yakınındaki ilerleme çubuğu (video/ses çubuğu ince olduğu için dikeyde payla aranır). */
+    private fun rangeAt(px: Float, py: Float): android.view.accessibility.AccessibilityNodeInfo? = runCatching {
+        val root = rootInActiveWindow ?: return null
+        val r = android.graphics.Rect()
+        val st = ArrayDeque<android.view.accessibility.AccessibilityNodeInfo>().apply { add(root) }
+        var guard = 0
+        while (st.isNotEmpty() && guard++ < 2500) {
+            val n = st.removeLast()
+            n.getBoundsInScreen(r)
+            if (!n.isVisibleToUser) continue
+            val ri = n.rangeInfo
+            if (ri != null && ri.max > ri.min && px >= r.left && px <= r.right && py >= r.top - 45 && py <= r.bottom + 45) return n
+            for (i in 0 until n.childCount) n.getChild(i)?.let { st.add(it) }
+        }
+        null
+    }.getOrNull()
+
+    /** İlerleme çubuğunu ekrandaki x konumuna karşılık gelen değere getirir. */
+    private fun seekTo(n: android.view.accessibility.AccessibilityNodeInfo, px: Float): Boolean = runCatching {
+        val ri = n.rangeInfo ?: return false
+        val r = android.graphics.Rect().also { n.getBoundsInScreen(it) }
+        if (r.width() <= 0) return false
+        val frac = ((px - r.left) / r.width()).coerceIn(0f, 1f)
+        val v = ri.min + (ri.max - ri.min) * frac
+        n.performAction(android.R.id.accessibilityActionSetProgress,
+            android.os.Bundle().apply { putFloat(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, v) })
+    }.getOrDefault(false)
+
+    // ---- Otomatik sıradaki video (telefondan açılıp kapatılır) ----
+    @Volatile var autoNext = false
+        private set
+    private var lastAutoAt = 0L
+    private val numbered = Regex("""(\d+)\s*\.\s*(soru|bölüm|ders|video)""", RegexOption.IGNORE_CASE)
+    private val nextWords = listOf("sıradaki", "sonraki", "next", "devam")
+    private val autoTick = object : Runnable {
+        override fun run() {
+            if (!autoNext) return
+            runCatching { checkAutoNext() }
+            main.postDelayed(this, 1500)
+        }
+    }
+
+    fun setAutoNext(on: Boolean) = main.post {
+        autoNext = on
+        getSharedPreferences("fare", MODE_PRIVATE).edit().putBoolean("autoNext", on).apply()
+        main.removeCallbacks(autoTick)
+        if (on) main.post(autoTick)
+    }
+
+    /**
+     * Öndeki uygulamada ilerleme çubuğu sona geldiyse, sağdaki "N. soru" (ya da "Sıradaki/Sonraki") düğmesine basar.
+     * Yalnız kullanıcı telefondan açtıysa çalışır; 8 sn'de en fazla bir kez.
+     */
+    private fun checkAutoNext() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAutoAt < 8000) return
+        val root = rootInActiveWindow ?: return
+        val pkg = root.packageName?.toString() ?: return
+        if (pkg == "com.onur.tvgonder" || pkg == packageName || pkg == "com.android.systemui") return
+        var seek: android.view.accessibility.AccessibilityNodeInfo? = null
+        val cands = mutableListOf<Pair<android.view.accessibility.AccessibilityNodeInfo, Int>>()   // düğüm, öncelik
+        val st = ArrayDeque<android.view.accessibility.AccessibilityNodeInfo>().apply { add(root) }
+        var guard = 0
+        while (st.isNotEmpty() && guard++ < 2500) {
+            val n = st.removeLast()
+            if (!n.isVisibleToUser) continue
+            val ri = n.rangeInfo
+            if (seek == null && ri != null && ri.max > ri.min) seek = n
+            val t = (n.text ?: n.contentDescription)?.toString()?.trim().orEmpty()
+            if (t.isNotEmpty()) {
+                if (numbered.containsMatchIn(t)) cands += n to 2
+                else if (nextWords.any { t.contains(it, true) } && t.length < 30) cands += n to 1
+            }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { st.add(it) }
+        }
+        val ri = seek?.rangeInfo ?: return
+        if ((ri.current - ri.min) / (ri.max - ri.min) < 0.985f) return
+        val r = android.graphics.Rect()
+        // Numaralılardan en sağdaki = sıradaki; yoksa "Sıradaki/Sonraki"
+        val pick = cands.filter { it.second == 2 }.maxByOrNull { it.first.getBoundsInScreen(r); r.centerX() }?.first
+            ?: cands.firstOrNull { it.second == 1 }?.first ?: return
+        var c: android.view.accessibility.AccessibilityNodeInfo? = pick
+        var hops = 0
+        while (c != null && !c.isClickable && hops++ < 5) c = c.parent
+        val ok = (c ?: pick).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+        if (ok) { lastAutoAt = now; lastResult = "otomatik sıradaki" }
+    }
+
     private fun tapPoint(px: Float, py: Float, ms: Long) {
+        // İlerleme çubuğuna dokunuş: videoyu o noktaya götür
+        if (ms < 300) rangeAt(px, py)?.let { if (seekTo(it, px)) { lastResult = "düğme"; return } }
         if (ms < 300) {
             val n = runCatching { clickableAt(px, py) }.getOrNull()
             if (n != null) {
@@ -204,6 +295,9 @@ class MouseService : AccessibilityService() {
     }
 
     fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long) = main.post {
+        // Video ilerleme çubuğunda kaydırma: çubuğu bırakılan noktaya getir (dokunmayı yok sayan TV'lerde de çalışır)
+        val sx = x1 * w; val sy = y1 * h
+        rangeAt(sx, sy)?.let { if (seekTo(it, x2 * w)) { lastResult = "düğme"; return@post } }
         val p = Path().apply {
             moveTo((x1 * w).coerceIn(1f, w - 2f), (y1 * h).coerceIn(1f, h - 2f))
             lineTo((x2 * w).coerceIn(1f, w - 2f), (y2 * h).coerceIn(1f, h - 2f))

@@ -1,4 +1,4 @@
-// v0.52 – 2026-11-16: Fare 1.7 (ekran paylaşım onayına otomatik basma); takılma yoklaması; uygulamalar listesi, aç/kaldır
+// v0.53 – 2026-11-17: Fare 1.8 (video çubuğu, otomatik sıradaki); ekran paylaşım onayı; takılma yoklaması; uygulamalar
 package com.onur.tvgonder
 
 import android.content.Context
@@ -68,7 +68,7 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 8
+    const val FARE_LATEST = 9
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {

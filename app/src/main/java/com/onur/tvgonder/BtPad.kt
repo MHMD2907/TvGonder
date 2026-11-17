@@ -1,4 +1,4 @@
-// v0.35 – 2026-10-23: oyun kolu/kumanda tuşları TV kumandası bağlıysa Wi‑Fi'dan gider (Bluetooth eşleşmesi gerekmez); Bluetooth yedek yol
+// v0.53 – 2026-11-17: oyun kolu Wi‑Fi: tuşlar tek basış (A=OK, B=Geri, L1/R1 sar, X/Y oyun tuşu); yönler basılı tut; Bluetooth yedek
 package com.onur.tvgonder
 
 import android.annotation.SuppressLint
@@ -230,6 +230,12 @@ object BtPad {
         MODE to android.view.KeyEvent.KEYCODE_BUTTON_MODE, L3 to android.view.KeyEvent.KEYCODE_BUTTON_THUMBL,
         R3 to android.view.KeyEvent.KEYCODE_BUTTON_THUMBR,
     )
+    private val wifiBtn = mapOf(
+        A to android.view.KeyEvent.KEYCODE_DPAD_CENTER, B to android.view.KeyEvent.KEYCODE_BACK,
+        START to android.view.KeyEvent.KEYCODE_MENU, SELECT to android.view.KeyEvent.KEYCODE_BACK,
+        L1 to android.view.KeyEvent.KEYCODE_MEDIA_REWIND, R1 to android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+        MODE to android.view.KeyEvent.KEYCODE_HOME,
+    )
     private val consumerKey = mapOf(
         C_BACK to android.view.KeyEvent.KEYCODE_BACK, C_HOME to android.view.KeyEvent.KEYCODE_HOME,
         C_MENU to android.view.KeyEvent.KEYCODE_MENU, C_PLAY to android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -267,7 +273,12 @@ object BtPad {
 
     fun press(btn: Int, down: Boolean) {
         buttons = if (down) buttons or (1 shl btn) else buttons and (1 shl btn).inv()
-        if (wifi) { btnKey[btn]?.let { AtvRemote.key(it, if (down) 1 else 2) }; return }
+        // Wi‑Fi (Google TV kumanda hizmeti): oyun kolu tuşları basılı-tut olarak gönderilince TV'nin çoğu bunları yok sayıyor;
+        // tek basış olarak gönderilir. A = OK (seç), B = Geri: menülerde ve TV oyunlarının çoğunda doğrudan çalışır.
+        if (wifi) {
+            if (down) (wifiBtn[btn] ?: btnKey[btn])?.let { AtvRemote.key(it, 3) }
+            return
+        }
         sendPad()
     }
 
