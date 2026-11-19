@@ -68,7 +68,7 @@ object Apps {
 
     const val FARE = "com.onur.tvgonder.fare"
     /** Bu sürümle gelen en yeni Fare eklentisi sürümü. */
-    const val FARE_LATEST = 9
+    const val FARE_LATEST = 10
 
     /** Kurulu Fare eklentisinin sürüm numarası; kurulu değilse -1. */
     fun fareVersion(c: Context): Long = runCatching {

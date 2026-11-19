@@ -1,4 +1,4 @@
-// v0.45 – 2026-11-02: TV ekranı isteği TV kumandası linkini destekler; Fare eklentisini kur/aç; uzaktan uygulamalar, fare komutları, indirme
+// v0.54 – 2026-11-19: ileri/geri sarma, otomatik sıradaki ve ekran yapısı komutları Fare eklentisine gider (önceden yanlış uygulamaya gidiyordu); Fare dökümü
 package com.onur.tvgonder
 
 import android.content.Context
@@ -25,7 +25,7 @@ class Remote(private val host: String, private val token: String) {
     private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
     @Volatile private var addr: java.net.InetAddress? = null
 
-    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home", "t", "lp", "sw")
+    private val mouseCmds = setOf("m", "c", "lc", "s", "back", "home", "t", "lp", "sw", "seek", "autonext", "dump")
 
     /** Fare komutlarının gideceği yer: 8767 = Fare eklentisi (her yerde), 8766 = TV Gönder'in kendi faresi. */
     @Volatile var mousePort = 8767
@@ -269,6 +269,10 @@ class TvClient(private val store: Store) {
         val body = JSONObject().put("port", port).put("key", key).put("name", name).put("atv", atv).toString().toRequestBody(jsonType)
         http.newCall(builder("${base()}/mirror/request").post(body).build()).execute().use { return check(it).optString("goId").ifBlank { null } }
     }
+
+    /** Fare eklentisinin son ekran yapısı dökümü (boşsa ""). */
+    fun fareDump(): String =
+        http.newCall(builder("${base()}/fare/dump").get().build()).execute().use { it.body?.string().orEmpty() }
 
     /** TV'de Fare eklentisini kurar ya da açma listesini açar. Dönen: "install" | "enable" | "ok". */
     fun fareSetup(): String {

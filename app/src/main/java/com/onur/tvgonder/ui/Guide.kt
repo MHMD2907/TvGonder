@@ -1,4 +1,4 @@
-// v0.53 – 2026-11-17: kılavuz: video çubuğu, otomatik sıradaki, PS5 notu; imleç hızı; canlı yazı; kurulum kontrolü
+// v0.54 – 2026-11-19: kılavuz: ⏪⏩ sarma, ekran yapısını gönder; otomatik sıradaki; imleç hızı; canlı yazı; kurulum kontrolü
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -60,7 +60,8 @@ object GuideText {
         "🖱️ Telefonla fare ve kumanda" to listOf(
             "Fare (her uygulamada, TV Gönder kapalı olsa bile):",
             "1. Telefonda Fare / Kumanda → üstte \"✓ Fare her uygulamada çalışıyor\" yazmalı. Yazmıyorsa çıkan \"TV'de Fare eklentisini aç\" düğmesine bas.",
-            "• Videoda ileri/geri: ilerleme çubuğunda gitmek istediğin yere dokun (ya da kaydır). TV ekranını gör'de sağdaki ⏪ ⏩ ⏯ tuşları da var.",
+            "• Videoda ileri/geri: Fare / Kumanda ya da TV ekranını gör'deki ⏪ ⏩ (Fare eklentisi video çubuğunu bulup sarar; çubuk gizliyse önce denetimleri açar). Çubukta bir yere dokunmak da olur.",
+            "• Bir uygulamada bir şey çalışmazsa: Fare / Kumanda → \"🔍 Ekran yapısını gönder\" → WhatsApp/Drive ile bilgisayara al → RESİM klasörüne koy. Hangi düğmenin ne olduğu oradan anlaşılır.",
             "• ⏭ \"Video bitince sıradakine otomatik geç\" anahtarını açarsan (Fare / Kumanda ekranında) video bitince sağdaki \"N. soru\" ya da \"Sıradaki\" düğmesine kendisi basar.",
             "• İmleç çok hızlı / yavaşsa: fare alanının üstündeki 🐢—🐇 kaydırıcısıyla ayarla (telefon hatırlar).",
             "2. Parmağını kaydır: imleç gezer. Dokun: tıklar. Basılı tut: uzun basar. Sağdaki ↕ şerit: sayfayı kaydırır.",

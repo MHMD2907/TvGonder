@@ -1,4 +1,4 @@
-// v0.46 – 2026-11-04: Fare eklentisi gerçekten çalışıyor mu (takılmışsa "restart"); başka uygulama öndeyken TV ekranı isteği TV kumandası linkiyle
+// v0.54 – 2026-11-19: /fare/dump (ekran yapısı dökümü, destek için); Fare durumu; başka uygulama öndeyken TV ekranı isteği; uyum bilgisi
 package com.onur.tvgonder
 
 import android.content.Context
@@ -45,6 +45,17 @@ class ReceiverServer(
             return json(if (ok) 200 else 401, JSONObject().put("ok", ok))
         }
 
+        // Fare eklentisinden ekran yapısı dökümü (yalnız TV'nin kendisinden)
+        if (path == "/fare/dump" && s.method == Method.POST) {
+            val local = s.remoteIpAddress == "127.0.0.1" || s.remoteIpAddress == "::1"
+            if (!local) return json(403, JSONObject().put("ok", false))
+            val len = (s.headers["content-length"]?.toIntOrNull() ?: 0).coerceIn(0, 400_000)
+            val buf = ByteArray(len); var r = 0
+            while (r < len) { val n = s.inputStream.read(buf, r, len - r); if (n < 0) break; r += n }
+            fareDump = String(buf, 0, r, Charsets.UTF_8)
+            return json(200, JSONObject().put("ok", true))
+        }
+
         val token = s.headers["x-token"]
         if (token == null || !store.devices().containsKey(token)) {
             return json(401, JSONObject().put("error", "Bu telefon eşleşmemiş"))
@@ -74,6 +85,8 @@ class ReceiverServer(
                 json(if (ok) 200 else 400, JSONObject().put("ok", ok).put("error", "Kaldırma penceresi açılamadı"))
             }
             path == "/mirror/request" && s.method == Method.POST -> mirrorRequest(s)
+            path == "/fare/dump" && s.method == Method.GET ->
+                newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", fareDump ?: "")
             // Telefondan "TV'de Fare'yi aç": kurulu değilse kurar, kapalıysa TV'de erişilebilirlik listesini açar
             path == "/fare/setup" && s.method == Method.POST -> {
                 val ver = Apps.fareVersion(ctx)
@@ -305,6 +318,9 @@ class ReceiverServer(
     }
 
     private fun clean(n: String) = n.replace('/', '_').replace('\\', '_').trim()
+
+    /** Fare eklentisinin son gönderdiği ekran yapısı (destek için telefona verilir). */
+    @Volatile private var fareDump: String? = null
 
     private fun readBody(s: IHTTPSession): String {
         val len = s.headers["content-length"]?.toIntOrNull() ?: 0

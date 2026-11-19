@@ -1,4 +1,4 @@
-// v1.8 – 2026-11-17: autonext; autoaccept; onaylı telefonlar kalıcı; diag; dinleyici hiç ölmez
+// v1.9 – 2026-11-19: seek (ileri/geri), dump (ekran yapısı); autonext; autoaccept; onaylı telefonlar kalıcı; diag
 package com.onur.tvgonder.fare
 
 import android.os.SystemClock
@@ -77,6 +77,8 @@ class MouseListener(private val svc: MouseService) : Thread("tvgonder-fare") {
             }
             // Yalnız aynı cihazdaki TV Gönder'den: 20 sn içinde çıkan ekran paylaşım onayına otomatik bas
             // Telefondan: video bitince sıradakine otomatik geç (1/0)
+            "seek" -> svc.seek(parts.getOrNull(2) != "b")
+            "dump" -> svc.dump()
             "autonext" -> svc.setAutoNext(parts.getOrNull(2) == "1")
             "autoaccept" -> if (pkt.address.isLoopbackAddress) svc.acceptUntil = SystemClock.elapsedRealtime() + 20_000
             // Son tıklamanın sonucu (telefonda gösterilir: TV'de uygulandı mı)

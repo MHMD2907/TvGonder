@@ -1,4 +1,4 @@
-// v1.8 – 2026-11-17: "TV Gönder Fare" 1.8 — video çubuğu ileri-geri, otomatik sıradaki; yalnız TV/tablete kurulur
+// v1.9 – 2026-11-19: "TV Gönder Fare" 1.9 — ileri/geri sarma, ekran yapısı dökümü; yalnız TV/tablete kurulur
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder.fare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.8"
+        versionCode = 10
+        versionName = "1.9"
     }
     signingConfigs {
         getByName("debug") {

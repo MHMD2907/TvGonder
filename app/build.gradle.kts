@@ -1,4 +1,4 @@
-// v0.53 – 2026-11-17: sürüm 0.53 (video çubuğu ileri-geri, otomatik sıradaki, TV ekranını gör hızlı tuşları, oyun kolu tuşları)
+// v0.54 – 2026-11-19: sürüm 0.54 (⏪⏩ sarma ve otomatik sıradaki Fare eklentisine doğru gider; ekran yapısı gönderme; Fare 1.9)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 55
-        versionName = "0.53"
+        versionCode = 56
+        versionName = "0.54"
     }
     signingConfigs {
         getByName("debug") {

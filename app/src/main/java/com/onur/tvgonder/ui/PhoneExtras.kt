@@ -1,4 +1,4 @@
-// v0.53 – 2026-11-17: Fare/Kumanda: otomatik sıradaki video anahtarı; imleç hızı ayarı; son tıklama sonucu; TV'ye yazı, yön tuşları
+// v0.54 – 2026-11-19: Fare/Kumanda: ⏪⏩ videoyu sarar (Fare eklentisiyle), ekran yapısını gönder (destek); otomatik sıradaki; imleç hızı; TV'ye yazı
 package com.onur.tvgonder.ui
 
 import android.content.ContentValues
@@ -145,9 +145,37 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
                             "ok" -> Text("Son tıklama TV'de uygulandı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                             "düğme" -> Text("Son tıklama: düğmeye basıldı ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                             "otomatik sıradaki" -> Text("Sıradaki videoya otomatik geçildi ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                            "ileri sarıldı", "geri sarıldı" -> Text("Video $diag ✓", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                            "çubuk yok", "çubuk sarılamadı" -> Text("Bu uygulamada video çubuğu bulunamadı. Aşağıdaki \"Ekran yapısını gönder\" ile bana ilet.", color = Danger, style = MaterialTheme.typography.bodySmall)
                             "iptal", "red" -> Text("Son tıklamayı TV kabul etmedi. Burada düğme yoksa (oyun/video alanı) OK tuşunu dene.", color = Danger, style = MaterialTheme.typography.bodySmall)
                             else -> {}
                         }
+                        // Destek: öndeki TV uygulamasının ekran yapısını al ve paylaş (WhatsApp/Drive → RESİM klasörü)
+                        val dScope = rememberCoroutineScope()
+                        var dumping by remember { mutableStateOf(false) }
+                        TextButton(enabled = !dumping, onClick = {
+                            dumping = true
+                            remote.send("dump")
+                            dScope.launch {
+                                kotlinx.coroutines.delay(2500)
+                                val txt = withContext(Dispatchers.IO) { runCatching { com.onur.tvgonder.TvClient(store).fareDump() }.getOrDefault("") }
+                                dumping = false
+                                if (txt.isBlank()) {
+                                    android.widget.Toast.makeText(ctx, "Ekran yapısı alınamadı (Fare eklentisi 1.9 gerekli)", android.widget.Toast.LENGTH_LONG).show()
+                                } else {
+                                    val f = java.io.File(java.io.File(ctx.cacheDir, "update").apply { mkdirs() }, "ekran-yapisi.txt").apply { writeText(txt) }
+                                    val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)
+                                    runCatching {
+                                        ctx.startActivity(android.content.Intent.createChooser(
+                                            android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                                                .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                            "Ekran yapısını gönder",
+                                        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    }
+                                }
+                            }
+                        }) { Text(if (dumping) "Ekran yapısı alınıyor…" else "🔍 Ekran yapısını gönder (sorun bildirmek için)") }
                     }
                 }
                 1 -> Column(
@@ -236,9 +264,9 @@ fun RemoteDialog(store: Store, onClose: () -> Unit) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Key("⏮") { remote.send("prev") }
-                Key("⏪") { remote.send("rw") }
+                Key("⏪") { if (mode == 2) remote.send("seek b") else remote.send("rw") }
                 Key("⏯") { if (keysOn) k(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) else remote.send("play") }
-                Key("⏩") { remote.send("ff") }
+                Key("⏩") { if (mode == 2) remote.send("seek f") else remote.send("ff") }
                 Key("⏭") { remote.send("next") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

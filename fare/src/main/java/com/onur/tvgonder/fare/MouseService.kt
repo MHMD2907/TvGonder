@@ -1,4 +1,4 @@
-// v1.8 – 2026-11-17: TV Gönder Fare 1.8: video çubuğuna dokunarak/kaydırarak ileri-geri; otomatik sıradaki video; ekran paylaşım onayı; düğmeye doğrudan tıklama
+// v1.9 – 2026-11-19: TV Gönder Fare 1.9: ⏪⏩ ileri/geri sarma (çubuğu bulur, gizliyse denetimleri açar), ekran yapısı dökümü (destek); otomatik sıradaki; onay; tıklama
 package com.onur.tvgonder.fare
 
 import android.accessibilityservice.AccessibilityService
@@ -172,6 +172,104 @@ class MouseService : AccessibilityService() {
      * Tıklama: noktada gerçek bir düğme varsa (ekranın yarısından küçük) doğrudan ona basılır — dokunmayı yok sayan
      * TV'lerde de çalışır. Yoksa (oyun, çizim alanı, video…) dokunma hareketi gönderilir.
      */
+    /** İlerleme çubuğu gibi görünen öğe: aralık bilgisi, sınıf adı ya da ileri/geri kaydırma eylemi. */
+    private fun isSeekLike(n: android.view.accessibility.AccessibilityNodeInfo): Boolean {
+        val ri = n.rangeInfo
+        if (ri != null && ri.max > ri.min) return true
+        val c = n.className?.toString().orEmpty()
+        if (listOf("SeekBar", "TimeBar", "Slider", "ProgressBar").any { c.contains(it, true) }) return true
+        val acts = n.actionList.map { it.id }
+        return android.R.id.accessibilityActionSetProgress in acts
+    }
+
+    /** Öndeki penceredeki ilk ilerleme çubuğu benzeri öğe. */
+    private fun findSeek(): android.view.accessibility.AccessibilityNodeInfo? = runCatching {
+        val root = rootInActiveWindow ?: return null
+        val st = ArrayDeque<android.view.accessibility.AccessibilityNodeInfo>().apply { add(root) }
+        var guard = 0
+        while (st.isNotEmpty() && guard++ < 2500) {
+            val n = st.removeFirst()
+            if (n.isVisibleToUser && isSeekLike(n)) return n
+            for (i in 0 until n.childCount) n.getChild(i)?.let { st.add(it) }
+        }
+        null
+    }.getOrNull()
+
+    /**
+     * Videoyu ileri/geri sarar ([forward]). Önce ilerleme çubuğu aranır; yoksa denetimler gizlidir: ekranın ortasına
+     * basılıp denetimler açılır ve tekrar denenir.
+     */
+    fun seek(forward: Boolean) = main.post { seekStep(forward, true) }
+
+    private fun seekStep(forward: Boolean, retry: Boolean) {
+        val n = findSeek()
+        if (n == null) {
+            if (retry) {
+                nodeClick(w / 2f, h / 2f).let { if (!it) gesture(Path().apply { moveTo(w / 2f, h / 2f) }, 60) }
+                main.postDelayed({ seekStep(forward, false) }, 600)
+            } else lastResult = "çubuk yok"
+            return
+        }
+        val ri = n.rangeInfo
+        val ok = runCatching {
+            if (ri != null && ri.max > ri.min) {
+                val step = (ri.max - ri.min) * 0.05f
+                val v = (ri.current + if (forward) step else -step).coerceIn(ri.min, ri.max)
+                n.performAction(android.R.id.accessibilityActionSetProgress,
+                    android.os.Bundle().apply { putFloat(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, v) }) ||
+                    n.performAction(if (forward) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            } else n.performAction(if (forward) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+        }.getOrDefault(false)
+        lastResult = if (ok) (if (forward) "ileri sarıldı" else "geri sarıldı") else "çubuk sarılamadı"
+    }
+
+    /**
+     * Destek için: öndeki pencerenin yapısını metne döker (sınıf, yazı, eylemler, konum, aralık) ve TV Gönder'e yollar.
+     * Kişisel bilgi taşımaz; yalnız ekrandaki öğelerin türü ve yazısı. Telefondan "Ekran yapısını al" ile istenir.
+     */
+    fun dump() = Thread {
+        val sb = StringBuilder()
+        runCatching {
+            val r = android.graphics.Rect()
+            val roots = runCatching { windows.mapNotNull { it.root } }.getOrDefault(emptyList()).ifEmpty { listOfNotNull(rootInActiveWindow) }
+            sb.append("TV Gönder Fare 1.9 ekran yapısı · ekran ${w}x$h\n")
+            var count = 0
+            for (root in roots) {
+                sb.append("=== pencere: ${root.packageName}\n")
+                fun walk(n: android.view.accessibility.AccessibilityNodeInfo, d: Int) {
+                    if (count++ > 1500) return
+                    n.getBoundsInScreen(r)
+                    val acts = n.actionList.mapNotNull { a ->
+                        when (a.id) {
+                            android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK -> "tık"
+                            android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> "ileri"
+                            android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> "geri"
+                            android.R.id.accessibilityActionSetProgress -> "ilerleme"
+                            else -> null
+                        }
+                    }
+                    val ri = n.rangeInfo?.let { " aralık=${it.min}..${it.max} şu an=${it.current}" } ?: ""
+                    val t = (n.text ?: n.contentDescription)?.toString()?.replace("\n", " ")?.take(60) ?: ""
+                    sb.append("  ".repeat(d)).append(n.className?.toString()?.substringAfterLast('.') ?: "?")
+                        .append(if (t.isNotEmpty()) " \"$t\"" else "")
+                        .append(" [${r.left},${r.top} ${r.width()}x${r.height()}]")
+                        .append(if (acts.isNotEmpty()) " " + acts.joinToString(",") else "")
+                        .append(if (!n.isVisibleToUser) " gizli" else "").append(ri).append('\n')
+                    for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, d + 1) }
+                }
+                walk(root, 0)
+            }
+        }
+        runCatching {
+            val b = sb.toString().toByteArray(Charsets.UTF_8)
+            val c = java.net.URL("http://127.0.0.1:8765/fare/dump").openConnection() as java.net.HttpURLConnection
+            c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 1500; c.readTimeout = 3000
+            c.setFixedLengthStreamingMode(b.size)
+            c.outputStream.use { it.write(b) }
+            c.responseCode; c.disconnect()
+        }
+    }.start()
+
     /** Noktanın yakınındaki ilerleme çubuğu (video/ses çubuğu ince olduğu için dikeyde payla aranır). */
     private fun rangeAt(px: Float, py: Float): android.view.accessibility.AccessibilityNodeInfo? = runCatching {
         val root = rootInActiveWindow ?: return null
@@ -182,8 +280,7 @@ class MouseService : AccessibilityService() {
             val n = st.removeLast()
             n.getBoundsInScreen(r)
             if (!n.isVisibleToUser) continue
-            val ri = n.rangeInfo
-            if (ri != null && ri.max > ri.min && px >= r.left && px <= r.right && py >= r.top - 45 && py <= r.bottom + 45) return n
+            if (isSeekLike(n) && px >= r.left && px <= r.right && py >= r.top - 45 && py <= r.bottom + 45) return n
             for (i in 0 until n.childCount) n.getChild(i)?.let { st.add(it) }
         }
         null
@@ -191,9 +288,13 @@ class MouseService : AccessibilityService() {
 
     /** İlerleme çubuğunu ekrandaki x konumuna karşılık gelen değere getirir. */
     private fun seekTo(n: android.view.accessibility.AccessibilityNodeInfo, px: Float): Boolean = runCatching {
-        val ri = n.rangeInfo ?: return false
         val r = android.graphics.Rect().also { n.getBoundsInScreen(it) }
         if (r.width() <= 0) return false
+        val ri = n.rangeInfo
+        if (ri == null || ri.max <= ri.min) {
+            // Aralık bilinmiyor: çubuğun sağ yarısına dokunuş ileri, sol yarısına geri sarar
+            return n.performAction(if (px > r.centerX()) android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+        }
         val frac = ((px - r.left) / r.width()).coerceIn(0f, 1f)
         val v = ri.min + (ri.max - ri.min) * frac
         n.performAction(android.R.id.accessibilityActionSetProgress,
