@@ -1,4 +1,4 @@
-// v0.8 – 2026-10-12: Belge tara (kamera, otomatik kırpma); çoklu seçim, düzen, önizleme, PDF olarak kaydet
+// v0.55 – 2026-11-27: Kimlik tara düğmesi (ön+arka tek kağıt, gerçek boyut, kendiliğinden Kimlik düzeni); çift taraflı yazdırma; sayfa başına 2/4/6; belge tara, önizleme, PDF
 package com.onur.tvgonder.ui
 
 import android.app.Activity
@@ -89,6 +89,10 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
     var landscape by remember { mutableStateOf(false) }
     var color by remember { mutableStateOf(store.defColor) }
     var sheet by remember { mutableIntStateOf(0) }
+    /** 0 tek yüz, 1 çift yüz (uzun kenar), 2 çift yüz (kısa kenar) */
+    var duplex by remember { mutableIntStateOf(0) }
+    /** Kimlik taraması: sonuç gelince düzen Kimlik yapılır (ön + arka tek kağıtta, gerçek boyutta) */
+    var idScan by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
 
     val job = PrintJob(items.toList())
@@ -114,21 +118,30 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
 
     fun clear() {
         items.clear(); thumbs.clear(); preview = null; error = null; info = null
-        layout = Layout.One; a5 = store.defA5; color = store.defColor; landscape = false; sheet = 0
+        layout = Layout.One; a5 = store.defA5; color = store.defColor; landscape = false; sheet = 0; duplex = 0
     }
 
     val scan = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
         if (r.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
         val res = GmsDocumentScanningResult.fromActivityResultIntent(r.data)
         val pages = res?.pages?.map { it.imageUri }.orEmpty()
-        if (pages.isNotEmpty()) add(pages)
+        if (pages.isNotEmpty()) {
+            // Kimlik taraması ya da yalnız 1–2 sayfa tarandıysa ve başka dosya yoksa: kimlik düzeni (tek kağıt, kart boyutu)
+            if (idScan || (items.isEmpty() && pages.size <= 2 && layout == Layout.One)) {
+                layout = Layout.Id; landscape = false; a5 = false; sheet = 0
+                info = "Kimlik düzeni seçildi: ön ve arka yüz tek kağıda, gerçek kart boyutunda (85,6 × 54 mm)."
+            }
+            add(pages)
+        }
+        idScan = false
     }
 
-    fun startScan() {
+    fun startScan(forId: Boolean = false) {
+        idScan = forId
         val act = ctx.findActivity() ?: return
         val opts = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(true)
-            .setPageLimit(30)
+            .setPageLimit(if (forId) 2 else 30)
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
             .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
             .build()
@@ -188,6 +201,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                 onPhotos = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onFiles = { pickFiles.launch(arrayOf("application/pdf", "image/*")) },
                 onScan = { startScan() },
+                onIdScan = { startScan(forId = true) },
             )
             if (busy) Text("Açılıyor…", color = Accent)
         } else {
@@ -219,6 +233,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                     onPhotos = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     onFiles = { pickFiles.launch(arrayOf("application/pdf", "image/*")) },
                     onScan = { startScan() },
+                    onIdScan = { startScan(forId = true) },
                     add = true,
                 )
             }
@@ -233,7 +248,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                 Text(
                     when (layout) {
                         Layout.One -> "Her resim / PDF sayfası ayrı kağıda, sayfaya sığdırılarak."
-                        Layout.Two, Layout.Four, Layout.Six -> "Bir kağıda ${layout.perSheet} resim/sayfa. Kağıt tasarrufu için."
+                        Layout.Two, Layout.Four, Layout.Six -> "Sayfa başına ${layout.perSheet}: bir kağıda ${layout.perSheet} resim/PDF sayfası küçültülerek basılır."
                         Layout.Id -> "Ön ve arka yüzü sırayla seç ya da \"Belge tara\" ile çek (kenarlar otomatik kırpılır). Gerçek kart boyutunda (85,6 × 54 mm) alt alta basılır."
                     },
                     style = MaterialTheme.typography.bodyMedium, color = TextMuted,
@@ -250,6 +265,16 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                     FilterChip(selected = color, onClick = { color = true }, label = { Text("Renkli") })
                     FilterChip(selected = !color, onClick = { color = false }, label = { Text("Siyah-beyaz") })
                 }
+                Text("Çift taraflı", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = duplex == 0, onClick = { duplex = 0 }, label = { Text("Tek yüz") })
+                    FilterChip(selected = duplex == 1, onClick = { duplex = 1 }, label = { Text("Çift yüz (kitap gibi)") })
+                    FilterChip(selected = duplex == 2, onClick = { duplex = 2 }, label = { Text("Çift yüz (bloknot gibi)") })
+                }
+                if (duplex != 0) Text(
+                    "Yazıcın çift taraflı basabiliyorsa bu ayar yazdırma ekranına hazır gelir (\"İki taraflı\" seçili). Desteklemiyorsa orada görünmez.",
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted,
+                )
             }
 
             // Önizleme
@@ -286,7 +311,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                 Button(
                     enabled = !busy,
                     onClick = {
-                        error = runCatching { Printing.print(ctx, PrintJob(items.toList()), layout, a5, landscape, color) }
+                        error = runCatching { Printing.print(ctx, PrintJob(items.toList()), layout, a5, landscape, color, duplex) }
                             .exceptionOrNull()?.message
                     },
                     modifier = Modifier.weight(1.6f).height(54.dp), shape = RoundedCornerShape(14.dp),
@@ -301,7 +326,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
                 modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp),
             ) { Text(if (busy) "Hazırlanıyor…" else "PDF olarak kaydet") }
             Text(
-                "Yazıcıyı, sayfa aralığını ve kopya sayısını sonraki ekranda seçersin.",
+                "Yazıcıyı, sayfa aralığını ve kopya sayısını sonraki ekranda seçersin. Kimlikte orada \"Sayfaya sığdır\" varsa KAPAT (gerçek boyut için).",
                 style = MaterialTheme.typography.bodyMedium, color = TextMuted,
             )
         }
@@ -312,7 +337,7 @@ fun PrintScreen(incoming: List<Uri> = emptyList(), onIncomingHandled: () -> Unit
 }
 
 @Composable
-private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, onScan: () -> Unit, add: Boolean = false) {
+private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, onScan: () -> Unit, onIdScan: () -> Unit, add: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         val m = Modifier.height(if (add) 48.dp else 96.dp)
@@ -325,10 +350,16 @@ private fun PickRow(busy: Boolean, onPhotos: () -> Unit, onFiles: () -> Unit, on
         }
     }
     if (add) {
-        OutlinedButton(enabled = !busy, onClick = onScan, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("+ Belge tara") }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(enabled = !busy, onClick = onScan, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("+ Belge tara") }
+            OutlinedButton(enabled = !busy, onClick = onIdScan, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("+ Kimlik tara") }
+        }
     } else {
-        Button(enabled = !busy, onClick = onScan, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(18.dp)) {
-            Text("📷  Belge / kimlik tara (kamera)")
+        Button(enabled = !busy, onClick = onIdScan, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(18.dp)) {
+            Text("🪪  Kimlik / kart tara (ön + arka → tek kağıt)")
+        }
+        OutlinedButton(enabled = !busy, onClick = onScan, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) {
+            Text("📷  Belge tara (çok sayfa)")
         }
     }
     }

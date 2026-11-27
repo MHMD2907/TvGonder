@@ -1,4 +1,4 @@
-// v0.54 – 2026-11-19: kılavuz: ⏪⏩ sarma, ekran yapısını gönder; otomatik sıradaki; imleç hızı; canlı yazı; kurulum kontrolü
+// v0.55 – 2026-11-27: kılavuz: kimlik tarama tek kağıt, çift taraflı ve sayfa başına 2/4/6; sarma, otomatik sıradaki; kurulum kontrolü
 package com.onur.tvgonder.ui
 
 import androidx.compose.foundation.background
@@ -116,9 +116,15 @@ object GuideText {
             "• Telefona indirmek: telefonda \"TV'deki dosyalar\" → dosyaya dokun (İndirilenler/TvGonder'e iner).",
         ),
         "🖨️ Yazdırma" to listOf(
-            "1. Yazdır sekmesi → Fotoğraf, Dosya / PDF ya da Belge / kimlik tara.",
-            "2. Düzen (Tek, 2'li, 4'lü, 6'lı, Kimlik), kağıt (A4/A5, Dikey/Yatay), renk seç; önizlemeye bak.",
-            "3. Yazıcıya gönder → Android ekranında yazıcıyı seç. Ya da PDF olarak kaydet.",
+            "Kimlik / kart (ön + arka tek kağıtta, gerçek boyutta):",
+            "1. Yazdır → \"🪪 Kimlik / kart tara\" → önce ön yüzü, sonra arka yüzü çek (kenarlar kendiliğinden kırpılır).",
+            "2. Düzen kendiliğinden \"Kimlik\" olur: iki yüz tek A4'e, 85,6 × 54 mm alt alta. Önizlemede \"Kağıt 1 / 1\" görünür.",
+            "3. Yazıcıya gönder ya da PDF olarak kaydet (tek sayfalık PDF). Yazdırma ekranında \"Sayfaya sığdır\" varsa kapat.",
+            "Diğer belgeler:",
+            "1. Fotoğraf, Dosya / PDF ya da Belge tara → seç.",
+            "2. Düzen: Tek, Sayfa başına 2 / 4 / 6, Kimlik. Kağıt A4/A5, Dikey/Yatay, Renkli/Siyah-beyaz.",
+            "3. Çift taraflı: Tek yüz / Çift yüz (kitap gibi) / Çift yüz (bloknot gibi). Yazıcı destekliyorsa yazdırma ekranına hazır gelir.",
+            "4. Yazıcıya gönder → yazıcıyı seç. \"PDF olarak kaydet\" hepsini tek PDF yapar.",
         ),
         "🔴 Kızılötesi kumanda (telefonda verici varsa)" to listOf(
             "1. Kızılötesi kumanda → + Cihaz ekle → tür → marka → model.",

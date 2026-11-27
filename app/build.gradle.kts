@@ -1,4 +1,4 @@
-// v0.54 – 2026-11-19: sürüm 0.54 (⏪⏩ sarma ve otomatik sıradaki Fare eklentisine doğru gider; ekran yapısı gönderme; Fare 1.9)
+// v0.55 – 2026-11-27: sürüm 0.55 (kimlik tarama tek kağıt gerçek boyut, çift taraflı yazdırma)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.onur.tvgonder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 56
-        versionName = "0.54"
+        versionCode = 57
+        versionName = "0.55"
     }
     signingConfigs {
         getByName("debug") {

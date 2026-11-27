@@ -1,4 +1,4 @@
-// v0.6 – 2026-10-12: çoklu dosya, sayfa düzeni (Tek/2'li/4'lü/6'lı/Kimlik), önizleme, PDF olarak kaydetme
+// v0.55 – 2026-11-27: çift taraflı yazdırma (uzun/kısa kenar); kimlik gerçek boyut; çoklu dosya, sayfa düzeni (Tek/2'li/4'lü/6'lı/Kimlik), önizleme, PDF
 package com.onur.tvgonder
 
 import android.app.Activity
@@ -173,11 +173,12 @@ object Printing {
 
         if (layout == Layout.Id) {
             // Kimlik/kart: 85,6 × 54 mm, üst üste, arada boşluk; kesim için ince çerçeve.
+            // Gerçek boyut: kağıt (nokta) birimi mm ile tam ölçekli; A4/A5'te ölçek 1 kalır.
             var cw = mm(85.6f); var ch = mm(54f)
-            val gap = mm(12f)
+            val gap = mm(10f)
             val fit = min(1f, min(r.width() / cw, (r.height() - gap) / (2 * ch)))
             cw *= fit; ch *= fit
-            val top = r.top + mm(6f)
+            val top = r.top + mm(10f)
             val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 0.6f; this.color = Color.LTGRAY }
             tiles.forEachIndexed { k, (item, page) ->
                 val box = RectF(r.centerX() - cw / 2, top + k * (ch + gap), r.centerX() + cw / 2, top + k * (ch + gap) + ch)
@@ -250,13 +251,20 @@ object Printing {
     }
 
     /** Android'in yazdırma ekranını açar. Yazıcı, sayfa aralığı ve kopya o ekranda seçilir. */
-    fun print(ctx: Context, job: PrintJob, layout: Layout, a5: Boolean, landscape: Boolean, color: Boolean) {
+    fun print(ctx: Context, job: PrintJob, layout: Layout, a5: Boolean, landscape: Boolean, color: Boolean, duplex: Int = 0) {
         val activity = findActivity(ctx) ?: error("Yazdırma ekranı açılamadı.")
         val base = if (a5) PrintAttributes.MediaSize.ISO_A5 else PrintAttributes.MediaSize.ISO_A4
         val attrs = PrintAttributes.Builder()
             .setMediaSize(if (landscape) base.asLandscape() else base.asPortrait())
             .setColorMode(if (color) PrintAttributes.COLOR_MODE_COLOR else PrintAttributes.COLOR_MODE_MONOCHROME)
             .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+            .apply {
+                if (Build.VERSION.SDK_INT >= 23) setDuplexMode(when (duplex) {
+                    1 -> PrintAttributes.DUPLEX_MODE_LONG_EDGE
+                    2 -> PrintAttributes.DUPLEX_MODE_SHORT_EDGE
+                    else -> PrintAttributes.DUPLEX_MODE_NONE
+                })
+            }
             .build()
         val name = if (job.items.size == 1) job.items[0].name else "TV Gönder – ${job.items.size} dosya"
         val pm = activity.getSystemService(Context.PRINT_SERVICE) as PrintManager
